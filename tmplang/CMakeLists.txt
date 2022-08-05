@@ -4,4 +4,18 @@ set(TMPLANG_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard to conform to" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
+include_directories(BEFORE
+  "${TMPLANG_SOURCE_DIR}/include"
+  "${TMPLANG_BINARY_DIR}/include"
+)
+
+# TMPLANG VERSION
+set(TMPLANG_VERSION_MAJOR 0)
+set(TMPLANG_VERSION_MINOR 1)
+set(TMPLANG_VERSION_PATCH 0)
+set(TMPLANG_VERSION_STR "${TMPLANG_VERSION_MAJOR}.${TMPLANG_VERSION_MINOR}.${TMPLANG_VERSION_PATCH}")
+message(STATUS "tmplang version: ${TMPLANG_VERSION}")
+
+add_subdirectory(include)
+add_subdirectory(lib)
 add_subdirectory(tools)
