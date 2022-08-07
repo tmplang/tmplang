@@ -13,7 +13,7 @@ using namespace tmplang;
 namespace {
 
 #define PREFIX(NAME, VALUE) static const char *const NAME[] = VALUE;
-#include <Options.inc>
+#include <tmplang/CLI/Options.inc>
 #undef PREFIX
 
 static constexpr llvm::opt::OptTable::Info TmplangInfoTable[] = {
@@ -23,7 +23,7 @@ static constexpr llvm::opt::OptTable::Info TmplangInfoTable[] = {
    METAVAR,     OPT_##ID,  llvm::opt::Option::KIND##Class,                     \
    PARAM,       FLAGS,     OPT_##GROUP,                                        \
    OPT_##ALIAS, ALIASARGS, VALUES},
-#include <Options.inc>
+#include <tmplang/CLI/Options.inc>
 #undef OPTION
 };
 
