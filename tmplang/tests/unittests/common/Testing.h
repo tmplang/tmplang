@@ -3,4 +3,6 @@
 
 #include <gtest/gtest.h>
 
+#define XFAIL_EQ(first, second) EXPECT_NE(first, second)
+
 #endif // TMPLANG_TESTS_UNITTESTS_COMMON_TESTING_H
