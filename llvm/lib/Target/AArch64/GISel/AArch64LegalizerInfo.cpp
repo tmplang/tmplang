@@ -782,7 +782,6 @@ AArch64LegalizerInfo::AArch64LegalizerInfo(const AArch64Subtarget &ST)
   getActionDefinitionsBuilder({G_SBFX, G_UBFX})
       .customFor({{s32, s32}, {s64, s64}});
 
-  // TODO: Use generic lowering when custom lowering is not possible.
   auto always = [=](const LegalityQuery &Q) { return true; };
   getActionDefinitionsBuilder(G_CTPOP)
       .legalFor({{v8s8, v8s8}, {v16s8, v16s8}})
@@ -1026,6 +1025,30 @@ bool AArch64LegalizerInfo::legalizeIntrinsic(LegalizerHelper &Helper,
     Value.setReg(ZExtValueReg);
     return true;
   }
+  case Intrinsic::prefetch: {
+    MachineIRBuilder MIB(MI);
+    auto &AddrVal = MI.getOperand(1);
+
+    int64_t IsWrite = MI.getOperand(2).getImm();
+    int64_t Locality = MI.getOperand(3).getImm();
+    int64_t IsData = MI.getOperand(4).getImm();
+
+    bool IsStream = Locality == 0;
+    if (Locality != 0) {
+      assert(Locality <= 3 && "Prefetch locality out-of-range");
+      // The locality degree is the opposite of the cache speed.
+      // Put the number the other way around.
+      // The encoding starts at 0 for level 1
+      Locality = 3 - Locality;
+    }
+
+    unsigned PrfOp =
+        (IsWrite << 4) | (!IsData << 3) | (Locality << 1) | IsStream;
+
+    MIB.buildInstr(AArch64::G_PREFETCH).addImm(PrfOp).add(AddrVal);
+    MI.eraseFromParent();
+    return true;
+  }
   }
 
   return true;
@@ -1218,9 +1241,6 @@ bool AArch64LegalizerInfo::legalizeCTPOP(MachineInstr &MI,
   //  uaddlp.4h v0, v0  // v4s16, v2s32
   //  uaddlp.2s v0, v0  //        v2s32
 
-  if (!ST->hasNEON() ||
-      MI.getMF()->getFunction().hasFnAttribute(Attribute::NoImplicitFloat))
-    return false;
   MachineIRBuilder &MIRBuilder = Helper.MIRBuilder;
   Register Dst = MI.getOperand(0).getReg();
   Register Val = MI.getOperand(1).getReg();
@@ -1229,6 +1249,14 @@ bool AArch64LegalizerInfo::legalizeCTPOP(MachineInstr &MI,
   assert(Ty == MRI.getType(Dst) &&
          "Expected src and dst to have the same type!");
   unsigned Size = Ty.getSizeInBits();
+
+  if (!ST->hasNEON() ||
+      MI.getMF()->getFunction().hasFnAttribute(Attribute::NoImplicitFloat)) {
+    // Use generic lowering when custom lowering is not possible.
+    return Ty.isScalar() && (Size == 32 || Size == 64) &&
+           Helper.lowerBitCount(MI) ==
+               LegalizerHelper::LegalizeResult::Legalized;
+  }
 
   // Pre-conditioning: widen Val up to the nearest vector type.
   // s32,s64,v4s16,v2s32 -> v8i8

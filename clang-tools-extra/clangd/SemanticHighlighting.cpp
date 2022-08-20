@@ -542,6 +542,14 @@ public:
     return Base::TraverseConstructorInitializer(Init);
   }
 
+  bool VisitPredefinedExpr(PredefinedExpr *E) {
+    H.addToken(E->getLocation(), HighlightingKind::LocalVariable)
+        .addModifier(HighlightingModifier::Static)
+        .addModifier(HighlightingModifier::Readonly)
+        .addModifier(HighlightingModifier::FunctionScope);
+    return true;
+  }
+
   bool VisitCallExpr(CallExpr *E) {
     // Highlighting parameters passed by non-const reference does not really
     // make sense for literals...
@@ -925,7 +933,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, HighlightingKind K) {
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, HighlightingModifier K) {
   switch (K) {
   case HighlightingModifier::Declaration:
-    return OS << "decl"; // abbrevation for common case
+    return OS << "decl"; // abbreviation for common case
   default:
     return OS << toSemanticTokenModifier(K);
   }

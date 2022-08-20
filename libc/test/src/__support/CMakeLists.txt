@@ -1,6 +1,16 @@
 add_libc_testsuite(libc_support_unittests)
 
 add_libc_unittest(
+  blockstore_test
+  SUITE
+    libc_support_unittests
+  SRCS
+    blockstore_test.cpp
+  DEPENDS
+    libc.src.__support.blockstore
+)
+
+add_libc_unittest(
   endian_test
   SUITE
     libc_support_unittests
@@ -61,6 +71,16 @@ add_libc_unittest(
     uint128_test.cpp
   DEPENDS
     libc.src.__support.CPP.uint
+)
+
+add_libc_unittest(
+  fixedvector_test
+  SUITE
+    libc_support_unittests
+  SRCS
+    fixedvector_test.cpp
+  DEPENDS
+    libc.src.__support.fixedvector
 )
 
 add_executable(

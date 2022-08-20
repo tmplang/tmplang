@@ -528,6 +528,30 @@ func.func @reduce_int(%arg0: vector<16xi32>) -> i32 {
   return %0 : i32
 }
 
+// CHECK-LABEL: @reduce_int
+func.func @reduce_int_0d(%arg0: vector<i32>) -> i32 {
+  // CHECK:    vector.reduction <add>, %{{.*}} : vector<i32> into i32
+  vector.reduction <add>, %arg0 : vector<i32> into i32
+  // CHECK:    vector.reduction <mul>, %{{.*}} : vector<i32> into i32
+  vector.reduction <mul>, %arg0 : vector<i32> into i32
+  // CHECK:    vector.reduction <minui>, %{{.*}} : vector<i32> into i32
+  vector.reduction <minui>, %arg0 : vector<i32> into i32
+  // CHECK:    vector.reduction <minsi>, %{{.*}} : vector<i32> into i32
+  vector.reduction <minsi>, %arg0 : vector<i32> into i32
+  // CHECK:    vector.reduction <maxui>, %{{.*}} : vector<i32> into i32
+  vector.reduction <maxui>, %arg0 : vector<i32> into i32
+  // CHECK:    vector.reduction <maxsi>, %{{.*}} : vector<i32> into i32
+  vector.reduction <maxsi>, %arg0 : vector<i32> into i32
+  // CHECK:    vector.reduction <and>, %{{.*}} : vector<i32> into i32
+  vector.reduction <and>, %arg0 : vector<i32> into i32
+  // CHECK:    vector.reduction <or>, %{{.*}} : vector<i32> into i32
+  vector.reduction <or>, %arg0 : vector<i32> into i32
+  // CHECK:    %[[X:.*]] = vector.reduction <xor>, %{{.*}} : vector<i32> into i32
+  %0 = vector.reduction <xor>, %arg0 : vector<i32> into i32
+  // CHECK:    return %[[X]] : i32
+  return %0 : i32
+}
+
 // CHECK-LABEL: @transpose_fp
 func.func @transpose_fp(%arg0: vector<3x7xf32>) -> vector<7x3xf32> {
   // CHECK: %[[X:.*]] = vector.transpose %{{.*}}, [1, 0] : vector<3x7xf32> to vector<7x3xf32>
@@ -667,6 +691,14 @@ func.func @gather_and_scatter2d(%base: memref<?x?xf32>, %v: vector<16xi32>, %mas
   // CHECK: vector.scatter %{{.*}}[%{{.*}}] [%{{.*}}], %{{.*}}, %[[X]] : memref<?x?xf32>, vector<16xi32>, vector<16xi1>, vector<16xf32>
   vector.scatter %base[%c0, %c0][%v], %mask, %0 : memref<?x?xf32>, vector<16xi32>, vector<16xi1>, vector<16xf32>
   return
+}
+
+// CHECK-LABEL: @gather_on_tensor
+func.func @gather_on_tensor(%base: tensor<?xf32>, %v: vector<16xi32>, %mask: vector<16xi1>, %pass_thru: vector<16xf32>) -> vector<16xf32> {
+  %c0 = arith.constant 0 : index
+  // CHECK: vector.gather %{{.*}}[%{{.*}}] [%{{.*}}], %{{.*}}, %{{.*}} : tensor<?xf32>, vector<16xi32>, vector<16xi1>, vector<16xf32> into vector<16xf32>
+  %0 = vector.gather %base[%c0][%v], %mask, %pass_thru : tensor<?xf32>, vector<16xi32>, vector<16xi1>, vector<16xf32> into vector<16xf32>
+  return %0 : vector<16xf32>
 }
 
 // CHECK-LABEL: @expand_and_compress

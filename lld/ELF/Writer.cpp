@@ -121,19 +121,20 @@ static void removeEmptyPTLoad(SmallVector<PhdrEntry *, 0> &phdrs) {
 
 void elf::copySectionsIntoPartitions() {
   SmallVector<InputSectionBase *, 0> newSections;
+  const size_t ehSize = ehInputSections.size();
   for (unsigned part = 2; part != partitions.size() + 1; ++part) {
     for (InputSectionBase *s : inputSections) {
-      if (!(s->flags & SHF_ALLOC) || !s->isLive())
+      if (!(s->flags & SHF_ALLOC) || !s->isLive() || s->type != SHT_NOTE)
         continue;
-      InputSectionBase *copy;
-      if (s->type == SHT_NOTE)
-        copy = make<InputSection>(cast<InputSection>(*s));
-      else if (auto *es = dyn_cast<EhInputSection>(s))
-        copy = make<EhInputSection>(*es);
-      else
-        continue;
+      auto *copy = make<InputSection>(cast<InputSection>(*s));
       copy->partition = part;
       newSections.push_back(copy);
+    }
+    for (size_t i = 0; i != ehSize; ++i) {
+      assert(ehInputSections[i]->isLive());
+      auto *copy = make<EhInputSection>(*ehInputSections[i]);
+      copy->partition = part;
+      ehInputSections.push_back(copy);
     }
   }
 
@@ -403,6 +404,11 @@ template <class ELFT> void elf::createSyntheticSections() {
       // InputSections.
       part.armExidx = std::make_unique<ARMExidxSyntheticSection>();
       add(*part.armExidx);
+    }
+
+    if (!config->packageMetadata.empty()) {
+      part.packageMetadataNote = std::make_unique<PackageMetadataNote>();
+      add(*part.packageMetadataNote);
     }
   }
 
@@ -1269,7 +1275,7 @@ static DenseMap<const InputSectionBase *, int> buildSectionOrder() {
 
   // We want both global and local symbols. We get the global ones from the
   // symbol table and iterate the object files for the local ones.
-  for (Symbol *sym : symtab->symbols())
+  for (Symbol *sym : symtab->getSymbols())
     addSym(*sym);
 
   for (ELFFileBase *file : ctx->objectFiles)
@@ -1885,7 +1891,7 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
   }
 
   if (config->hasDynSymTab) {
-    parallelForEach(symtab->symbols(), [](Symbol *sym) {
+    parallelForEach(symtab->getSymbols(), [](Symbol *sym) {
       sym->isPreemptible = computeIsPreemptible(*sym);
     });
   }
@@ -1957,7 +1963,7 @@ template <class ELFT> void Writer<ELFT>::finalizeSections() {
     llvm::TimeTraceScope timeScope("Add symbols to symtabs");
     // Now that we have defined all possible global symbols including linker-
     // synthesized ones. Visit all symbols to give the finishing touches.
-    for (Symbol *sym : symtab->symbols()) {
+    for (Symbol *sym : symtab->getSymbols()) {
       if (!sym->isUsedInRegularObj || !includeInSymtab(*sym))
         continue;
       if (!config->relocatable)

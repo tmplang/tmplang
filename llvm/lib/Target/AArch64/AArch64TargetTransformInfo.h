@@ -173,6 +173,7 @@ public:
   InstructionCost getCFInstrCost(unsigned Opcode, TTI::TargetCostKind CostKind,
                                  const Instruction *I = nullptr);
 
+  using BaseT::getVectorInstrCost;
   InstructionCost getVectorInstrCost(unsigned Opcode, Type *Val,
                                      unsigned Index);
 
@@ -207,10 +208,11 @@ public:
                                                     bool IsZeroCmp) const;
   bool useNeonVector(const Type *Ty) const;
 
-  InstructionCost getMemoryOpCost(unsigned Opcode, Type *Src,
-                                  MaybeAlign Alignment, unsigned AddressSpace,
-                                  TTI::TargetCostKind CostKind,
-                                  const Instruction *I = nullptr);
+  InstructionCost
+  getMemoryOpCost(unsigned Opcode, Type *Src, MaybeAlign Alignment,
+                  unsigned AddressSpace, TTI::TargetCostKind CostKind,
+                  TTI::OperandValueKind OpdInfo = TTI::OK_AnyValue,
+                  const Instruction *I = nullptr);
 
   InstructionCost getCostOfKeepingLiveOverCall(ArrayRef<Type *> Tys);
 
@@ -334,6 +336,10 @@ public:
     return 2;
   }
 
+  unsigned getMinTripCountTailFoldingThreshold() const {
+    return ST->hasSVE() ? 5 : 0;
+  }
+
   PredicationStyle emitGetActiveLaneMask() const {
     if (ST->hasSVE())
       return PredicationStyle::DataAndControlFlow;
@@ -343,7 +349,8 @@ public:
   bool preferPredicateOverEpilogue(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
                                    AssumptionCache &AC, TargetLibraryInfo *TLI,
                                    DominatorTree *DT,
-                                   LoopVectorizationLegality *LVL);
+                                   LoopVectorizationLegality *LVL,
+                                   InterleavedAccessInfo *IAI);
 
   bool supportsScalableVectors() const { return ST->hasSVE(); }
 
@@ -365,6 +372,15 @@ public:
                                  ArrayRef<int> Mask, int Index,
                                  VectorType *SubTp,
                                  ArrayRef<const Value *> Args = None);
+
+  /// Return the cost of the scaling factor used in the addressing
+  /// mode represented by AM for this target, for a load/store
+  /// of the specified type.
+  /// If the AM is supported, the return value must be >= 0.
+  /// If the AM is not supported, it returns a negative value.
+  InstructionCost getScalingFactorCost(Type *Ty, GlobalValue *BaseGV,
+                                       int64_t BaseOffset, bool HasBaseReg,
+                                       int64_t Scale, unsigned AddrSpace) const;
   /// @}
 };
 

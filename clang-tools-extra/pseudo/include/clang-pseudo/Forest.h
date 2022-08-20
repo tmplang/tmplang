@@ -79,7 +79,7 @@ public:
   llvm::ArrayRef<const ForestNode *> elements() const {
     assert(kind() == Sequence);
     return children(Data >> RuleBits);
-  };
+  }
 
   // Returns all possible interpretations of the code.
   // REQUIRES: this is an Ambiguous node.
@@ -179,7 +179,7 @@ public:
   }
 
   size_t nodeCount() const { return NodeCount; }
-  size_t bytes() const { return Arena.getBytesAllocated() + sizeof(this); }
+  size_t bytes() const { return Arena.getBytesAllocated() + sizeof(*this); }
 
 private:
   ForestNode &create(ForestNode::Kind K, SymbolID SID, Token::Index Start,
@@ -199,7 +199,9 @@ private:
 };
 
 class ForestNode::RecursiveIterator
-    : public std::iterator<std::input_iterator_tag, const ForestNode> {
+    : public llvm::iterator_facade_base<ForestNode::RecursiveIterator,
+                                        std::input_iterator_tag,
+                                        const ForestNode> {
   llvm::DenseSet<const ForestNode *> Seen;
   struct StackFrame {
     const ForestNode *Parent;
@@ -211,7 +213,7 @@ class ForestNode::RecursiveIterator
 public:
   RecursiveIterator(const ForestNode *N = nullptr) : Cur(N) {}
 
-  const ForestNode &operator*() const { return *Cur; };
+  const ForestNode &operator*() const { return *Cur; }
   void operator++();
   bool operator==(const RecursiveIterator &I) const { return Cur == I.Cur; }
   bool operator!=(const RecursiveIterator &I) const { return !(*this == I); }

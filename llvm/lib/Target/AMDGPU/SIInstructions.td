@@ -344,6 +344,19 @@ def SCHED_GROUP_BARRIER : SPseudoInstSI<
   let isMeta = 1;
 }
 
+def IGLP_OPT : SPseudoInstSI<(outs), (ins i32imm:$mask),
+  [(int_amdgcn_iglp_opt (i32 timm:$mask))]> {
+  let SchedRW = [];
+  let hasNoSchedulingInfo = 1;
+  let hasSideEffects = 1;
+  let mayLoad = 0;
+  let mayStore = 0;
+  let isConvergent = 1;
+  let FixedSize = 1;
+  let Size = 0;
+  let isMeta = 1;
+}
+
 // SI pseudo instructions. These are used by the CFG structurizer pass
 // and should be lowered to ISA instructions prior to codegen.
 
@@ -3355,4 +3368,26 @@ def G_FPTRUNC_ROUND_DOWNWARD : AMDGPUGenericInstruction {
   let OutOperandList = (outs type0:$vdst);
   let InOperandList = (ins type1:$src0);
   let hasSideEffects = 0;
+}
+
+//============================================================================//
+// Dummy Instructions
+//============================================================================//
+
+def V_ILLEGAL_gfx6_gfx7_gfx8_gfx9 : Enc32, InstSI<(outs), (ins), "v_illegal"> {
+  let Inst{31-0} = 0xFFFFFFFF;
+  let FixedSize = 1;
+  let Size = 4;
+  let Uses = [EXEC];
+  let hasSideEffects = 1;
+  let SubtargetPredicate = isGFX6GFX7GFX8GFX9;
+}
+
+def V_ILLEGAL : Enc32, InstSI<(outs), (ins), "v_illegal"> {
+  let Inst{31-0} = 0x00000000;
+  let FixedSize = 1;
+  let Size = 4;
+  let Uses = [EXEC];
+  let hasSideEffects = 1;
+  let SubtargetPredicate = isGFX10Plus;
 }

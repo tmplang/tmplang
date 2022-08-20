@@ -1,6 +1,12 @@
 add_subdirectory(CPP)
 
 add_header_library(
+  blockstore
+  HDRS
+    blockstore.h
+)
+
+add_header_library(
   common
   HDRS
     architectures.h
@@ -68,6 +74,14 @@ add_header_library(
   arg_list
   HDRS
     arg_list.h
+)
+
+add_header_library(
+  fixedvector
+  HDRS
+    fixedvector.h
+  DEPENDS
+    libc.src.__support.CPP.array
 )
 
 add_subdirectory(FPUtil)

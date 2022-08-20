@@ -94,6 +94,8 @@ class GCNTTIImpl final : public BasicTTIImplBase<GCNTTIImpl> {
   // quarter. This also applies to some integer operations.
   int get64BitInstrCost(TTI::TargetCostKind CostKind) const;
 
+  std::pair<InstructionCost, MVT> getTypeLegalizationCost(Type *Ty) const;
+
 public:
   explicit GCNTTIImpl(const AMDGPUTargetMachine *TM, const Function &F);
 
@@ -159,6 +161,7 @@ public:
   bool isInlineAsmSourceOfDivergence(const CallInst *CI,
                                      ArrayRef<unsigned> Indices = {}) const;
 
+  using BaseT::getVectorInstrCost;
   InstructionCost getVectorInstrCost(unsigned Opcode, Type *ValTy,
                                      unsigned Index);
   bool isSourceOfDivergence(const Value *V) const;

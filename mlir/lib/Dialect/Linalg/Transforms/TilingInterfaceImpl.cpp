@@ -50,7 +50,7 @@ static LogicalResult inlinePayload(OpBuilder &b, LinalgOp linalgOp,
   map.map(body->getArguments(), argValues);
   for (auto &op : body->without_terminator()) {
     if (auto indexOp = dyn_cast<IndexOp>(&op)) {
-      map.map(indexOp.getResult(), ivs[indexOp.dim()]);
+      map.map(indexOp.getResult(), ivs[indexOp.getDim()]);
       continue;
     }
     b.clone(op, map);
@@ -161,15 +161,12 @@ struct LinalgOpTilingInterface
         }));
 
     OpOperand *outOperand = linalgOp.getOutputOperand(resultNumber);
-    Value sliceOpResult =
-        makeTiledShape(b, loc, outOperand->get(), sizes,
-                       linalgOp.getTiedIndexingMap(outOperand), offsets,
-                       /*ubs*/ {}, subShapeSizes, true);
-    auto sliceOp = sliceOpResult.getDefiningOp<tensor::ExtractSliceOp>();
-    if (!sliceOp)
-      return failure();
-    resultOffsets = sliceOp.getMixedOffsets();
-    resultSizes = sliceOp.getMixedSizes();
+    SliceParameters sliceParams =
+        computeSliceParameters(b, loc, outOperand->get(), sizes,
+                               linalgOp.getTiedIndexingMap(outOperand), offsets,
+                               /*ubs*/ {}, subShapeSizes, true);
+    resultOffsets = sliceParams.offsets;
+    resultSizes = sliceParams.sizes;
     return success();
   }
 
@@ -263,8 +260,7 @@ static void registerOne(MLIRContext *ctx) {
 /// Variadic helper function.
 template <typename... OpTypes>
 static void registerAll(MLIRContext *ctx) {
-  // FIXME: In c++17 this can be simplified by using 'fold expressions'.
-  (void)std::initializer_list<int>{0, (registerOne<OpTypes>(ctx), 0)...};
+  (registerOne<OpTypes>(ctx), ...);
 }
 
 #define GET_OP_LIST
