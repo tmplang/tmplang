@@ -11,3 +11,4 @@ function(add_tmplang_unittest test_dirname)
 endfunction()
 
 add_subdirectory(lexer)
+add_subdirectory(Parser)
