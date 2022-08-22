@@ -6,7 +6,8 @@ namespace tmplang {
 class Node {
 public:
   enum class Kind {
-    FuncDecl = 0,
+    CompilationUnit = 0,
+    FuncDecl,
     ParamDecl,
   };
 
