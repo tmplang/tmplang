@@ -24,6 +24,10 @@ public:
     return node->getKind() == Node::Kind::CompilationUnit;
   }
 
+  llvm::ArrayRef<std::unique_ptr<Decl>> getDecls() const {
+    return OwnedTopLevelDecls;
+  }
+
 private:
   /// Owned top level declaration
   std::vector<std::unique_ptr<Decl>> OwnedTopLevelDecls;
