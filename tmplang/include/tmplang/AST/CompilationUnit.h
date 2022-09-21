@@ -20,6 +20,10 @@ public:
                                       std::vector<ParamDecl> params,
                                       const Type &returnType);
 
+  static bool classof(const Node *node) {
+    return node->getKind() == Node::Kind::CompilationUnit;
+  }
+
 private:
   /// Owned top level declaration
   std::vector<std::unique_ptr<Decl>> OwnedTopLevelDecls;
