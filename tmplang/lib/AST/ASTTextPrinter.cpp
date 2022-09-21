@@ -1,3 +1,4 @@
+#include <llvm/Support/Debug.h>
 #include <llvm/Support/raw_ostream.h>
 #include <tmplang/AST/RecursiveASTVisitor.h>
 #include <tmplang/AST/RecursiveTypeVisitor.h>
@@ -199,3 +200,12 @@ private:
 };
 
 } // namespace
+
+void tmplang::Node::print(llvm::raw_ostream &os) const {
+  RecursiveASTPrinter(os).visitNode(*this);
+}
+
+void tmplang::Node::dump() const {
+  // FIXME: Set our own debug streams
+  print(llvm::dbgs());
+}
