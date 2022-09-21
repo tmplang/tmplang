@@ -13,3 +13,11 @@ using namespace tmplang;
   }
   llvm_unreachable("BuiltinType case not covered!");
 }
+
+llvm::StringLiteral tmplang::ToString(BuiltinType::Kind kind) {
+  switch (kind) {
+  case BuiltinType::K_i32:
+    return "i32";
+  }
+  llvm::llvm_unreachable_internal("All cases covered");
+}

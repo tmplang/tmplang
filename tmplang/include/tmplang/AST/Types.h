@@ -1,6 +1,7 @@
 #ifndef TMPLANG_AST_TYPES_H
 #define TMPLANG_AST_TYPES_H
 
+#include <llvm/ADT/StringRef.h>
 #include <tmplang/AST/Type.h>
 
 namespace tmplang {
@@ -27,6 +28,7 @@ protected:
 
   Kind BKind;
 };
+llvm::StringLiteral ToString(BuiltinType::Kind kind);
 
 } // namespace tmplang
 
