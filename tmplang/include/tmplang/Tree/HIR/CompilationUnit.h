@@ -5,8 +5,6 @@
 
 namespace tmplang::hir {
 
-class Type;
-
 /// Represents the result of a successfully compiled source file and it is the
 /// root node of every AST. This class contains the ownership of every
 /// declaration found in the source file.
