@@ -53,6 +53,8 @@ static void TestLexer(llvm::StringRef input,
   CheckResult(targetTokens, Lex(input));
 }
 
+TEST(BasicLexer, Empty) { TestLexer("", {{TK_EOF, {1, 1}, {1, 1}}}); }
+
 TEST(BasicLexer, EmptyFn) {
   TestLexer("fn foobar { }", {{TK_FnType, {1, 1}, {1, 2}},
                               {TK_Identifier, {1, 4}, {1, 9}},
@@ -89,4 +91,20 @@ TEST(BasicLexer, UTF8) {
                                        {TK_FnType, {1, 1}, {1, 2}},
                                        {TK_Unknown, {1, 4}, {1, 4}},
                                    });
+}
+
+TEST(BasicLexer, MultiLine) {
+  TestLexer("\tfn foo: a Chr -> Int {\n\n\t}",
+            {
+                {TK_FnType, {1, 2}, {1, 3}},
+                {TK_Identifier, {1, 5}, {1, 7}},
+                {TK_Colon, {1, 8}, {1, 8}},
+                {TK_Identifier, {1, 10}, {1, 10}},
+                {TK_Identifier, {1, 12}, {1, 14}},
+                {TK_RArrow, {1, 16}, {1, 17}},
+                {TK_Identifier, {1, 19}, {1, 21}},
+                {TK_LKeyBracket, {1, 23}, {1, 23}},
+                {TK_RKeyBracket, {3, 2}, {3, 2}},
+                {TK_EOF, {3, 3}, {3, 3}},
+            });
 }
