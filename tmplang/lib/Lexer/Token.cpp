@@ -1,5 +1,7 @@
 #include <tmplang/Lexer/Token.h>
 
+#include <llvm/Support/Debug.h>
+#include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
 
 using namespace tmplang;
@@ -36,7 +38,17 @@ llvm::raw_ostream &tmplang::operator<<(llvm::raw_ostream &out, TokenKind k) {
   return out << ToString(k);
 }
 
-void Token::print(llvm::raw_ostream &out) const { out << Kind; }
+void Token::print(llvm::raw_ostream &out) const {
+  out << llvm::formatv("['{0}' {1}:{2}-{3}:{4}]", ToString(Kind).data(),
+                       StartLocation.Line, StartLocation.Column,
+                       EndLocation.Line, EndLocation.Column);
+}
+
+void Token::dump() const {
+  // FIXME: Add our own debug stream
+  print(llvm::dbgs());
+}
+
 llvm::raw_ostream &tmplang::operator<<(llvm::raw_ostream &out, const Token &t) {
   t.print(out);
   return out;

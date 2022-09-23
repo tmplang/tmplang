@@ -51,7 +51,9 @@ struct Token {
   SourceLocation EndLocation;
 
   bool operator==(const Token &other) const = default;
+
   void print(llvm::raw_ostream &out) const;
+  void dump() const;
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const Token &t);
 };
 
