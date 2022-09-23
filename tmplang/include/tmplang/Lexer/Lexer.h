@@ -15,7 +15,8 @@ public:
 private:
   llvm::StringRef CurrentInput;
   llvm::StringRef OriginalInput;
-  Token CurrentToken = {TK_Unknown};
+  SourceLocation CurrentLocation;
+  Token CurrentToken;
 };
 
 } // namespace tmplang

@@ -4,12 +4,39 @@
 
 using namespace tmplang;
 
-Lexer::Lexer(llvm::StringRef input)
-    : CurrentInput(input), OriginalInput(input) {}
+namespace {
 
-static Token NextImpl(llvm::StringRef &currentInput) {
+/// Auxiliary struct to hold the StartLocation and build tokens
+struct TokenBuilder {
+  explicit TokenBuilder(SourceLocation startLocation)
+      : StartLocation(startLocation) {}
+
+  Token buildToken(TokenKind kind, SourceLocation endLocation) {
+    if (kind == TokenKind::TK_EOF || kind == TokenKind::TK_Unknown) {
+      // If it is a token that adds no characters, do not adjust
+      return Token(kind, StartLocation, endLocation);
+    }
+
+    // Adjust since tokens starts at 1:1
+    return Token(kind, StartLocation,
+                 SourceLocation(endLocation.Line, endLocation.Column - 1));
+  }
+
+  const SourceLocation StartLocation;
+};
+
+} // namespace
+
+Lexer::Lexer(llvm::StringRef input)
+    : CurrentInput(input), OriginalInput(input), CurrentLocation(1, 1),
+      CurrentToken() {}
+
+static Token NextImpl(llvm::StringRef &currentInput,
+                      SourceLocation &currentLocation) {
+  TokenBuilder tkBuilder(currentLocation);
+
   if (currentInput.empty()) {
-    return {TK_EOF};
+    return tkBuilder.buildToken(TK_EOF, currentLocation);
   }
 
   llvm::Optional<TokenKind> simpleTokenMatched;
@@ -36,24 +63,26 @@ static Token NextImpl(llvm::StringRef &currentInput) {
     break;
   case ' ':
   case '\t':
-  case '\r':
   case '\v':
-  case '\f':
-    // TODO: increase column counter`
+    currentLocation.Column++;
     currentInput = currentInput.drop_front();
-    return NextImpl(currentInput);
+    return NextImpl(currentInput, currentLocation);
   case '\n':
-    // TODO: increase line counter`
+  case '\r':
+  case '\f':
+    currentLocation.Line++;
+    currentLocation.Column = 1;
     currentInput = currentInput.drop_front();
-    return NextImpl(currentInput);
+    return NextImpl(currentInput, currentLocation);
   default:
     break;
   }
 
   if (simpleTokenMatched) {
-    currentInput =
-        currentInput.drop_front(ToString(*simpleTokenMatched).size());
-    return {*simpleTokenMatched};
+    const unsigned simpleTokenSize = ToString(*simpleTokenMatched).size();
+    currentLocation.Column += simpleTokenSize;
+    currentInput = currentInput.drop_front(simpleTokenSize);
+    return tkBuilder.buildToken(*simpleTokenMatched, currentLocation);
   }
 
   // Identifier, ProcType and FnType case. Since all of them are a sequence of
@@ -63,7 +92,7 @@ static Token NextImpl(llvm::StringRef &currentInput) {
 
   if (potentialId.empty()) {
     // Invalid identifier, we don't know what this is
-    return {TK_Unknown};
+    return tkBuilder.buildToken(TK_Unknown, currentLocation);
   }
 
   TokenKind tk = llvm::StringSwitch<TokenKind>(potentialId)
@@ -71,10 +100,14 @@ static Token NextImpl(llvm::StringRef &currentInput) {
                      .Case(ToString(TK_FnType), TK_FnType)
                      .Default(TK_Identifier);
 
-  currentInput = currentInput.drop_front(potentialId.size());
-  return {tk};
+  const unsigned potentialIdSize = potentialId.size();
+  currentLocation.Column += potentialIdSize;
+  currentInput = currentInput.drop_front(potentialIdSize);
+  return tkBuilder.buildToken(tk, currentLocation);
 }
 
-Token Lexer::next() { return CurrentToken = NextImpl(CurrentInput); }
+Token Lexer::next() {
+  return CurrentToken = NextImpl(CurrentInput, CurrentLocation);
+}
 
 Token Lexer::prev() const { return CurrentToken; }

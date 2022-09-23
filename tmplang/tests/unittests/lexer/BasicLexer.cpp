@@ -14,7 +14,7 @@ static std::vector<Token> Lex(llvm::StringRef input) {
   std::vector<Token> result;
   Lexer lexer(input);
 
-  Token tok{TK_Unknown};
+  Token tok;
   do {
     tok = lexer.next();
     result.push_back(tok);
@@ -54,36 +54,39 @@ static void TestLexer(llvm::StringRef input,
 }
 
 TEST(BasicLexer, EmptyFn) {
-  TestLexer("fn foobar { }", {{TK_FnType},
-                              {TK_Identifier},
-                              {TK_LKeyBracket},
-                              {TK_RKeyBracket},
-                              {TK_EOF}});
+  TestLexer("fn foobar { }", {{TK_FnType, {1, 1}, {1, 2}},
+                              {TK_Identifier, {1, 4}, {1, 9}},
+                              {TK_LKeyBracket, {1, 11}, {1, 11}},
+                              {TK_RKeyBracket, {1, 13}, {1, 13}},
+                              {TK_EOF, {1, 14}, {1, 14}}});
 }
 
-TEST(BasicLexer, LiteralError) { TestLexer("42abc", {{TK_Unknown}}); }
+TEST(BasicLexer, LiteralError) {
+  TestLexer("42abc", {{TK_Unknown, {1, 1}, {1, 1}}});
+}
 
 TEST(BasicLexer, Joined) {
-  TestLexer("foo,bar{fn", {{TK_Identifier},
-                           {TK_Comma},
-                           {TK_Identifier},
-                           {TK_LKeyBracket},
-                           {TK_FnType},
-                           {TK_EOF}});
+  Token tokens[] = {
+      {TK_Identifier, {1, 1}, {1, 3}}, {TK_Comma, {1, 4}, {1, 4}},
+      {TK_Identifier, {1, 5}, {1, 7}}, {TK_LKeyBracket, {1, 8}, {1, 8}},
+      {TK_FnType, {1, 9}, {1, 10}},    {TK_EOF, {1, 11}, {1, 11}},
+  };
+
+  TestLexer("foo,bar{fn", tokens);
 }
 
 TEST(BasicLexer, Emoji) {
-  TestLexer("🙂🙂🙂", {{TK_Unknown}});
-  TestLexer("🙂a 🍟123 🥰x", {{TK_Unknown}});
+  TestLexer("🙂🙂🙂", {{TK_Unknown, {1, 1}, {1, 1}}});
+  TestLexer("🙂a 🍟123 🥰x", {{TK_Unknown, {1, 1}, {1, 1}}});
 }
 
 TEST(BasicLexer, UTF8) {
-  TestLexer("这是一个演示", {{TK_Unknown}});
+  TestLexer("这是一个演示", {{TK_Unknown, {1, 1}, {1, 1}}});
   // Right-to-left text is a bit mindblowing... I guess this should still be
   // allowed? Or only Right-to-left in the identifiers/words themselves? (not
   // the whole text)
   TestLexer("fn الألم; بعض {:بعض", {
-                                       {TK_FnType},
-                                       {TK_Unknown},
+                                       {TK_FnType, {1, 1}, {1, 2}},
+                                       {TK_Unknown, {1, 4}, {1, 4}},
                                    });
 }
