@@ -1,5 +1,5 @@
-#ifndef TMPLANG_AST_LEXER
-#define TMPLANG_AST_LEXER
+#ifndef TMPLANG_LEXER_LEXER_H
+#define TMPLANG_LEXER_LEXER_H
 
 #include <llvm/ADT/StringRef.h>
 
@@ -56,4 +56,4 @@ private:
 
 } // namespace tmplang
 
-#endif // TMPLANG_AST_LEXER
+#endif // TMPLANG_LEXER_LEXER_H
