@@ -28,8 +28,7 @@ struct TokenBuilder {
 } // namespace
 
 Lexer::Lexer(llvm::StringRef input)
-    : CurrentInput(input), OriginalInput(input), CurrentLocation(1, 1),
-      CurrentToken() {}
+    : CurrentInput(input), CurrentLocation(1, 1), CurrentToken() {}
 
 static Token NextImpl(llvm::StringRef &currentInput,
                       SourceLocation &currentLocation) {

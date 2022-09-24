@@ -14,7 +14,6 @@ public:
 
 private:
   llvm::StringRef CurrentInput;
-  llvm::StringRef OriginalInput;
   SourceLocation CurrentLocation;
   Token CurrentToken;
 };
