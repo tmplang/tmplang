@@ -12,10 +12,20 @@ public:
   Token next();
   Token prev() const;
 
+  struct LexerState {
+    LexerState(llvm::StringRef);
+
+    void advance(unsigned nChars = 1);
+
+    llvm::StringRef CurrentInput;
+    SourceLocation CurrentLocation;
+    Token CurrentToken;
+  };
+
 private:
-  llvm::StringRef CurrentInput;
-  SourceLocation CurrentLocation;
-  Token CurrentToken;
+  Token nextImpl();
+
+  LexerState State;
 };
 
 } // namespace tmplang
