@@ -1,3 +1,4 @@
+#include "tmplang/AST/ASTContext.h"
 #include <Testing.h>
 
 #include <tmplang/Parser/Parser.h>
@@ -5,6 +6,7 @@
 using namespace tmplang;
 
 TEST(ParserTest, Valid) {
+  ASTContext ctx;
   std::array<llvm::StringLiteral, 10> tests = {
       "",
       "proc foo: Type a -> void {}",
@@ -19,11 +21,12 @@ TEST(ParserTest, Valid) {
 
   for (const llvm::StringLiteral &code : tests) {
     Lexer lex(code);
-    EXPECT_TRUE(Parse(lex));
+    EXPECT_TRUE(Parse(lex, ctx));
   }
 }
 
 TEST(ParserTest, Invalid) {
+  ASTContext ctx;
   std::array<llvm::StringLiteral, 9> tests = {
       ":",
       "foo: Type a -> void {}",
@@ -38,6 +41,6 @@ TEST(ParserTest, Invalid) {
 
   for (const llvm::StringLiteral &code : tests) {
     Lexer lex(code);
-    EXPECT_FALSE(Parse(lex));
+    EXPECT_FALSE(Parse(lex, ctx));
   }
 }

@@ -10,6 +10,8 @@ using namespace tmplang;
   switch (kindToRetrieve) {
   case BuiltinType::K_i32:
     return astCtxt.i32Type;
+  case K_Unit:
+    return astCtxt.UnitType;
   }
   llvm_unreachable("BuiltinType case not covered!");
 }

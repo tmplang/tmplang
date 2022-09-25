@@ -1,3 +1,9 @@
+#include "tmplang/AST/Decls.h"
+#include "tmplang/AST/Types.h"
+#include "tmplang/Lexer/Lexer.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <tmplang/AST/ASTContext.h>
 #include <tmplang/Parser/Parser.h>
 
 #include <llvm/ADT/ArrayRef.h>
@@ -31,27 +37,28 @@ namespace {
 
 class Parser {
 public:
-  Parser(Lexer &lex) : Lex(lex) {
+  Parser(Lexer &lex, ASTContext &ctx) : Ctx(ctx), Lex(lex) {
     // Retrieve first token
     Lex.next();
   }
 
-  bool Start();
+  llvm::Optional<CompilationUnit> Start();
 
 private:
-  bool FunctionDefinition();
-  bool ParamList();
-  bool Param();
+  llvm::Optional<FunctionDecl> FunctionDefinition();
+  llvm::Optional<std::vector<ParamDecl>> ParamList();
+  llvm::Optional<ParamDecl> Param();
   bool Block();
-  bool FunctionType();
-  bool Type();
-  bool Identifier();
+  llvm::Optional<FunctionDecl::SubroutineKind> FunctionType();
+  NamedType *Type();
+  llvm::Optional<llvm::StringRef> Identifier();
 
 private:
   bool Match(llvm::ArrayRef<TokenKind> list);
   bool TryMatch(llvm::ArrayRef<TokenKind> list,
                 bool consumeTokenIfMatch = false);
 
+  ASTContext &Ctx;
   Lexer &Lex;
 };
 
@@ -59,16 +66,20 @@ private:
 
 /// Start = Function_Definition*;
 ///       | EOF;
-bool Parser::Start() {
+llvm::Optional<CompilationUnit> Parser::Start() {
+  CompilationUnit result;
   while (true) {
     if (TryMatch({TokenKind::TK_EOF}, /*consumeTok*/ true)) {
-      return true;
+      return result;
     }
 
-    if (!FunctionDefinition()) {
-      return false;
+    llvm::Optional<FunctionDecl> functionDef = FunctionDefinition();
+    if (!functionDef) {
+      return llvm::None;
     }
+    result.AddFunctionDecl(std::move(*functionDef));
   }
+  return result;
 }
 
 /// Function_Definition =
@@ -76,49 +87,89 @@ bool Parser::Start() {
 ///  [2] | Function_Type, Identifier, ":", Param_List, Block
 ///  [3] | Function_Type, Identifier, "->", Type, Block
 ///  [4] | Function_Type, Identifier, Block;
-bool Parser::FunctionDefinition() {
-  const bool funcAndId = FunctionType() && Identifier();
-  if (!funcAndId) {
-    return false;
+llvm::Optional<FunctionDecl> Parser::FunctionDefinition() {
+  llvm::Optional<FunctionDecl::SubroutineKind> subroutineKind = FunctionType();
+  if (!subroutineKind) {
+    return llvm::None;
   }
-
+  llvm::Optional<llvm::StringRef> functionId = Identifier();
+  if (!functionId) {
+    return llvm::None;
+  }
   // [1] && [2]
   if (TryMatch({TK_Colon}, /*consumeTok*/ true)) {
-    if (!ParamList()) {
-      return false;
+    llvm::Optional<std::vector<ParamDecl>> params = ParamList();
+    if (!params) {
+      return llvm::None;
     }
 
     if (TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
-      return Type() && Block(); // [1]
+      NamedType *returnTy = Type();
+      if (!returnTy || !Block()) {
+        return llvm::None;
+      }
+      // [1]
+      return FunctionDecl(*subroutineKind, *functionId, *returnTy, *params);
     }
 
-    return Block(); // [2]
+    // [2]
+    if (!Block()) {
+      return llvm::None;
+    }
+    return FunctionDecl(*subroutineKind, *functionId,
+                        BuiltinType::getType(Ctx, BuiltinType::K_Unit),
+                        *params);
   }
 
   if (TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
-    return Type() && Block(); // [3]
+    NamedType *returnTy = Type();
+    if (!returnTy || !Block()) {
+      return llvm::None;
+    }
+    // [3]
+    return FunctionDecl(*subroutineKind, *functionId, *returnTy, {});
   }
 
-  return Block(); // [4]
+  if (!Block()) {
+    return llvm::None;
+  }
+  // [4]
+  return FunctionDecl(*subroutineKind, *functionId,
+                      BuiltinType::getType(Ctx, BuiltinType::K_Unit), {});
 }
 
 /// Param_List = Param (",", Param)*;
-bool Parser::ParamList() {
-  if (!Param()) {
-    return false;
+llvm::Optional<std::vector<ParamDecl>> Parser::ParamList() {
+  std::vector<ParamDecl> result;
+  llvm::Optional<ParamDecl> par = Param();
+  if (!par) {
+    return llvm::None;
   }
+  result.push_back(std::move(*par));
 
   while (TryMatch({TK_Comma}, /*consumeTok*/ true)) {
-    if (!Param()) {
-      return false;
+    llvm::Optional<ParamDecl> par = Param();
+    if (!par) {
+      return llvm::None;
     }
+    result.push_back(std::move(*par));
   }
 
-  return true;
+  return result;
 }
 
 /// Param = Type Identifier;
-bool Parser::Param() { return Type() && Identifier(); }
+llvm::Optional<ParamDecl> Parser::Param() {
+  NamedType *ty = Type();
+  if (!ty) {
+    return llvm::None;
+  }
+  llvm::Optional<llvm::StringRef> id = Identifier();
+  if (!id) {
+    return llvm::None;
+  }
+  return ParamDecl(*id, *ty);
+}
 
 /// Block = "{" "}";
 bool Parser::Block() {
@@ -126,13 +177,38 @@ bool Parser::Block() {
 }
 
 /// Function_type = "proc" | "fn";
-bool Parser::FunctionType() { return Match({TK_ProcType, TK_FnType}); }
+llvm::Optional<FunctionDecl::SubroutineKind> Parser::FunctionType() {
+  TokenKind tk = Lex.prev().Kind;
+  if (!Match({TK_ProcType, TK_FnType})) {
+    return llvm::None;
+  }
+  switch (tk) {
+  case TK_FnType:
+    return FunctionDecl::Function;
+  case TK_ProcType:
+    return FunctionDecl::Procedure;
+  default:
+    llvm_unreachable("Only function or procedure tokens can get here");
+  }
+}
 
 /// Type = Identifier;
-bool Parser::Type() { return Identifier(); }
+NamedType *Parser::Type() {
+  llvm::Optional<llvm::StringRef> typeName = Identifier();
+  if (!typeName) {
+    return nullptr;
+  }
+  return &Ctx.getNamedType(*typeName);
+}
 
 /// Identifier = [a-Z]*;
-bool Parser::Identifier() { return Match({TK_Identifier}); }
+llvm::Optional<llvm::StringRef> Parser::Identifier() {
+  if (!Match({TK_Identifier})) {
+    return llvm::None;
+  };
+  // I need source information here :(
+  return llvm::StringRef("id");
+}
 
 bool Parser::Match(llvm::ArrayRef<TokenKind> list) {
   Token tk = Lex.prev();
@@ -158,4 +234,7 @@ bool Parser::TryMatch(llvm::ArrayRef<TokenKind> list,
   return true;
 }
 
-bool tmplang::Parse(tmplang::Lexer &lex) { return Parser(lex).Start(); }
+llvm::Optional<CompilationUnit> tmplang::Parse(tmplang::Lexer &lex,
+                                               ASTContext &ctx) {
+  return Parser(lex, ctx).Start();
+}

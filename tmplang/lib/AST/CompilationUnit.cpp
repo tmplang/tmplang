@@ -5,12 +5,7 @@
 
 using namespace tmplang;
 
-const FunctionDecl &
-CompilationUnit::AddFunctionDecl(llvm::StringRef name,
-                                 std::vector<ParamDecl> params,
-                                 const Type &returnType) {
-  OwnedTopLevelDecls.push_back(
-      std::make_unique<FunctionDecl>(name, returnType, std::move(params)));
-
+const FunctionDecl &CompilationUnit::AddFunctionDecl(FunctionDecl func) {
+  OwnedTopLevelDecls.push_back(std::make_unique<FunctionDecl>(std::move(func)));
   return *llvm::cast<FunctionDecl>(&*OwnedTopLevelDecls.back());
 }

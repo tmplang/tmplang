@@ -16,9 +16,7 @@ class CompilationUnit : Node {
 public:
   CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
 
-  const FunctionDecl &AddFunctionDecl(llvm::StringRef name,
-                                      std::vector<ParamDecl> params,
-                                      const Type &returnType);
+  const FunctionDecl &AddFunctionDecl(FunctionDecl function);
 
 private:
   /// Owned top level declaration

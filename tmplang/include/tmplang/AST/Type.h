@@ -5,7 +5,10 @@ namespace tmplang {
 
 class Type {
 public:
-  enum Kind { K_Builtin };
+  enum Kind {
+    K_Builtin,
+    K_Path // Path to a type name
+  };
 
   Kind getKind() const { return TKind; }
 

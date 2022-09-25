@@ -18,6 +18,7 @@ public:
 
   explicit ParamDecl(llvm::StringRef name, const Type &paramType)
       : Decl(Node::Kind::ParamDecl, name), ParamType(paramType) {}
+
   virtual ~ParamDecl() = default;
 
 private:
@@ -26,6 +27,8 @@ private:
 
 class FunctionDecl final : public Decl {
 public:
+  enum SubroutineKind { Procedure, Function };
+
   const Type &getReturnType() const { return ReturnType; }
   llvm::ArrayRef<ParamDecl> getParams() const { return Params; }
 
@@ -33,13 +36,14 @@ public:
     return node->getKind() == Node::Kind::FuncDecl;
   }
 
-  explicit FunctionDecl(llvm::StringRef name, const Type &returnType,
-                        std::vector<ParamDecl> params)
+  explicit FunctionDecl(SubroutineKind kind, llvm::StringRef name,
+                        const Type &returnType, std::vector<ParamDecl> params)
       : Decl(Node::Kind::FuncDecl, name), ReturnType(returnType),
         Params(std::move(params)) {}
   virtual ~FunctionDecl() = default;
 
 private:
+  SubroutineKind Kind;
   const Type &ReturnType;
   std::vector<ParamDecl> Params;
 };
