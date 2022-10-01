@@ -1,0 +1,23 @@
+// Hopefully having separated the Source from the HIR will allow us create
+// nodes that one form can have, but not the other
+
+#ifndef SourceNode
+#define SourceNode(KIND)
+#endif
+
+#ifndef HIRNode 
+#define HIRNode(KIND)
+#endif
+
+#ifndef BothNode 
+#define BothNode(KIND) SourceNode(KIND) HIRNode(KIND)
+#endif
+
+BothNode(CompilationUnit)
+BothNode(FuncDecl)
+BothNode(ParamDecl)
+
+#undef BothNode 
+#undef HIRNode 
+#undef SourceNode
+#undef Node
