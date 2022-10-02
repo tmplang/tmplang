@@ -1,7 +1,7 @@
-#include <tmplang/AST/CompilationUnit.h>
+#include <tmplang/Tree/HIR/CompilationUnit.h>
 
 #include <llvm/Support/Casting.h>
-#include <tmplang/AST/Decls.h>
+#include <tmplang/Tree/HIR/Decls.h>
 
 using namespace tmplang::hir;
 

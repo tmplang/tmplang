@@ -1,5 +1,5 @@
-#ifndef TMPLANG_AST_TYPE_H
-#define TMPLANG_AST_TYPE_H
+#ifndef TMPLANG_TREE_HIR_TYPE_H
+#define TMPLANG_TREE_HIR_TYPE_H
 
 namespace tmplang::hir {
 
@@ -19,4 +19,4 @@ private:
 
 } // namespace tmplang::hir
 
-#endif // TMPLANG_AST_TYPE_H
+#endif // TMPLANG_TREE_HIR_TYPE_H

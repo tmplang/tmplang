@@ -1,8 +1,8 @@
-#ifndef TMPLANG_AST_ASTCONTEXT_H
-#define TMPLANG_AST_ASTCONTEXT_H
+#ifndef TMPLANG_TREE_HIR_HIRCONTEXT_H
+#define TMPLANG_TREE_HIR_HIRCONTEXT_H
 
 #include <llvm/ADT/IntrusiveRefCntPtr.h>
-#include <tmplang/AST/Types.h>
+#include <tmplang/Tree/HIR/Types.h>
 
 namespace tmplang::hir {
 
@@ -21,4 +21,4 @@ private:
 
 } // namespace tmplang::hir
 
-#endif // TMPLANG_AST_ASTCONTEXT_H
+#endif // TMPLANG_TREE_HIR_HIRCONTEXT_H

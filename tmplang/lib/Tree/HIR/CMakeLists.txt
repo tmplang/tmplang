@@ -1,5 +1,5 @@
-llvm_add_library(TmplangAST
-    ASTContext.cpp
+llvm_add_library(TmplangHIRTree
+    HIRContext.cpp
     CompilationUnit.cpp
     Types.cpp
 

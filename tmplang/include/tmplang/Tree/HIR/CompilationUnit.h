@@ -1,7 +1,7 @@
-#ifndef TMPLANG_PARSER_COMPILATIONUNIT_H
-#define TMPLANG_PARSER_COMPILATIONUNIT_H
+#ifndef TMPLANG_TREE_HIR_COMPILATIONUNIT_H
+#define TMPLANG_TREE_HIR_COMPILATIONUNIT_H
 
-#include <tmplang/AST/Decls.h>
+#include <tmplang/Tree/HIR/Decls.h>
 
 #include <memory>
 
@@ -27,4 +27,4 @@ private:
 
 } // namespace tmplang::hir
 
-#endif // TMPLANG_PARSER_COMPILATIONUNIT_H
+#endif // TMPLANG_TREE_HIR_COMPILATIONUNIT_H

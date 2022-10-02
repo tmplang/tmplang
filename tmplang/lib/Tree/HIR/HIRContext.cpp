@@ -1,4 +1,4 @@
-#include <tmplang/AST/ASTContext.h>
+#include <tmplang/Tree/HIR/HIRContext.h>
 
 using namespace tmplang::hir;
 

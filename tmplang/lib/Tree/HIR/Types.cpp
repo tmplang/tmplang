@@ -1,7 +1,7 @@
-#include <tmplang/AST/Types.h>
+#include <tmplang/Tree/HIR/Types.h>
 
 #include <llvm/Support/ErrorHandling.h>
-#include <tmplang/AST/ASTContext.h>
+#include <tmplang/Tree/HIR/HIRContext.h>
 
 using namespace tmplang::hir;
 

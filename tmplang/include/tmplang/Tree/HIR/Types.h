@@ -1,7 +1,7 @@
-#ifndef TMPLANG_AST_TYPES_H
-#define TMPLANG_AST_TYPES_H
+#ifndef TMPLANG_TREE_HIR_TYPES_H
+#define TMPLANG_TREE_HIR_TYPES_H
 
-#include <tmplang/AST/Type.h>
+#include <tmplang/Tree/HIR/Type.h>
 
 namespace tmplang::hir {
 
@@ -30,4 +30,4 @@ protected:
 
 } // namespace tmplang::hir
 
-#endif // TMPLANG_AST_TYPES_H
+#endif // TMPLANG_TREE_HIR_TYPES_H
