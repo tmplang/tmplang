@@ -4,12 +4,12 @@
 #include <llvm/ADT/IntrusiveRefCntPtr.h>
 #include <tmplang/AST/Types.h>
 
-namespace tmplang {
+namespace tmplang::hir {
 
-class ASTContext : llvm::RefCountedBase<ASTContext> {
+class HIRContext : llvm::RefCountedBase<HIRContext> {
 public:
-  explicit ASTContext();
-  ~ASTContext() = default;
+  explicit HIRContext();
+  ~HIRContext() = default;
 
 private:
   friend class BuiltinType;
@@ -19,6 +19,6 @@ private:
   BuiltinType i32Type;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
 #endif // TMPLANG_AST_ASTCONTEXT_H

@@ -1,7 +1,7 @@
 #ifndef TMPLANG_AST_TYPE_H
 #define TMPLANG_AST_TYPE_H
 
-namespace tmplang {
+namespace tmplang::hir {
 
 class Type {
 public:
@@ -17,6 +17,6 @@ private:
   Kind TKind;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
 #endif // TMPLANG_AST_TYPE_H

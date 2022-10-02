@@ -4,7 +4,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <tmplang/AST/Decl.h>
 
-namespace tmplang {
+namespace tmplang::hir {
 
 class Type;
 
@@ -44,6 +44,6 @@ private:
   std::vector<ParamDecl> Params;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
 #endif // TMPLANG_AST_DECLS_H

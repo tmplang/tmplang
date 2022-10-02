@@ -1,5 +1,5 @@
 #include <tmplang/AST/ASTContext.h>
 
-using namespace tmplang;
+using namespace tmplang::hir;
 
-ASTContext::ASTContext() : i32Type(BuiltinType::Kind::K_i32) {}
+HIRContext::HIRContext() : i32Type(BuiltinType::Kind::K_i32) {}

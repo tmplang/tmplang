@@ -5,7 +5,7 @@
 
 namespace tmplang {
 
-class ASTContext;
+class HIRContext;
 
 /// Simple grammar verifier parser. Given a lexer which already contains the code
 /// returns wether the grammar can generate the input

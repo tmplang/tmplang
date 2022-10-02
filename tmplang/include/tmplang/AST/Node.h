@@ -1,7 +1,7 @@
 #ifndef TMPLANG_AST_NODE_H
 #define TMPLANG_AST_NODE_H
 
-namespace tmplang {
+namespace tmplang::hir {
 
 class Node {
 public:
@@ -21,6 +21,6 @@ private:
   Kind NodeKind;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
 #endif // TMPLANG_AST_NODE_H

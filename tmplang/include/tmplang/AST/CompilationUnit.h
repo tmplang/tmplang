@@ -5,7 +5,7 @@
 
 #include <memory>
 
-namespace tmplang {
+namespace tmplang::hir {
 
 class Type;
 
@@ -25,6 +25,6 @@ private:
   std::vector<std::unique_ptr<Decl>> OwnedTopLevelDecls;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
 #endif // TMPLANG_PARSER_COMPILATIONUNIT_H

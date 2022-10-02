@@ -5,7 +5,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <tmplang/AST/Node.h>
 
-namespace tmplang {
+namespace tmplang::hir {
 
 class Decl : public Node {
 public:
@@ -26,6 +26,6 @@ private:
   llvm::SmallString<32> Name;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
 #endif // TMPLANG_AST_DECL_H

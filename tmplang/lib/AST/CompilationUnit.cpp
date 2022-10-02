@@ -3,7 +3,7 @@
 #include <llvm/Support/Casting.h>
 #include <tmplang/AST/Decls.h>
 
-using namespace tmplang;
+using namespace tmplang::hir;
 
 const FunctionDecl &
 CompilationUnit::AddFunctionDecl(llvm::StringRef name,

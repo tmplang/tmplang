@@ -3,9 +3,9 @@
 
 #include <tmplang/AST/Type.h>
 
-namespace tmplang {
+namespace tmplang::hir {
 
-class ASTContext;
+class HIRContext;
 
 class BuiltinType final : public Type {
 public:
@@ -13,14 +13,14 @@ public:
 
   Kind getBuiltinKind() const { return BKind; }
 
-  static const BuiltinType &getType(const ASTContext &ASTCtxt, Kind type);
+  static const BuiltinType &getType(const HIRContext &ASTCtxt, Kind type);
 
   static bool classof(const Type *T) {
     return T->getKind() == Type::Kind::K_Builtin;
   }
 
 protected:
-  friend class ASTContext;
+  friend class HIRContext;
 
   explicit BuiltinType(Kind kind) : Type(Type::Kind::K_Builtin), BKind(kind) {}
   virtual ~BuiltinType() = default;
@@ -28,6 +28,6 @@ protected:
   Kind BKind;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
 #endif // TMPLANG_AST_TYPES_H
