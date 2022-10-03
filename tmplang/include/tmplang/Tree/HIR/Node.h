@@ -6,9 +6,9 @@ namespace tmplang::hir {
 class Node {
 public:
   enum class Kind {
-    CompilationUnit = 0,
-    FuncDecl,
-    ParamDecl,
+#define HIRNode(KIND) KIND,
+#include "../Nodes.def"
+#undef HIRNode
   };
 
   Kind getKind() const { return NodeKind; }
