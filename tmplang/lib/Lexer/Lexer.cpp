@@ -1,61 +1,47 @@
 #include <tmplang/Lexer/Lexer.h>
 
-#include <llvm/ADT/StringRef.h>
+#include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/StringSwitch.h>
-#include <llvm/Support/raw_ostream.h>
-
-#include <optional>
 
 using namespace tmplang;
 
-llvm::StringLiteral tmplang::ToString(TokenKind tk) {
-  switch (tk) {
-  case TK_EOF:
-    return "<EOF>";
-  case TK_Unknown:
-    return "<UNKNOWN>";
-  case TK_Identifier:
-    return "Ident";
-  case TK_LKeyBracket:
-    return "{";
-  case TK_RKeyBracket:
-    return "}";
-  case TK_Comma:
-    return ",";
-  case TK_Semicolon:
-    return ";";
-  case TK_FnType:
-    return "fn";
-  case TK_ProcType:
-    return "proc";
-  case TK_Colon:
-    return ":";
-  case TK_RArrow:
-    return "->";
+namespace {
+
+/// Auxiliary struct to build tokens while updating the state of the Lexer
+struct TokenBuilder {
+  explicit TokenBuilder(Lexer::LexerState &state) : State(state) {}
+
+  Token buildToken(TokenKind kind, unsigned nChars = 1) {
+    if (kind == TokenKind::TK_EOF || kind == TokenKind::TK_Unknown) {
+      // If it is a token that do not add chars, return same location for start
+      // and end
+      return Token(kind, State.CurrentLocation, State.CurrentLocation);
+    }
+
+    SourceLocation startLocation = State.CurrentLocation;
+    State.advance(nChars);
+    // Adjust since tokens starts at 1:1
+    return Token(kind, startLocation,
+                 SourceLocation(State.CurrentLocation.Line,
+                                State.CurrentLocation.Column - 1));
   }
-  llvm_unreachable("Switch covers all cases");
-}
 
-llvm::raw_ostream &tmplang::operator<<(llvm::raw_ostream &out, TokenKind k) {
-  return out << ToString(k);
-}
+  Lexer::LexerState &State;
+};
 
-void Token::print(llvm::raw_ostream &out) const { out << Kind; }
-llvm::raw_ostream &tmplang::operator<<(llvm::raw_ostream &out, const Token &t) {
-  t.print(out);
-  return out;
-}
+} // namespace
 
-Lexer::Lexer(llvm::StringRef input)
-    : CurrentInput(input), OriginalInput(input) {}
+Lexer::Lexer(llvm::StringRef input) : State(input) {}
 
-static Token NextImpl(llvm::StringRef &currentInput) {
-  if (currentInput.empty()) {
-    return {TK_EOF};
+Token Lexer::nextImpl() {
+  TokenBuilder tkBuilder(State);
+
+  if (State.CurrentInput.empty()) {
+    return tkBuilder.buildToken(TK_EOF);
   }
 
   llvm::Optional<TokenKind> simpleTokenMatched;
-  switch (currentInput.front()) {
+  switch (State.CurrentInput.front()) {
   case ';':
     simpleTokenMatched = TK_Semicolon;
     break;
@@ -72,40 +58,37 @@ static Token NextImpl(llvm::StringRef &currentInput) {
     simpleTokenMatched = TK_RKeyBracket;
     break;
   case '-':
-    if (currentInput.startswith("->")) {
+    if (State.CurrentInput.startswith("->")) {
       simpleTokenMatched = TK_RArrow;
     }
     break;
   case ' ':
   case '\t':
-  case '\r':
   case '\v':
-  case '\f':
-    // TODO: increase column counter`
-    currentInput = currentInput.drop_front();
-    return NextImpl(currentInput);
+    State.advance();
+    return nextImpl();
   case '\n':
-    // TODO: increase line counter`
-    currentInput = currentInput.drop_front();
-    return NextImpl(currentInput);
+  case '\r':
+  case '\f':
+    State.advance();
+    return nextImpl();
   default:
     break;
   }
 
   if (simpleTokenMatched) {
-    currentInput =
-        currentInput.drop_front(ToString(*simpleTokenMatched).size());
-    return {*simpleTokenMatched};
+    return tkBuilder.buildToken(*simpleTokenMatched,
+                                ToString(*simpleTokenMatched).size());
   }
 
   // Identifier, ProcType and FnType case. Since all of them are a sequence of
   // alphabetic values we can handle them here together
   llvm::StringRef potentialId =
-      currentInput.take_while([](char c) { return std::isalpha(c); });
+      State.CurrentInput.take_while([](char c) { return std::isalpha(c); });
 
   if (potentialId.empty()) {
     // Invalid identifier, we don't know what this is
-    return {TK_Unknown};
+    return tkBuilder.buildToken(TK_Unknown);
   }
 
   TokenKind tk = llvm::StringSwitch<TokenKind>(potentialId)
@@ -113,10 +96,31 @@ static Token NextImpl(llvm::StringRef &currentInput) {
                      .Case(ToString(TK_FnType), TK_FnType)
                      .Default(TK_Identifier);
 
-  currentInput = currentInput.drop_front(potentialId.size());
-  return {tk};
+  return tkBuilder.buildToken(tk, potentialId.size());
 }
 
-Token Lexer::next() { return CurrentToken = NextImpl(CurrentInput); }
+Token Lexer::next() { return State.CurrentToken = nextImpl(); }
 
-Token Lexer::prev() const { return CurrentToken; }
+Token Lexer::prev() const { return State.CurrentToken; }
+
+Lexer::LexerState::LexerState(llvm::StringRef input)
+    : CurrentInput(input), CurrentLocation(1, 1), CurrentToken() {}
+
+void Lexer::LexerState::advance(unsigned nChars) {
+  static llvm::StringLiteral newLineChars = "\n\r\f";
+  bool newLine = false;
+  if (nChars == 1) {
+    newLine = llvm::is_contained(newLineChars, CurrentInput.front());
+  } else {
+    assert(!CurrentInput.substr(0, nChars).contains(newLineChars) &&
+           "New line characters can not appear on multi char token");
+  }
+
+  if (newLine) {
+    CurrentLocation.Line++;
+    CurrentLocation.Column = 1;
+  } else {
+    CurrentLocation.Column += nChars;
+  }
+  CurrentInput = CurrentInput.drop_front(nChars);
+}
