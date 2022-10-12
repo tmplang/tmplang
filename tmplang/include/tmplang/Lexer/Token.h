@@ -1,6 +1,7 @@
 #ifndef TMPLANG_LEXER_TOKEN_H
 #define TMPLANG_LEXER_TOKEN_H
 
+#include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/StringRef.h>
 
 namespace llvm {
@@ -43,7 +44,15 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &out, TokenKind k);
 
 struct Token {
   Token(TokenKind kind, SourceLocation start, SourceLocation end)
-      : Kind(kind), StartLocation(start), EndLocation(end) {}
+      : Kind(kind), StartLocation(start), EndLocation(end) {
+    assert(kind != TokenKind::TK_Identifier &&
+           "Invalid constructor for identifiers");
+  }
+  Token(llvm::StringRef id, SourceLocation start, SourceLocation end)
+      : Kind(TokenKind::TK_Identifier), StartLocation(start), EndLocation(end),
+        Lexeme(id) {
+    assert(!id.empty());
+  }
   Token() : Kind(TK_Unknown) {}
 
   TokenKind Kind;
@@ -55,6 +64,16 @@ struct Token {
   void print(llvm::raw_ostream &out) const;
   void dump() const;
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const Token &t);
+
+  llvm::StringRef getLexeme() const {
+    assert(Kind == TK_Identifier);
+    return Lexeme;
+  }
+
+private:
+  /// TODO: We could save a lot of bytes here if we keep the files open and
+  ///       reused offset-driven locations to retrieve from the source
+  llvm::SmallString<32> Lexeme;
 };
 
 } // namespace tmplang

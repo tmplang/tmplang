@@ -11,6 +11,15 @@ namespace {
 struct TokenBuilder {
   explicit TokenBuilder(Lexer::LexerState &state) : State(state) {}
 
+  Token buildIdentifier(llvm::StringRef lexeme) {
+    SourceLocation startLocation = State.CurrentLocation;
+    State.advance(lexeme.size());
+    // Adjust since tokens starts at 1:1
+    return Token(lexeme, startLocation,
+                 SourceLocation(State.CurrentLocation.Line,
+                                State.CurrentLocation.Column - 1));
+  }
+
   Token buildToken(TokenKind kind, unsigned nChars = 1) {
     if (kind == TokenKind::TK_EOF || kind == TokenKind::TK_Unknown) {
       // If it is a token that do not add chars, return same location for start
@@ -95,6 +104,10 @@ Token Lexer::nextImpl() {
                      .Case(ToString(TK_ProcType), TK_ProcType)
                      .Case(ToString(TK_FnType), TK_FnType)
                      .Default(TK_Identifier);
+
+  if (tk == TK_Identifier) {
+    return tkBuilder.buildIdentifier(potentialId);
+  }
 
   return tkBuilder.buildToken(tk, potentialId.size());
 }

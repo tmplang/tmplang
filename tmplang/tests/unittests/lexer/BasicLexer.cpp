@@ -57,7 +57,7 @@ TEST(BasicLexer, Empty) { TestLexer("", {{TK_EOF, {1, 1}, {1, 1}}}); }
 
 TEST(BasicLexer, EmptyFn) {
   TestLexer("fn foobar { }", {{TK_FnType, {1, 1}, {1, 2}},
-                              {TK_Identifier, {1, 4}, {1, 9}},
+                              {"foobar", {1, 4}, {1, 9}},
                               {TK_LKeyBracket, {1, 11}, {1, 11}},
                               {TK_RKeyBracket, {1, 13}, {1, 13}},
                               {TK_EOF, {1, 14}, {1, 14}}});
@@ -69,9 +69,9 @@ TEST(BasicLexer, LiteralError) {
 
 TEST(BasicLexer, Joined) {
   Token tokens[] = {
-      {TK_Identifier, {1, 1}, {1, 3}}, {TK_Comma, {1, 4}, {1, 4}},
-      {TK_Identifier, {1, 5}, {1, 7}}, {TK_LKeyBracket, {1, 8}, {1, 8}},
-      {TK_FnType, {1, 9}, {1, 10}},    {TK_EOF, {1, 11}, {1, 11}},
+      {"foo", {1, 1}, {1, 3}},      {TK_Comma, {1, 4}, {1, 4}},
+      {"bar", {1, 5}, {1, 7}},      {TK_LKeyBracket, {1, 8}, {1, 8}},
+      {TK_FnType, {1, 9}, {1, 10}}, {TK_EOF, {1, 11}, {1, 11}},
   };
 
   TestLexer("foo,bar{fn", tokens);
@@ -97,12 +97,12 @@ TEST(BasicLexer, MultiLine) {
   TestLexer("\tfn foo: a Chr -> Int {\n\n\t}",
             {
                 {TK_FnType, {1, 2}, {1, 3}},
-                {TK_Identifier, {1, 5}, {1, 7}},
+                {"foo", {1, 5}, {1, 7}},
                 {TK_Colon, {1, 8}, {1, 8}},
-                {TK_Identifier, {1, 10}, {1, 10}},
-                {TK_Identifier, {1, 12}, {1, 14}},
+                {"a", {1, 10}, {1, 10}},
+                {"Chr", {1, 12}, {1, 14}},
                 {TK_RArrow, {1, 16}, {1, 17}},
-                {TK_Identifier, {1, 19}, {1, 21}},
+                {"Int", {1, 19}, {1, 21}},
                 {TK_LKeyBracket, {1, 23}, {1, 23}},
                 {TK_RKeyBracket, {3, 2}, {3, 2}},
                 {TK_EOF, {3, 3}, {3, 3}},
