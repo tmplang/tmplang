@@ -1,11 +1,11 @@
-#ifndef TMPLANG_AST_DECL_H
-#define TMPLANG_AST_DECL_H
+#ifndef TMPLANG_TREE_HIR_DECL_H
+#define TMPLANG_TREE_HIR_DECL_H
 
 #include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/StringRef.h>
-#include <tmplang/AST/Node.h>
+#include <tmplang/Tree/HIR/Node.h>
 
-namespace tmplang {
+namespace tmplang::hir {
 
 class Decl : public Node {
 public:
@@ -26,6 +26,6 @@ private:
   llvm::SmallString<32> Name;
 };
 
-} // namespace tmplang
+} // namespace tmplang::hir
 
-#endif // TMPLANG_AST_DECL_H
+#endif // TMPLANG_TREE_HIR_DECL_H

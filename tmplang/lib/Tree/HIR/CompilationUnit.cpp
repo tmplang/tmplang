@@ -1,9 +1,9 @@
-#include <tmplang/AST/CompilationUnit.h>
+#include <tmplang/Tree/HIR/CompilationUnit.h>
 
 #include <llvm/Support/Casting.h>
-#include <tmplang/AST/Decls.h>
+#include <tmplang/Tree/HIR/Decls.h>
 
-using namespace tmplang;
+using namespace tmplang::hir;
 
 const FunctionDecl &
 CompilationUnit::AddFunctionDecl(llvm::StringRef name,
