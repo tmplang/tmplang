@@ -9,7 +9,7 @@ class HIRContext;
 
 class BuiltinType final : public Type {
 public:
-  enum Kind { K_i32 };
+  enum Kind { K_i32, K_Unit };
 
   Kind getBuiltinKind() const { return BKind; }
 
