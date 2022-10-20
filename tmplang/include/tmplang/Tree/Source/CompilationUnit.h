@@ -24,6 +24,10 @@ public:
   SourceLocation getBeginLoc() const override;
   SourceLocation getEndLoc() const override;
 
+  static bool classof(const Node *node) {
+    return node->getKind() == Node::Kind::CompilationUnit;
+  }
+
 private:
   std::vector<FunctionDecl> FunctionDeclarations;
 };
