@@ -14,7 +14,7 @@ public:
   /// All declarations have a name
   virtual llvm::StringRef getName() const = 0;
 
-  static bool classof(Node *node) {
+  static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::FuncDecl ||
            node->getKind() == Node::Kind::ParamDecl;
   }
