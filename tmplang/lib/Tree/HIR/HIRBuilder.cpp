@@ -87,6 +87,9 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
 
   const Type *hirReturnType = nullptr;
   if (const source::NamedType *srcType = srcFunc.getReturnType()) {
+    // FIXME: Right now we only have builtin types, so this is complete. Once
+    // we start adding user defined types or other more complex types, change
+    // this to reflect that
     hirReturnType = BuiltinType::get(Ctx, srcType->getName());
   } else {
     hirReturnType = &BuiltinType::get(Ctx, BuiltinType::K_Unit);
