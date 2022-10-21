@@ -1,6 +1,7 @@
 #ifndef TMPLANG_TREE_HIR_TYPES_H
 #define TMPLANG_TREE_HIR_TYPES_H
 
+#include <llvm/ADT/StringRef.h>
 #include <tmplang/Tree/HIR/Type.h>
 
 namespace tmplang::hir {
@@ -13,7 +14,8 @@ public:
 
   Kind getBuiltinKind() const { return BKind; }
 
-  static const BuiltinType &getType(const HIRContext &ASTCtxt, Kind type);
+  static const BuiltinType &get(const HIRContext &, Kind);
+  static const BuiltinType *get(const HIRContext &, llvm::StringRef);
 
   static bool classof(const Type *T) {
     return T->getKind() == Type::Kind::K_Builtin;
