@@ -10,10 +10,6 @@ namespace {
 
 class SymbolTable {
   struct Scope {
-    // TODO: This is very restrictive. If we allow overloading based on
-    // different signatures,
-    //       fix this. Also, this is not discriminating between functions or
-    //       variables, just identifiers
     llvm::DenseSet<llvm::StringRef> Identifiers;
   };
 
@@ -21,6 +17,15 @@ public:
   SymbolTable() {}
 
   bool insertIdentifier(llvm::StringRef id) {
+    // FIXME: This is very restrictive, this is not discriminating between
+    // functions, variables, macros, types, ...; just identifiers :facepalm:
+    //
+    // Also, in case we want to support more advance shadowings systems like
+    // a name binding approach (like Rust does), this is completly wrong.
+    //
+    // When a decisison is taken, adapt the symbol table to reflect that. For
+    // now, just check that no param repeats within the same function, and that
+    // no function repeats the same name
     return ScopeStack.back().Identifiers.insert(id).second;
   }
 
