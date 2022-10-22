@@ -42,6 +42,18 @@ struct TokenBuilder {
 
 Lexer::Lexer(llvm::StringRef input) : State(input) {}
 
+// Matches pattern: [a-zA-Z][a-zA-Z0-9]+;
+static llvm::StringRef GetIdentifier(llvm::StringRef in) {
+  bool first = true;
+  return in.take_while([&first](char c) {
+    if (first) {
+      first = false;
+      return std::isalpha(c);
+    }
+    return std::isalnum(c);
+  });
+}
+
 Token Lexer::nextImpl() {
   TokenBuilder tkBuilder(State);
 
@@ -91,9 +103,10 @@ Token Lexer::nextImpl() {
   }
 
   // Identifier, ProcType and FnType case. Since all of them are a sequence of
-  // alphabetic values we can handle them here together
-  llvm::StringRef potentialId =
-      State.CurrentInput.take_while([](char c) { return std::isalpha(c); });
+  // alphabetic values we can handle them here together.
+  // CAVEAT: This is currently correct because the pattern a identifier matches
+  // with, is compatible with "fn" and "proc:"
+  llvm::StringRef potentialId = GetIdentifier(State.CurrentInput);
 
   if (potentialId.empty()) {
     // Invalid identifier, we don't know what this is
