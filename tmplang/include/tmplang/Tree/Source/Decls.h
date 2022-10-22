@@ -11,7 +11,8 @@ namespace tmplang::source {
 class ParamDecl final : public Decl {
 public:
   explicit ParamDecl(Token id, NamedType paramType)
-      : Decl(Node::Kind::ParamDecl), ParamType(std::move(paramType)) {}
+      : Decl(Node::Kind::ParamDecl), ParamType(std::move(paramType)),
+        Identifier(id) {}
   virtual ~ParamDecl() = default;
 
   const NamedType &getType() const { return ParamType; }
