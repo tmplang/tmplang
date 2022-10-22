@@ -18,6 +18,10 @@ public:
     FunctionDecls.push_back(std::move(funcDecl));
   }
 
+  static bool classof(const Node *node) {
+    return node->getKind() == Node::Kind::CompilationUnit;
+  }
+
 private:
   std::vector<FunctionDecl> FunctionDecls;
 };
