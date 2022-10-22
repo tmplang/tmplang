@@ -8,7 +8,7 @@ namespace tmplang::hir {
 /// Represents the result of a successfully compiled source file and it is the
 /// root node of every AST. This class contains the ownership of every
 /// declaration found in the source file.
-class CompilationUnit : Node {
+class CompilationUnit : public Node {
 public:
   CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
 
