@@ -8,3 +8,8 @@ def version : Flag<["--"], "version">, Group<General_Group>,
 def v : Flag<["-"], "v">, Group<General_Group>, Alias<version>;
 def help : Flag<["--"], "help">, Group<General_Group>, HelpText<"print help">;
 def h : Flag<["-"], "h">, Group<General_Group>, Alias<help>;
+
+def Dump_Group : OptionGroup<"<dump group>">, HelpText<"All dump options">;
+
+def dump_hir : Flag<["--"], "dump-hir">, Group<General_Group>,
+              HelpText<"dumps HIR and ends">;

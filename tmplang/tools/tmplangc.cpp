@@ -3,9 +3,11 @@
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
-
 #include <tmplang/CLI/Arguments.h>
 #include <tmplang/CLI/CLPrinter.h>
+#include <tmplang/Lexer/Lexer.h>
+#include <tmplang/Parser/Parser.h>
+#include <tmplang/Tree/HIR/HIRBuilder.h>
 
 using namespace tmplang;
 
@@ -46,6 +48,26 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  printer.outs() << fileOrStdIn.get()->getBuffer();
+  Lexer lexer(fileOrStdIn.get()->getBuffer());
+  auto srcCompilationUnit = Parse(lexer);
+  if (!srcCompilationUnit) {
+    // TODO: Add proper message diagnostic handling
+    printer.errs() << "There was a problem parsing the file\n";
+    return 1;
+  }
+
+  hir::HIRContext ctx;
+  auto hirCompilationUnit = hir::buildHIR(*srcCompilationUnit, ctx);
+  if (!hirCompilationUnit) {
+    // TODO: Add proper message diagnostic handling
+    printer.errs() << "There was a problem building the HIR for the file\n";
+    return 1;
+  }
+
+  if (parsedCompilerArgs->hasArg(OPT_dump_hir)) {
+    hirCompilationUnit->dump(/*colors=*/true);
+    return 0;
+  }
+
   return 0;
 }
