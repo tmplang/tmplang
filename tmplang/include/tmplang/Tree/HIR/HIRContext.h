@@ -17,7 +17,7 @@ private:
   /// NOTE: Once this grows, it can be a good idea to move it to  the heap
   ///       through PImpl idiom
   BuiltinType i32Type;
-  /// NOTE: Should this be a new empty "Tuple" type?
+  /// FIXME: This should be a new empty "Tuple" type
   BuiltinType UnitType;
 };
 

@@ -30,6 +30,8 @@ protected:
   Kind BKind;
 };
 
+llvm::StringLiteral ToString(BuiltinType::Kind);
+
 } // namespace tmplang::hir
 
 #endif // TMPLANG_TREE_HIR_TYPES_H
