@@ -12,6 +12,8 @@ class CompilationUnit : public Node {
 public:
   CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
 
+  llvm::ArrayRef<FunctionDecl> getFunctions() const { return FunctionDecls; }
+
   void addFunctionDecl(FunctionDecl funcDecl) {
     FunctionDecls.push_back(std::move(funcDecl));
   }
