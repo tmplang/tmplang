@@ -49,7 +49,6 @@ private:
 private:
   HIRContext &Ctx;
   SymbolTable SymTable;
-  CompilationUnit Result;
 };
 
 llvm::Optional<ParamDecl>
@@ -64,7 +63,7 @@ HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
     return llvm::None;
   }
 
-  return ParamDecl(srcParamDecl.getName(), *type);
+  return ParamDecl(srcParamDecl, srcParamDecl.getName(), *type);
 }
 
 static FunctionDecl::FunctionKind GetFunctionKind(Token tk) {
@@ -109,12 +108,14 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
 
   // TODO: Process body
 
-  return FunctionDecl(srcFunc.getName(), GetFunctionKind(srcFunc.getFuncType()),
+  return FunctionDecl(srcFunc, srcFunc.getName(), GetFunctionKind(srcFunc.getFuncType()),
                       *hirReturnType, std::move(paramList));
 }
 
 llvm::Optional<CompilationUnit>
 HIRBuilder::build(const source::CompilationUnit &compUnit) {
+  CompilationUnit result(compUnit);
+
   // Push the global scope
   SymTable.pushScope();
 
@@ -124,10 +125,10 @@ HIRBuilder::build(const source::CompilationUnit &compUnit) {
       return llvm::None;
     }
 
-    Result.addFunctionDecl(std::move(*hirFunc));
+    result.addFunctionDecl(std::move(*hirFunc));
   }
 
-  return Result;
+  return result;
 }
 
 } // namespace

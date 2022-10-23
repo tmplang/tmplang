@@ -5,6 +5,10 @@
 #include <llvm/ADT/StringRef.h>
 #include <tmplang/Tree/HIR/Node.h>
 
+namespace tmplang::source {
+class Node;
+} // namespace tmplang::source
+
 namespace tmplang::hir {
 
 class Decl : public Node {
@@ -19,7 +23,8 @@ public:
   virtual ~Decl() = default;
 
 protected:
-  explicit Decl(Node::Kind k, llvm::StringRef name) : Node(k), Name(name) {}
+  explicit Decl(Node::Kind k, const source::Node &srcNode, llvm::StringRef name)
+      : Node(k, srcNode), Name(name) {}
 
 private:
   /// All Decls have a name

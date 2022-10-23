@@ -4,6 +4,10 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <tmplang/Tree/HIR/Decl.h>
 
+namespace tmplang::source {
+class Node;
+} // namespace tmplang::source
+
 namespace tmplang::hir {
 
 class Type;
@@ -16,8 +20,9 @@ public:
     return node->getKind() == Node::Kind::ParamDecl;
   }
 
-  explicit ParamDecl(llvm::StringRef name, const Type &paramType)
-      : Decl(Node::Kind::ParamDecl, name), ParamType(paramType) {}
+  explicit ParamDecl(const source::Node &srcNode, llvm::StringRef name,
+                     const Type &paramType)
+      : Decl(Node::Kind::ParamDecl, srcNode, name), ParamType(paramType) {}
   virtual ~ParamDecl() = default;
 
 private:
@@ -39,9 +44,10 @@ public:
     return node->getKind() == Node::Kind::FuncDecl;
   }
 
-  explicit FunctionDecl(llvm::StringRef name, FunctionKind kind,
-                        const Type &returnType, std::vector<ParamDecl> params)
-      : Decl(Node::Kind::FuncDecl, name), FuncKind(kind),
+  explicit FunctionDecl(const source::Node &srcNode, llvm::StringRef name,
+                        FunctionKind kind, const Type &returnType,
+                        std::vector<ParamDecl> params)
+      : Decl(Node::Kind::FuncDecl, srcNode, name), FuncKind(kind),
         ReturnType(returnType), Params(std::move(params)) {}
   virtual ~FunctionDecl() = default;
 

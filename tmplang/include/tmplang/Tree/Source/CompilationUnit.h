@@ -13,7 +13,7 @@ class Type;
 /// root node of every SourceTree. This class contains the ownership of every
 /// declaration found in the source file.
 
-class CompilationUnit : Node {
+class CompilationUnit : public Node {
 public:
   CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
 

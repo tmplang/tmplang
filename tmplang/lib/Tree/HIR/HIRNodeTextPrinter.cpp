@@ -1,4 +1,5 @@
 #include <llvm/Support/Debug.h>
+#include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
 #include <tmplang/Tree/HIR/RecursiveNodeVisitor.h>
 #include <tmplang/Tree/HIR/RecursiveTypeVisitor.h>
@@ -19,6 +20,8 @@ static constexpr TerminalColor AddressColor = {llvm::raw_ostream::YELLOW,
 static constexpr TerminalColor IdentifierColor = {llvm::raw_ostream::GREEN,
                                                   false};
 static constexpr TerminalColor AttrColor = {llvm::raw_ostream::RED, false};
+static constexpr TerminalColor SourceLocationColor = {llvm::raw_ostream::CYAN,
+                                                      true};
 static constexpr TerminalColor NodeColor = {llvm::raw_ostream::GREEN, true};
 static constexpr TerminalColor TypeColor = {llvm::raw_ostream::BLUE, true};
 
@@ -27,8 +30,8 @@ class ColorScope {
   bool ShowColors;
 
 public:
-  ColorScope(llvm::raw_ostream &O, bool showColors, TerminalColor color)
-      : O(O), ShowColors(showColors) {
+  ColorScope(llvm::raw_ostream &O, Node::PrintConfig cfg, TerminalColor color)
+      : O(O), ShowColors(cfg & Node::PrintConfig::Color) {
     if (ShowColors) {
       O.changeColor(color.Color, color.Bold);
     }
@@ -47,7 +50,7 @@ public:
 //=--------------------------------------------------------------------------=//
 class TextTreeStructure {
   llvm::raw_ostream &OS;
-  const bool ShowColors;
+  const Node::PrintConfig Cfg;
 
   /// Pending[i] is an action to dump an entity at level i.
   llvm::SmallVector<std::function<void(bool IsLastChild)>, 32> Pending;
@@ -101,7 +104,7 @@ public:
       // Note that the first level gets no prefix.
       {
         OS << '\n';
-        ColorScope Color(OS, ShowColors, IndentColor);
+        ColorScope Color(OS, Cfg, IndentColor);
         OS << Prefix << (IsLastChild ? '`' : '|') << '-';
         if (!Label.empty())
           OS << Label << ": ";
@@ -135,8 +138,8 @@ public:
     FirstChild = false;
   }
 
-  TextTreeStructure(llvm::raw_ostream &OS, bool ShowColors)
-      : OS(OS), ShowColors(ShowColors) {}
+  TextTreeStructure(llvm::raw_ostream &OS, Node::PrintConfig cfg)
+      : OS(OS), Cfg(cfg) {}
 };
 
 class RecursiveHIRPrinter : protected TextTreeStructure,
@@ -146,12 +149,31 @@ public:
   using HIRBase = RecursiveASTVisitor<RecursiveHIRPrinter>;
   using TypeBase = RecursiveTypeVisitor<RecursiveHIRPrinter>;
 
-  RecursiveHIRPrinter(llvm::raw_ostream &os, bool colors)
-      : TextTreeStructure(os, /*showColors=*/colors), OS(os) {}
+  RecursiveHIRPrinter(llvm::raw_ostream &os, Node::PrintConfig cfg)
+      : TextTreeStructure(os, /*showColors=*/cfg & Node::PrintConfig::Color),
+        OS(os), Cfg(cfg) {}
 
   bool visitNode(const Node &node) {
-    ColorScope color(OS, true, NodeColor);
-    return HIRBase::visitNode(node);
+    {
+      ColorScope color(OS, Cfg, NodeColor);
+      OS << ToString(node.getKind());
+    }
+
+    bool printAddress = Cfg & Node::PrintConfig::Address;
+    bool printSrcLoc = Cfg & Node::PrintConfig::SourceLocation;
+
+    if (printAddress || printSrcLoc) {
+      if (printAddress) {
+        printPointer(&node);
+      }
+      if (printSrcLoc) {
+        printSourceLocation(node);
+      }
+    }
+    OS << ':';
+
+    HIRBase::visitNode(node);
+    return true;
   }
 
   bool traverseNode(const Node &node) {
@@ -162,17 +184,9 @@ public:
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//
-  bool visitCompilationUnit(const CompilationUnit &compUnit) {
-    OS << "CompilationUnit";
-
-    printPointer(&compUnit);
-    return true;
-  }
+  bool visitCompilationUnit(const CompilationUnit &compUnit) { return true; }
 
   bool visitFunctionDecl(const FunctionDecl &funcDecl) {
-    OS << "FunctionDecl";
-
-    printPointer(&funcDecl);
     printAttribute(ToString(funcDecl.getFunctionKind()));
     printIdentifier(funcDecl.getName());
 
@@ -183,9 +197,6 @@ public:
   }
 
   bool visitParamDecl(const ParamDecl &paramDecl) {
-    OS << "ParameterDecl";
-
-    printPointer(&paramDecl);
     traverseType(paramDecl.getType());
     printIdentifier(paramDecl.getName());
     return true;
@@ -198,7 +209,7 @@ public:
   // Begin type printing functions
   //=--------------------------------------------------------------------------=//
   bool visitType(const Type &type) {
-    ColorScope color(OS, true, TypeColor);
+    ColorScope color(OS, Cfg, TypeColor);
     TypeBase::visitType(type);
     return true;
   }
@@ -212,38 +223,52 @@ public:
   //=--------------------------------------------------------------------------=//
 
 private:
+  void printSourceLocation(const Node &node) {
+    ColorScope color(OS, Cfg, SourceLocationColor);
+
+    const SourceLocation begin = node.getBeginLoc();
+    const SourceLocation end = node.getEndLoc();
+
+    const char *msgFormat = "<{0},{1}>";
+    OS << ' ';
+    OS << llvm::formatv(msgFormat, begin.Line, begin.Column);
+    OS << '-';
+    OS << llvm::formatv(msgFormat, end.Line, end.Column);
+  }
+
   void printPointer(const void *ptr) {
-    ColorScope color(OS, true, AddressColor);
-    OS << " (" << ptr << ')';
+    ColorScope color(OS, Cfg, AddressColor);
+    OS << ' ' << ptr;
   }
 
   void printAttribute(llvm::StringRef attr) {
-    ColorScope color(OS, true, AttrColor);
+    ColorScope color(OS, Cfg, AttrColor);
     OS << ' ' << attr;
   }
 
   void printIdentifier(llvm::StringRef id) {
-    ColorScope color(OS, true, IdentifierColor);
+    ColorScope color(OS, Cfg, IdentifierColor);
     OS << ' ' << id;
   }
 
 private:
   llvm::raw_ostream &OS;
+  Node::PrintConfig Cfg;
 };
 
 } // namespace
 
-void tmplang::hir::Node::print(llvm::raw_ostream &os, bool colors) const {
-  RecursiveHIRPrinter(os, colors).traverseNode(*this);
+void tmplang::hir::Node::print(llvm::raw_ostream &os, PrintConfig cfg) const {
+  RecursiveHIRPrinter(os, cfg).traverseNode(*this);
 }
 
-void tmplang::hir::Node::dump(bool colors) const {
+void tmplang::hir::Node::dump(Node::PrintConfig cfg) const {
   // FIXME: Set our own debug streams
   if (llvm::dbgs().has_colors()) {
     llvm::dbgs().enable_colors(true);
   }
 
-  print(llvm::dbgs(), colors);
+  print(llvm::dbgs(), cfg);
 
   llvm::dbgs().enable_colors(false);
 }

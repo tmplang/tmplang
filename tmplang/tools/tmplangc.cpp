@@ -65,7 +65,7 @@ int main(int argc, const char *argv[]) {
   }
 
   if (parsedCompilerArgs->hasArg(OPT_dump_hir)) {
-    hirCompilationUnit->dump(/*colors=*/true);
+    hirCompilationUnit->dump();
     return 0;
   }
 
