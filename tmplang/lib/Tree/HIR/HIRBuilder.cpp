@@ -67,6 +67,14 @@ HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
   return ParamDecl(srcParamDecl.getName(), *type);
 }
 
+static FunctionDecl::FunctionKind GetFunctionKind(Token tk) {
+  assert(tk.Kind == TokenKind::TK_ProcType || tk.Kind == TokenKind::TK_FnType);
+  if (tk.Kind == TokenKind::TK_ProcType) {
+    return FunctionDecl::proc;
+  }
+  return FunctionDecl::fn;
+}
+
 llvm::Optional<FunctionDecl>
 HIRBuilder::get(const source::FunctionDecl &srcFunc) {
   if (!SymTable.insertIdentifier(srcFunc.getName())) {
@@ -101,7 +109,8 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
 
   // TODO: Process body
 
-  return FunctionDecl(srcFunc.getName(), *hirReturnType, std::move(paramList));
+  return FunctionDecl(srcFunc.getName(), GetFunctionKind(srcFunc.getFuncType()),
+                      *hirReturnType, std::move(paramList));
 }
 
 llvm::Optional<CompilationUnit>

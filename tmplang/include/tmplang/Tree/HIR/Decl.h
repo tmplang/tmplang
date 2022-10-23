@@ -11,7 +11,7 @@ class Decl : public Node {
 public:
   llvm::StringRef getName() const { return Name; }
 
-  static bool classof(Node *node) {
+  static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::FuncDecl ||
            node->getKind() == Node::Kind::ParamDecl;
   }

@@ -5,17 +5,21 @@
 
 namespace tmplang::hir {
 
-class Type;
-
 /// Represents the result of a successfully compiled source file and it is the
 /// root node of every AST. This class contains the ownership of every
 /// declaration found in the source file.
-class CompilationUnit : Node {
+class CompilationUnit : public Node {
 public:
   CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
 
+  llvm::ArrayRef<FunctionDecl> getFunctions() const { return FunctionDecls; }
+
   void addFunctionDecl(FunctionDecl funcDecl) {
     FunctionDecls.push_back(std::move(funcDecl));
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Node::Kind::CompilationUnit;
   }
 
 private:

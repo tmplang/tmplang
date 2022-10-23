@@ -51,6 +51,7 @@ public:
   }
   const ParamList &getParams() const { return Params; }
   llvm::StringRef getName() const override { return Identifier.getLexeme(); }
+  Token getFuncType() const { return FuncType; }
   SourceLocation getBeginLoc() const override { return FuncType.StartLocation; }
   SourceLocation getEndLoc() const override { return RKeyBracket.EndLocation; }
 
