@@ -40,7 +40,8 @@ struct TokenBuilder {
 
 } // namespace
 
-Lexer::Lexer(llvm::StringRef input) : State(input) {}
+Lexer::Lexer(llvm::StringRef input)
+    : State(input), DetectedEOL(State.CurrentInput.detectEOL()) {}
 
 Token Lexer::nextImpl() {
   TokenBuilder tkBuilder(State);
@@ -50,6 +51,13 @@ Token Lexer::nextImpl() {
   }
 
   llvm::Optional<TokenKind> simpleTokenMatched;
+
+  // Handle new lines
+  if (State.CurrentInput.startswith(DetectedEOL)) {
+    State.consumeUntilEOLOrEOF();
+    return nextImpl();
+  }
+
   switch (State.CurrentInput.front()) {
   case ';':
     simpleTokenMatched = TK_Semicolon;
@@ -76,10 +84,12 @@ Token Lexer::nextImpl() {
   case '\v':
     State.advance();
     return nextImpl();
-  case '\n':
-  case '\r':
-  case '\f':
-    State.advance();
+  case '/':
+    if (!State.CurrentInput.startswith("//")) {
+      return tkBuilder.buildToken(TK_Unknown);
+    }
+    // Simple comment case. Ignore all until EOL or EOF
+    State.consumeUntilEOLOrEOF();
     return nextImpl();
   default:
     break;
@@ -136,4 +146,18 @@ void Lexer::LexerState::advance(unsigned nChars) {
     CurrentLocation.Column += nChars;
   }
   CurrentInput = CurrentInput.drop_front(nChars);
+}
+
+void Lexer::LexerState::consumeUntilEOLOrEOF() {
+  size_t it = CurrentInput.find(CurrentInput.detectEOL());
+  if (it == llvm::StringRef::npos) {
+    // No more end of lines, so it must be end of file
+    CurrentLocation.Column += CurrentInput.size();
+    CurrentInput = llvm::StringRef{};
+  } else {
+    CurrentInput =
+        CurrentInput.drop_front(it + CurrentInput.detectEOL().size());
+    CurrentLocation.Column = 1;
+    CurrentLocation.Line += 1;
+  }
 }
