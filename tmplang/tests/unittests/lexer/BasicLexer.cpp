@@ -108,3 +108,30 @@ TEST(BasicLexer, MultiLine) {
                 {TK_EOF, {3, 3}, {3, 3}},
             });
 }
+
+TEST(BasicLexer, Comment) {
+  TestLexer("// fn func: Typ a, Typ b {}", {{TK_EOF, {1, 28}, {1, 28}}});
+}
+
+TEST(BasicLexer, InvalidComment) {
+  TestLexer("/ fn func: Typ a, Typ b {}", {{TK_Unknown, {1, 1}, {1, 1}}});
+}
+
+TEST(BasicLexer, MultiLineWithComment) {
+  llvm::StringLiteral code = R"(
+//This functions does basically nothing
+fn foo: a Chr -> Int {
+  // Implement this function, do something cool
+}//)";
+
+  TestLexer(code, {{TK_FnType, {3, 1}, {3, 2}},
+                   {"foo", {3, 4}, {3, 6}},
+                   {TK_Colon, {3, 7}, {3, 7}},
+                   {"a", {3, 9}, {3, 9}},
+                   {"Chr", {3, 11}, {3, 13}},
+                   {TK_RArrow, {3, 15}, {3, 16}},
+                   {"Int", {3, 18}, {3, 20}},
+                   {TK_LKeyBracket, {3, 22}, {3, 22}},
+                   {TK_RKeyBracket, {5, 1}, {5, 1}},
+                   {TK_EOF, {5, 4}, {5, 4}}});
+}

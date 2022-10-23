@@ -16,6 +16,7 @@ public:
     LexerState(llvm::StringRef);
 
     void advance(unsigned nChars = 1);
+    void consumeUntilEOLOrEOF();
 
     llvm::StringRef CurrentInput;
     SourceLocation CurrentLocation;
@@ -26,6 +27,8 @@ private:
   Token nextImpl();
 
   LexerState State;
+  // Detected End of Line
+  llvm::StringRef DetectedEOL;
 };
 
 } // namespace tmplang
