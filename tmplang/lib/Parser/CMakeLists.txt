@@ -3,6 +3,7 @@ llvm_add_library(TmplangParser
 
     LINK_LIBS PUBLIC
     TmplangLexer
+    TmplangSourceTree
 
     LINK_COMPONENTS
     Support

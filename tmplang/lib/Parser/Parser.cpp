@@ -2,6 +2,8 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/raw_ostream.h>
+#include <tmplang/Tree/Source/Decls.h>
+#include <tmplang/Tree/Source/Types.h>
 
 using namespace tmplang;
 
@@ -29,6 +31,11 @@ static void Report(Token got, llvm::ArrayRef<TokenKind> expected,
 
 namespace {
 
+struct LexicalScope {
+  Token LKeyBracket;
+  Token RKeyBracket;
+};
+
 class Parser {
 public:
   Parser(Lexer &lex) : Lex(lex) {
@@ -36,21 +43,21 @@ public:
     Lex.next();
   }
 
-  bool Start();
+  llvm::Optional<source::CompilationUnit> Start();
 
 private:
-  bool FunctionDefinition();
-  bool ParamList();
-  bool Param();
-  bool Block();
-  bool FunctionType();
-  bool Type();
-  bool Identifier();
+  llvm::Optional<source::FunctionDecl> FunctionDefinition();
+  llvm::Optional<source::FunctionDecl::ParamList> ParamList();
+  llvm::Optional<source::ParamDecl> Param();
+  llvm::Optional<LexicalScope> Block();
+  llvm::Optional<Token> FunctionType();
+  llvm::Optional<source::NamedType> Type();
+  llvm::Optional<Token> Identifier();
 
 private:
-  bool Match(llvm::ArrayRef<TokenKind> list);
-  bool TryMatch(llvm::ArrayRef<TokenKind> list,
-                bool consumeTokenIfMatch = false);
+  llvm::Optional<Token> Match(llvm::ArrayRef<TokenKind> list);
+  llvm::Optional<Token> TryMatch(llvm::ArrayRef<TokenKind> list,
+                                 bool consumeTokenIfMatch = false);
 
   Lexer &Lex;
 };
@@ -59,16 +66,23 @@ private:
 
 /// Start = Function_Definition*;
 ///       | EOF;
-bool Parser::Start() {
+llvm::Optional<source::CompilationUnit> Parser::Start() {
+  source::CompilationUnit compilationUnit;
+
   while (true) {
     if (TryMatch({TokenKind::TK_EOF}, /*consumeTok*/ true)) {
-      return true;
+      return compilationUnit;
     }
 
-    if (!FunctionDefinition()) {
-      return false;
+    auto func = FunctionDefinition();
+    if (!func) {
+      return llvm::None;
     }
+
+    compilationUnit.addFunctionDecl(std::move(*func));
   }
+
+  return compilationUnit;
 }
 
 /// Function_Definition =
@@ -76,86 +90,159 @@ bool Parser::Start() {
 ///  [2] | Function_Type, Identifier, ":", Param_List, Block
 ///  [3] | Function_Type, Identifier, "->", Type, Block
 ///  [4] | Function_Type, Identifier, Block;
-bool Parser::FunctionDefinition() {
-  const bool funcAndId = FunctionType() && Identifier();
-  if (!funcAndId) {
-    return false;
+llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
+  auto funcType = FunctionType();
+  auto id = Identifier();
+  if (!funcType || !id) {
+    return llvm::None;
   }
 
   // [1] && [2]
-  if (TryMatch({TK_Colon}, /*consumeTok*/ true)) {
-    if (!ParamList()) {
-      return false;
+  if (auto colon = TryMatch({TK_Colon}, /*consumeTok*/ true)) {
+    auto paramList = ParamList();
+    if (!paramList) {
+      return llvm::None;
     }
 
-    if (TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
-      return Type() && Block(); // [1]
+    if (auto arrow = TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
+      // [1]
+      auto returnType = Type();
+      auto block = Block();
+      if (!returnType || !block) {
+        return llvm::None;
+      }
+
+      return source::FunctionDecl::Create(
+          *funcType, *id, *colon, std::move(*paramList),
+          source::FunctionDecl::ArrowAndType{*arrow,
+                                             source::NamedType(*returnType)},
+          block->LKeyBracket, block->RKeyBracket);
     }
 
-    return Block(); // [2]
+    // [2]
+    auto block = Block();
+    if (!block) {
+      return llvm::None;
+    }
+
+    return source::FunctionDecl::Create(*funcType, *id, *colon,
+                                        std::move(*paramList),
+                                        block->LKeyBracket, block->RKeyBracket);
   }
 
-  if (TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
-    return Type() && Block(); // [3]
+  if (auto arrow = TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
+    // [3]
+    auto returnType = Type();
+    auto block = Block();
+    if (!returnType || !block) {
+      return llvm::None;
+    }
+
+    return source::FunctionDecl::Create(
+        *funcType, *id,
+        source::FunctionDecl::ArrowAndType{*arrow,
+                                           source::NamedType(*returnType)},
+        block->LKeyBracket, block->RKeyBracket);
   }
 
-  return Block(); // [4]
+  // [4]
+  auto block = Block();
+  if (!block) {
+    return llvm::None;
+  }
+  return source::FunctionDecl::Create(*funcType, *id, block->LKeyBracket,
+                                      block->RKeyBracket);
 }
 
 /// Param_List = Param (",", Param)*;
-bool Parser::ParamList() {
-  if (!Param()) {
-    return false;
+llvm::Optional<source::FunctionDecl::ParamList> Parser::ParamList() {
+  source::FunctionDecl::ParamList paramList;
+
+  auto firstParam = Param();
+  if (!firstParam) {
+    return llvm::None;
   }
 
-  while (TryMatch({TK_Comma}, /*consumeTok*/ true)) {
-    if (!Param()) {
-      return false;
+  paramList.ParamList.push_back(std::move(*firstParam));
+
+  while (auto comma = TryMatch({TK_Comma}, /*consumeTok*/ true)) {
+    auto param = Param();
+    if (!param) {
+      return llvm::None;
     }
+
+    paramList.ParamList.push_back(std::move(*param));
+    paramList.CommaList.push_back(*comma);
   }
 
-  return true;
+  return paramList;
 }
 
 /// Param = Type Identifier;
-bool Parser::Param() { return Type() && Identifier(); }
+llvm::Optional<source::ParamDecl> Parser::Param() {
+  auto type = Type();
+  auto id = Identifier();
+  if (!type || !id) {
+    return llvm::None;
+  }
+
+  return source::ParamDecl(*id, source::NamedType(*type));
+}
 
 /// Block = "{" "}";
-bool Parser::Block() {
-  return Match({TK_LKeyBracket}) && Match({TK_RKeyBracket});
+llvm::Optional<LexicalScope> Parser::Block() {
+  auto lKeyBrace = Match({TK_LKeyBracket});
+  auto rKeyBrace = Match({TK_RKeyBracket});
+  if (!lKeyBrace || !rKeyBrace) {
+    return llvm::None;
+  }
+
+  return LexicalScope{*lKeyBrace, *rKeyBrace};
 }
 
 /// Function_type = "proc" | "fn";
-bool Parser::FunctionType() { return Match({TK_ProcType, TK_FnType}); }
+llvm::Optional<Token> Parser::FunctionType() {
+  return Match({TK_ProcType, TK_FnType});
+}
 
 /// Type = Identifier;
-bool Parser::Type() { return Identifier(); }
+llvm::Optional<source::NamedType> Parser::Type() {
+  auto id = Identifier();
+  if (!id) {
+    return llvm::None;
+  }
+
+  return source::NamedType(*id);
+}
 
 /// Identifier = [a-Z]*;
-bool Parser::Identifier() { return Match({TK_Identifier}); }
+llvm::Optional<Token> Parser::Identifier() { return Match({TK_Identifier}); }
 
-bool Parser::Match(llvm::ArrayRef<TokenKind> list) {
+llvm::Optional<Token> Parser::Match(llvm::ArrayRef<TokenKind> list) {
   Token tk = Lex.prev();
   if (!llvm::is_contained(list, tk.Kind)) {
     Report(tk, list, llvm::errs());
-    return false;
+    return llvm::None;
   }
 
   Lex.next();
-  return true;
+  return tk;
 }
 
-bool Parser::TryMatch(llvm::ArrayRef<TokenKind> list,
-                      bool consumeTokenIfMatch) {
-  if (!llvm::is_contained(list, Lex.prev().Kind)) {
-    return false;
+llvm::Optional<Token> Parser::TryMatch(llvm::ArrayRef<TokenKind> list,
+                                       bool consumeTokenIfMatch) {
+  Token tk = Lex.prev();
+  if (!llvm::is_contained(list, tk.Kind)) {
+    return llvm::None;
   }
 
   if (consumeTokenIfMatch) {
     Lex.next();
   }
 
-  return true;
+  return tk;
 }
 
-bool tmplang::Parse(tmplang::Lexer &lex) { return Parser(lex).Start(); }
+llvm::Optional<source::CompilationUnit> tmplang::Parse(tmplang::Lexer &lex) {
+  return Parser(lex).Start();
+}
