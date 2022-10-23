@@ -1,6 +1,6 @@
 llvm_add_library(TmplangHIRTree
+    HIRBuilder.cpp
     HIRContext.cpp
-    CompilationUnit.cpp
     Types.cpp
 
     LINK_COMPONENTS

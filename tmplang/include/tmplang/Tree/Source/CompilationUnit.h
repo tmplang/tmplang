@@ -28,6 +28,10 @@ public:
     return node->getKind() == Node::Kind::CompilationUnit;
   }
 
+  llvm::ArrayRef<FunctionDecl> getFunctionDecls() const {
+    return FunctionDeclarations;
+  }
+
 private:
   std::vector<FunctionDecl> FunctionDeclarations;
 };

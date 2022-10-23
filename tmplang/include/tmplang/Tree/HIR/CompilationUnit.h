@@ -3,8 +3,6 @@
 
 #include <tmplang/Tree/HIR/Decls.h>
 
-#include <memory>
-
 namespace tmplang::hir {
 
 class Type;
@@ -16,13 +14,12 @@ class CompilationUnit : Node {
 public:
   CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
 
-  const FunctionDecl &AddFunctionDecl(llvm::StringRef name,
-                                      std::vector<ParamDecl> params,
-                                      const Type &returnType);
+  void addFunctionDecl(FunctionDecl funcDecl) {
+    FunctionDecls.push_back(std::move(funcDecl));
+  }
 
 private:
-  /// Owned top level declaration
-  std::vector<std::unique_ptr<Decl>> OwnedTopLevelDecls;
+  std::vector<FunctionDecl> FunctionDecls;
 };
 
 } // namespace tmplang::hir

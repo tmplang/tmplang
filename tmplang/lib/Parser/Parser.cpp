@@ -215,7 +215,7 @@ llvm::Optional<source::NamedType> Parser::Type() {
   return source::NamedType(*id);
 }
 
-/// Identifier = [a-Z]*;
+/// Identifier = [a-zA-Z][a-zA-Z0-9]*;
 llvm::Optional<Token> Parser::Identifier() { return Match({TK_Identifier}); }
 
 llvm::Optional<Token> Parser::Match(llvm::ArrayRef<TokenKind> list) {
