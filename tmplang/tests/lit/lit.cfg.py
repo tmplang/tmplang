@@ -40,13 +40,9 @@ config.test_exec_root = os.path.join(config.tmplang_bin_dir, 'tests/lit')
 llvm_config.use_default_substitutions()
 
 tool_dirs = [config.llvm_tools_dir]
-
-tools = [
-    'tmplangc'
-]
+tools = ['tmplangc', 'not']
+llvm_config.add_tool_substitutions(tools, tool_dirs)
 
 # Propagate some variables from the host environment.
 llvm_config.with_system_environment(
     ['HOME', 'INCLUDE', 'LIB', 'TMP', 'TEMP', 'ASAN_SYMBOLIZER_PATH', 'MSAN_SYMBOLIZER_PATH'])
-
-llvm_config.add_tool_substitutions(tools, tool_dirs)
