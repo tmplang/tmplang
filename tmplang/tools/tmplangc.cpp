@@ -7,6 +7,7 @@
 #include <tmplang/CLI/CLPrinter.h>
 #include <tmplang/Lexer/Lexer.h>
 #include <tmplang/Parser/Parser.h>
+#include <tmplang/Sema/Sema.h>
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 
 using namespace tmplang;
@@ -109,6 +110,11 @@ int main(int argc, const char *argv[]) {
 
   if (auto *dumpHIRArg = parsedCompilerArgs->getLastArg(OPT_dump_hir)) {
     return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit);
+  }
+
+  if (!tmplang::Sema(*hirCompilationUnit)) {
+    printer.errs() << "Sema failed!\n";
+    return 1;
   }
 
   return 0;
