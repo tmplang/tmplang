@@ -11,6 +11,37 @@
 
 using namespace tmplang;
 
+static llvm::Optional<hir::Node::PrintConfig>
+ParseDumpHIRArg(llvm::opt::Arg &arg, CLPrinter &out) {
+  if (arg.getNumValues() == 0) {
+    out.errs() << "At least one value of the followings is required: "
+                  "'color|addr|loc|all|simple'\n";
+    return llvm::None;
+  }
+
+  hir::Node::PrintConfig printCfg = hir::Node::PrintConfig::None;
+  for (llvm::StringRef option : arg.getValues()) {
+    llvm::Optional<tmplang::hir::Node::PrintConfig> parsedOption =
+        llvm::StringSwitch<llvm::Optional<hir::Node::PrintConfig>>(option)
+            .Case("color", hir::Node::PrintConfig::Color)
+            .Case("addr", hir::Node::PrintConfig::Address)
+            .Case("loc", hir::Node::PrintConfig::SourceLocation)
+            .Case("simple", hir::Node::PrintConfig::None)
+            .Case("all", hir::Node::PrintConfig::All)
+            .Default(llvm::None);
+
+    if (!parsedOption) {
+      out.errs() << "Invalid value '" << option << "' for flag "
+                 << arg.getSpelling() << "\n";
+      return llvm::None;
+    }
+
+    printCfg |= *parsedOption;
+  }
+
+  return printCfg;
+}
+
 int main(int argc, const char *argv[]) {
   llvm::InitLLVM llvm(argc, argv);
 
@@ -64,8 +95,15 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  if (parsedCompilerArgs->hasArg(OPT_dump_hir)) {
-    hirCompilationUnit->dump(/*colors=*/true);
+  if (auto *dumpHIRArg = parsedCompilerArgs->getLastArg(OPT_dump_hir)) {
+    llvm::Optional<hir::Node::PrintConfig> cfg =
+        ParseDumpHIRArg(*dumpHIRArg, printer);
+    if (!cfg) {
+      // Errors already reported
+      return 1;
+    }
+
+    hirCompilationUnit->dump(*cfg);
     return 0;
   }
 

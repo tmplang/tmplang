@@ -3,6 +3,10 @@
 
 #include <tmplang/Tree/HIR/Decls.h>
 
+namespace tmplang::source {
+class Node;
+} // namespace tmplang::source
+
 namespace tmplang::hir {
 
 /// Represents the result of a successfully compiled source file and it is the
@@ -10,7 +14,8 @@ namespace tmplang::hir {
 /// declaration found in the source file.
 class CompilationUnit : public Node {
 public:
-  CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
+  explicit CompilationUnit(const source::Node &srcNode)
+      : Node(Node::Kind::CompilationUnit, srcNode) {}
 
   llvm::ArrayRef<FunctionDecl> getFunctions() const { return FunctionDecls; }
 

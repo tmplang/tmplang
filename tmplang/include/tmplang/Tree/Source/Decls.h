@@ -21,7 +21,7 @@ public:
   SourceLocation getBeginLoc() const override {
     return ParamType.getBeginLoc();
   }
-  SourceLocation getEndLoc() const override { return ParamType.getEndLoc(); }
+  SourceLocation getEndLoc() const override { return Identifier.EndLocation; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::ParamDecl;

@@ -3,6 +3,7 @@ llvm_add_library(TmplangHIRTree
     HIRBuilder.cpp
     HIRContext.cpp
     HIRNodeTextPrinter.cpp
+    Node.cpp
     Types.cpp
 
     LINK_COMPONENTS
