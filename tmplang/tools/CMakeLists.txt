@@ -5,6 +5,10 @@ add_llvm_executable(tmplangc
 target_link_libraries(tmplangc
   PRIVATE
   TmplangCLI
+  TmplangLexer
+  TmplangParser
+  TmplangSourceTree
+  TmplangHIRTree
 
   LLVMSupport
   LLVMOption
