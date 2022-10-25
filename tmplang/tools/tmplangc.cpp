@@ -42,6 +42,18 @@ ParseDumpHIRArg(llvm::opt::Arg &arg, CLPrinter &out) {
   return printCfg;
 }
 
+static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
+                    hir::CompilationUnit &compUnit) {
+  llvm::Optional<hir::Node::PrintConfig> cfg = ParseDumpHIRArg(arg, out);
+  if (!cfg) {
+    // Errors already reported
+    return 1;
+  }
+
+  compUnit.dump(*cfg);
+  return 0;
+}
+
 int main(int argc, const char *argv[]) {
   llvm::InitLLVM llvm(argc, argv);
 
@@ -96,15 +108,7 @@ int main(int argc, const char *argv[]) {
   }
 
   if (auto *dumpHIRArg = parsedCompilerArgs->getLastArg(OPT_dump_hir)) {
-    llvm::Optional<hir::Node::PrintConfig> cfg =
-        ParseDumpHIRArg(*dumpHIRArg, printer);
-    if (!cfg) {
-      // Errors already reported
-      return 1;
-    }
-
-    hirCompilationUnit->dump(*cfg);
-    return 0;
+    return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit);
   }
 
   return 0;
