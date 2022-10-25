@@ -11,5 +11,5 @@ def h : Flag<["-"], "h">, Group<General_Group>, Alias<help>;
 
 def Dump_Group : OptionGroup<"<dump group>">, HelpText<"All dump options">;
 
-def dump_hir : Flag<["--"], "dump-hir">, Group<General_Group>,
-              HelpText<"dumps HIR and ends">;
+def dump_hir: CommaJoined<["--"], "dump-hir=">, Group<General_Group>,
+              HelpText<"multi options: color|addr|loc|all|simple\nDefault: all">;

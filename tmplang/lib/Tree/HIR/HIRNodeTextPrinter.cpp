@@ -229,11 +229,8 @@ private:
     const SourceLocation begin = node.getBeginLoc();
     const SourceLocation end = node.getEndLoc();
 
-    const char *msgFormat = "<{0},{1}>";
-    OS << ' ';
-    OS << llvm::formatv(msgFormat, begin.Line, begin.Column);
-    OS << '-';
-    OS << llvm::formatv(msgFormat, end.Line, end.Column);
+    OS << llvm::formatv(" <{0},{1}-{2},{3}>", begin.Line, begin.Column, end.Line,
+                        end.Column);
   }
 
   void printPointer(const void *ptr) {
