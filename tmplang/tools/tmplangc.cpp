@@ -7,6 +7,7 @@
 #include <tmplang/CLI/CLPrinter.h>
 #include <tmplang/Lexer/Lexer.h>
 #include <tmplang/Parser/Parser.h>
+#include <tmplang/Sema/Sema.h>
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 
 using namespace tmplang;
@@ -40,6 +41,18 @@ ParseDumpHIRArg(llvm::opt::Arg &arg, CLPrinter &out) {
   }
 
   return printCfg;
+}
+
+static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
+                    hir::CompilationUnit &compUnit) {
+  llvm::Optional<hir::Node::PrintConfig> cfg = ParseDumpHIRArg(arg, out);
+  if (!cfg) {
+    // Errors already reported
+    return 1;
+  }
+
+  compUnit.dump(*cfg);
+  return 0;
 }
 
 int main(int argc, const char *argv[]) {
@@ -96,15 +109,12 @@ int main(int argc, const char *argv[]) {
   }
 
   if (auto *dumpHIRArg = parsedCompilerArgs->getLastArg(OPT_dump_hir)) {
-    llvm::Optional<hir::Node::PrintConfig> cfg =
-        ParseDumpHIRArg(*dumpHIRArg, printer);
-    if (!cfg) {
-      // Errors already reported
-      return 1;
-    }
+    return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit);
+  }
 
-    hirCompilationUnit->dump(*cfg);
-    return 0;
+  if (!tmplang::Sema(*hirCompilationUnit)) {
+    printer.errs() << "Sema failed!\n";
+    return 1;
   }
 
   return 0;
