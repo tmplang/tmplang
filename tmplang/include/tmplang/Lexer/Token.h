@@ -18,6 +18,8 @@ enum TokenKind {
   TK_Identifier,
 
   // Delimiters
+  TK_LParentheses,
+  TK_RParentheses,
   TK_LKeyBracket,
   TK_RKeyBracket,
   TK_Comma,

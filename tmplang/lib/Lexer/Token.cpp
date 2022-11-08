@@ -14,6 +14,10 @@ llvm::StringLiteral tmplang::ToString(TokenKind tk) {
     return "<UNKNOWN>";
   case TK_Identifier:
     return "Ident";
+  case TK_LParentheses:
+    return "(";
+  case TK_RParentheses:
+    return ")";
   case TK_LKeyBracket:
     return "{";
   case TK_RKeyBracket:

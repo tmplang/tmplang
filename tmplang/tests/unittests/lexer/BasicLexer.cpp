@@ -153,3 +153,17 @@ fn foo: a Chr -> Int {
                    {TK_RKeyBracket, {5, 1}, {5, 1}},
                    {TK_EOF, {5, 4}, {5, 4}}});
 }
+
+TEST(BasicLexer, Parentheses) {
+  TestLexer("fn foo -> (i32, i32)", {
+                                        {TK_FnType, {1, 1}, {1, 2}},
+                                        {"foo", {1, 4}, {1, 6}},
+                                        {TK_RArrow, {1, 8}, {1, 9}},
+                                        {TK_LParentheses, {1, 11}, {1, 11}},
+                                        {"i32", {1, 12}, {1, 14}},
+                                        {TK_Comma, {1, 15}, {1, 15}},
+                                        {"i32", {1, 17}, {1, 19}},
+                                        {TK_RParentheses, {1, 20}, {1, 20}},
+                                        {TK_EOF, {1, 21}, {1, 21}},
+                                    });
+}

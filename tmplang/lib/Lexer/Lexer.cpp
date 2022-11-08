@@ -71,6 +71,12 @@ Token Lexer::nextImpl() {
   }
 
   switch (State.CurrentInput.front()) {
+  case '(':
+    simpleTokenMatched = TK_LParentheses;
+    break;
+  case ')':
+    simpleTokenMatched = TK_RParentheses;
+    break;
   case ';':
     simpleTokenMatched = TK_Semicolon;
     break;
