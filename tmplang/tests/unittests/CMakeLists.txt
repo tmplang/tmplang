@@ -10,6 +10,6 @@ function(add_tmplang_unittest test_dirname)
   target_compile_definitions(${test_dirname} PRIVATE TMPLANG_RESOURCE_PATH="${LLVM_LIBRARY_OUTPUT_INTDIR}")
 endfunction()
 
-add_subdirectory(lexer)
+add_subdirectory(Lexer)
 add_subdirectory(Parser)
 add_subdirectory(HIR)
