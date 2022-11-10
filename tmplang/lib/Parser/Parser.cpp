@@ -210,12 +210,14 @@ llvm::Optional<Token> Parser::FunctionType() {
 
 /// Type = NamedType | TupleType;
 source::RAIIType Parser::Type() {
-  if (source::RAIIType namedType = NamedType()) {
-    return namedType;
+  constexpr TokenKind firstTokensOfNamedType[] = {TK_Identifier};
+  if (TryMatch(firstTokensOfNamedType, /*consumeTokenIfMatch=*/false)) {
+    return NamedType();
   }
 
-  if (source::RAIIType tupleType = TupleType()) {
-    return tupleType;
+  constexpr TokenKind firstTokensOfTupleType[] = {TK_LParentheses};
+  if (TryMatch(firstTokensOfTupleType, /*consumeTokenIfMatch=*/false)) {
+    return TupleType();
   }
 
   return nullptr;
@@ -231,7 +233,7 @@ source::RAIIType Parser::NamedType() {
   return source::make_RAIIType<source::NamedType>(*id);
 }
 
-/// TupleType = "(" ")" | "(" Type ")" | "(" Type ("," Type)+ ")"
+/// TupleType = "(" ( Type ("," Type)* )? ")";
 source::RAIIType Parser::TupleType() {
   auto lparentheses = Match({TK_LParentheses});
   if (!lparentheses) {
@@ -241,20 +243,24 @@ source::RAIIType Parser::TupleType() {
   llvm::SmallVector<source::RAIIType, 4> types;
   llvm::SmallVector<Token, 3> commas;
 
-  // FIXME: By the use we are doing here on type (failable), means that we need
-  // a mechanims to inform building methods if they should report something on
-  // fail or not.
+  constexpr TokenKind firstTokensOfType[] = {TK_LParentheses, TK_Identifier};
+  if (TryMatch(firstTokensOfType, /*consumeTokenIfMatch=*/false)) {
+    source::RAIIType firstType = Type();
+    if (!firstType) {
+      // TODO: Emit error
+    }
 
-  if (source::RAIIType firstType = Type()) {
     types.push_back(std::move(firstType));
-    while (auto rparentheses =
-               TryMatch({TK_Comma}, /*consumeTokenIfMatch=*/true)) {
+
+    while (auto comma = TryMatch({TK_Comma}, /*consumeTokenIfMatch=*/true)) {
       source::RAIIType followingType = Type();
       if (!followingType) {
+        // TODO: Emit error
         return nullptr;
       }
+
       types.push_back(std::move(followingType));
-      commas.push_back(std::move(*rparentheses));
+      commas.push_back(std::move(*comma));
     }
   }
 
