@@ -1,8 +1,8 @@
 #ifndef TMPLANG_TREE_SOURCE_DECLS_H
 #define TMPLANG_TREE_SOURCE_DECLS_H
 
-#include <llvm/ADT/ArrayRef.h>
 #include <tmplang/Lexer/Token.h>
+#include <tmplang/Tree/Source/CommonConstructs.h>
 #include <tmplang/Tree/Source/Decl.h>
 #include <tmplang/Tree/Source/Types.h>
 
@@ -38,17 +38,12 @@ public:
     RAIIType RetType;
   };
 
-  struct ParamList {
-    std::vector<source::ParamDecl> ParamList;
-    /// Commas preceding after the first param. CommaList.size() must be equal
-    /// to ParamList.size() - 1
-    std::vector<Token> CommaList;
-  };
-
   const Type *getReturnType() const {
     return OptArrowAndType ? OptArrowAndType->RetType.get() : nullptr;
   }
-  const ParamList &getParams() const { return Params; }
+  const CommaSeparatedList<source::ParamDecl, 4> &getParams() const {
+    return ParamList;
+  }
   llvm::StringRef getName() const override { return Identifier.getLexeme(); }
   Token getFuncType() const { return FuncType; }
   SourceLocation getBeginLoc() const override { return FuncType.StartLocation; }
@@ -60,12 +55,13 @@ public:
 
   /// fn foo: i32 a, f32 b -> i32 {}
   static FunctionDecl Create(Token funcType, Token identifier, Token colon,
-                             ParamList paramList, ArrowAndType arrowAndType,
-                             Token lKeyBracket, Token rKeyBracket);
+                             CommaSeparatedList<source::ParamDecl, 4> paramList,
+                             ArrowAndType arrowAndType, Token lKeyBracket,
+                             Token rKeyBracket);
   /// fn foo: i32 a, f32 b {}
   static FunctionDecl Create(Token funcType, Token identifier, Token colon,
-                             ParamList paramList, Token lKeyBracket,
-                             Token rKeyBracket);
+                             CommaSeparatedList<source::ParamDecl, 4> paramList,
+                             Token lKeyBracket, Token rKeyBracket);
   /// fn foo -> i32 {}
   static FunctionDecl Create(Token funcType, Token identifier,
                              ArrowAndType arrowAndType, Token lKeyBracket,
@@ -80,13 +76,14 @@ public:
 
 private:
   FunctionDecl(Token funcType, Token identifier, llvm::Optional<Token> colon,
-               ParamList paramList, llvm::Optional<ArrowAndType> arrowAndType,
-               Token lKeyBracket, Token rKeyBracket);
+               CommaSeparatedList<source::ParamDecl, 4> paramList,
+               llvm::Optional<ArrowAndType> arrowAndType, Token lKeyBracket,
+               Token rKeyBracket);
 
   Token FuncType;
   Token Identifier;
   llvm::Optional<Token> Colon;
-  ParamList Params;
+  CommaSeparatedList<source::ParamDecl, 4> ParamList;
   llvm::Optional<ArrowAndType> OptArrowAndType;
   Token LKeyBracket;
   /// TODO: Add body

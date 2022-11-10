@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <tmplang/Lexer/Token.h>
+#include <tmplang/Tree/Source/CommonConstructs.h>
 #include <tmplang/Tree/Source/Type.h>
 
 namespace tmplang::source {
@@ -30,15 +31,10 @@ public:
   TupleType(Token lparentheses, llvm::SmallVectorImpl<RAIIType> &&types,
             llvm::SmallVectorImpl<Token> &&commas, Token rparentheses)
       : Type(Kind::TupleType), LParentheses(lparentheses),
-        Types(std::move(types)), Commas(std::move(commas)),
-        RParentheses(rparentheses) {
-    assert((Types.empty() && Commas.empty()) ||
-           (Types.size() == Commas.size() + 1));
-    assert(llvm::all_of(commas,
-                        [](const Token &tk) { return tk.Kind == TK_Comma; }));
-  }
+        TypesAndCommas(std::move(types), std::move(commas)),
+        RParentheses(rparentheses) {}
 
-  llvm::ArrayRef<RAIIType> getTypes() const { return Types; }
+  llvm::ArrayRef<RAIIType> getTypes() const { return TypesAndCommas.Elems; }
 
   SourceLocation getBeginLoc() const override {
     return LParentheses.StartLocation;
@@ -49,8 +45,7 @@ public:
 
 private:
   Token LParentheses;
-  llvm::SmallVector<RAIIType, 4> Types;
-  llvm::SmallVector<Token, 3> Commas;
+  CommaSeparatedList<RAIIType, 4> TypesAndCommas;
   Token RParentheses;
 };
 

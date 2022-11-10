@@ -47,7 +47,7 @@ public:
 
 private:
   llvm::Optional<source::FunctionDecl> FunctionDefinition();
-  llvm::Optional<source::FunctionDecl::ParamList> ParamList();
+  llvm::Optional<source::CommaSeparatedList<source::ParamDecl, 4>> ParamList();
   llvm::Optional<source::ParamDecl> Param();
   llvm::Optional<LexicalScope> Block();
   llvm::Optional<Token> FunctionType();
@@ -157,15 +157,16 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
 }
 
 /// Param_List = Param (",", Param)*;
-llvm::Optional<source::FunctionDecl::ParamList> Parser::ParamList() {
-  source::FunctionDecl::ParamList paramList;
+llvm::Optional<source::CommaSeparatedList<source::ParamDecl, 4>>
+Parser::ParamList() {
+  source::CommaSeparatedList<source::ParamDecl, 4> paramList;
 
   auto firstParam = Param();
   if (!firstParam) {
     return llvm::None;
   }
 
-  paramList.ParamList.push_back(std::move(*firstParam));
+  paramList.Elems.push_back(std::move(*firstParam));
 
   while (auto comma = TryMatch({TK_Comma}, /*consumeTok*/ true)) {
     auto param = Param();
@@ -173,8 +174,8 @@ llvm::Optional<source::FunctionDecl::ParamList> Parser::ParamList() {
       return llvm::None;
     }
 
-    paramList.ParamList.push_back(std::move(*param));
-    paramList.CommaList.push_back(*comma);
+    paramList.Elems.push_back(std::move(*param));
+    paramList.Commas.push_back(*comma);
   }
 
   return paramList;

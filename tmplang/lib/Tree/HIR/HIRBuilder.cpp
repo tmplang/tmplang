@@ -104,7 +104,7 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
   std::vector<ParamDecl> paramList;
 
   SymTable.pushScope();
-  for (const source::ParamDecl &param : srcFunc.getParams().ParamList) {
+  for (const source::ParamDecl &param : srcFunc.getParams().Elems) {
     auto hirParamDecl = get(param);
     if (!hirParamDecl) {
       return llvm::None;
