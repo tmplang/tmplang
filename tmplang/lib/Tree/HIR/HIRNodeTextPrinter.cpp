@@ -1,3 +1,4 @@
+#include <llvm/ADT/STLExtras.h>
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
@@ -190,13 +191,14 @@ public:
     printAttribute(ToString(funcDecl.getFunctionKind()));
     printIdentifier(funcDecl.getName());
 
-    OS << " ->";
+    OS << " -> ";
 
     traverseType(funcDecl.getReturnType());
     return true;
   }
 
   bool visitParamDecl(const ParamDecl &paramDecl) {
+    OS << " ";
     traverseType(paramDecl.getType());
     printIdentifier(paramDecl.getName());
     return true;
@@ -215,7 +217,16 @@ public:
   }
 
   bool visitBuiltinType(const BuiltinType &builtinType) {
-    OS << " " << ToString(builtinType.getBuiltinKind());
+    OS << ToString(builtinType.getBuiltinKind());
+    return true;
+  }
+
+  bool traverseTupleType(const TupleType &tupleType) {
+    OS << "(";
+    llvm::interleaveComma(tupleType.getTypes(), OS, [&](const Type *type) {
+      TypeBase::traverseType(*type);
+    });
+    OS << ")";
     return true;
   }
   //=--------------------------------------------------------------------------=//

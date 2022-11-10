@@ -1,6 +1,7 @@
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 
 #include <llvm/ADT/DenseSet.h>
+#include <llvm/Support/Casting.h>
 #include <tmplang/Tree/Source/CompilationUnit.h>
 
 using namespace tmplang;
@@ -46,10 +47,31 @@ private:
   llvm::Optional<FunctionDecl> get(const source::FunctionDecl &);
   llvm::Optional<ParamDecl> get(const source::ParamDecl &);
 
+  const Type *get(const source::Type &);
+
 private:
   HIRContext &Ctx;
   SymbolTable SymTable;
 };
+
+const hir::Type *HIRBuilder::get(const source::Type &type) {
+  switch (type.getKind()) {
+  case source::Type::NamedType:
+    return BuiltinType::get(Ctx,
+                            llvm::cast<source::NamedType>(&type)->getName());
+  case source::Type::TupleType:
+    const auto &tupleType = *llvm::cast<source::TupleType>(&type);
+    llvm::SmallVector<const hir::Type *> types;
+    llvm::transform(tupleType.getTypes(), std::back_inserter(types),
+                    [&](const source::RAIIType &type) { return get(*type); });
+
+    if (llvm::any_of(types, [](const Type *type) { return type == nullptr; })) {
+      return nullptr;
+    }
+    return &TupleType::get(Ctx, types);
+  }
+  llvm_unreachable("All cases covered");
+}
 
 llvm::Optional<ParamDecl>
 HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
@@ -57,8 +79,7 @@ HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
     return llvm::None;
   }
 
-  const BuiltinType *type =
-      BuiltinType::get(Ctx, srcParamDecl.getType().getName());
+  const Type *type = get(srcParamDecl.getType());
   if (!type) {
     return llvm::None;
   }
@@ -93,13 +114,13 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
   SymTable.popScope();
 
   const Type *hirReturnType = nullptr;
-  if (const source::NamedType *srcType = srcFunc.getReturnType()) {
+  if (const source::Type *srcType = srcFunc.getReturnType()) {
     // FIXME: Right now we only have builtin types, so this is complete. Once
     // we start adding user defined types or other more complex types, change
     // this to reflect that
-    hirReturnType = BuiltinType::get(Ctx, srcType->getName());
+    hirReturnType = get(*srcType);
   } else {
-    hirReturnType = &BuiltinType::get(Ctx, BuiltinType::K_Unit);
+    hirReturnType = &TupleType::getUnit(Ctx);
   }
 
   if (!hirReturnType) {
@@ -108,8 +129,9 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
 
   // TODO: Process body
 
-  return FunctionDecl(srcFunc, srcFunc.getName(), GetFunctionKind(srcFunc.getFuncType()),
-                      *hirReturnType, std::move(paramList));
+  return FunctionDecl(srcFunc, srcFunc.getName(),
+                      GetFunctionKind(srcFunc.getFuncType()), *hirReturnType,
+                      std::move(paramList));
 }
 
 llvm::Optional<CompilationUnit>

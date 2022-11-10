@@ -10,16 +10,15 @@ namespace tmplang::source {
 
 class ParamDecl final : public Decl {
 public:
-  explicit ParamDecl(Token id, NamedType paramType)
+  explicit ParamDecl(RAIIType paramType, Token id)
       : Decl(Node::Kind::ParamDecl), ParamType(std::move(paramType)),
         Identifier(id) {}
-  virtual ~ParamDecl() = default;
 
-  const NamedType &getType() const { return ParamType; }
+  const Type &getType() const { return *ParamType; }
 
   llvm::StringRef getName() const override { return Identifier.getLexeme(); }
   SourceLocation getBeginLoc() const override {
-    return ParamType.getBeginLoc();
+    return ParamType->getBeginLoc();
   }
   SourceLocation getEndLoc() const override { return Identifier.EndLocation; }
 
@@ -28,7 +27,7 @@ public:
   }
 
 private:
-  NamedType ParamType;
+  RAIIType ParamType;
   Token Identifier;
 };
 
@@ -36,7 +35,7 @@ class FunctionDecl final : public Decl {
 public:
   struct ArrowAndType {
     Token Arrow;
-    NamedType RetType;
+    RAIIType RetType;
   };
 
   struct ParamList {
@@ -46,8 +45,8 @@ public:
     std::vector<Token> CommaList;
   };
 
-  const NamedType *getReturnType() const {
-    return OptArrowAndType ? &OptArrowAndType->RetType : nullptr;
+  const Type *getReturnType() const {
+    return OptArrowAndType ? OptArrowAndType->RetType.get() : nullptr;
   }
   const ParamList &getParams() const { return Params; }
   llvm::StringRef getName() const override { return Identifier.getLexeme(); }
@@ -75,6 +74,8 @@ public:
   static FunctionDecl Create(Token funcType, Token identifier,
                              Token lKeyBracket, Token rKeyBracket);
 
+  FunctionDecl(FunctionDecl &&) = default;
+  FunctionDecl &operator=(FunctionDecl &&) = default;
   virtual ~FunctionDecl() = default;
 
 private:

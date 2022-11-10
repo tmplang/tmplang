@@ -11,9 +11,6 @@ using namespace tmplang::hir;
   switch (kindToRetrieve) {
   case K_i32:
     return ctx.i32Type;
-  case K_Unit:
-    return ctx.UnitType;
-    break;
   }
   llvm_unreachable("BuiltinType case not covered!");
 }
@@ -29,8 +26,15 @@ llvm::StringLiteral tmplang::hir::ToString(BuiltinType::Kind kind) {
   switch (kind) {
   case BuiltinType::K_i32:
     return "i32";
-  case BuiltinType::K_Unit:
-    return "()";
   }
   llvm_unreachable("All cases covered");
+}
+
+/*static*/ const TupleType &TupleType::get(HIRContext &ctx,
+                                           llvm::ArrayRef<const Type *> types) {
+  return ctx.TupleTypes.emplace_back(TupleType(types));
+}
+
+/*static*/ const TupleType &TupleType::getUnit(const HIRContext &ctx) {
+  return ctx.UnitType;
 }

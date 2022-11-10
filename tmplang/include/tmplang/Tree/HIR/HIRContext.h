@@ -4,6 +4,8 @@
 #include <llvm/ADT/IntrusiveRefCntPtr.h>
 #include <tmplang/Tree/HIR/Types.h>
 
+#include <deque>
+
 namespace tmplang::hir {
 
 class HIRContext : llvm::RefCountedBase<HIRContext> {
@@ -13,12 +15,14 @@ public:
 
 private:
   friend class BuiltinType;
+  friend class TupleType;
 
   /// NOTE: Once this grows, it can be a good idea to move it to  the heap
   ///       through PImpl idiom
   BuiltinType i32Type;
-  /// FIXME: This should be a new empty "Tuple" type
-  BuiltinType UnitType;
+  TupleType UnitType;
+
+  std::deque<TupleType> TupleTypes;
 };
 
 } // namespace tmplang::hir

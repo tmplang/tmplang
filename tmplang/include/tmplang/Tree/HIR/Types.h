@@ -1,6 +1,7 @@
 #ifndef TMPLANG_TREE_HIR_TYPES_H
 #define TMPLANG_TREE_HIR_TYPES_H
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
 #include <tmplang/Tree/HIR/Type.h>
 
@@ -10,7 +11,7 @@ class HIRContext;
 
 class BuiltinType final : public Type {
 public:
-  enum Kind { K_i32, K_Unit };
+  enum Kind { K_i32 };
 
   Kind getBuiltinKind() const { return BKind; }
 
@@ -21,16 +22,33 @@ public:
     return T->getKind() == Type::Kind::K_Builtin;
   }
 
-protected:
+private:
   friend class HIRContext;
-
   explicit BuiltinType(Kind kind) : Type(Type::Kind::K_Builtin), BKind(kind) {}
-  virtual ~BuiltinType() = default;
 
   Kind BKind;
 };
 
 llvm::StringLiteral ToString(BuiltinType::Kind);
+
+class TupleType final : public Type {
+public:
+  llvm::ArrayRef<const Type *> getTypes() const { return Types; }
+
+  static const TupleType &get(HIRContext &, llvm::ArrayRef<const Type *> types);
+  static const TupleType &getUnit(const HIRContext &);
+
+  static bool classof(const Type *T) {
+    return T->getKind() == Type::Kind::K_Tuple;
+  }
+
+private:
+  friend class HIRContext;
+  explicit TupleType(llvm::ArrayRef<const Type *> types)
+      : Type(Type::Kind::K_Tuple), Types(types) {}
+
+  llvm::SmallVector<const Type *> Types;
+};
 
 } // namespace tmplang::hir
 

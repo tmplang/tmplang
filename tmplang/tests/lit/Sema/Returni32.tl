@@ -1,5 +1,6 @@
-// RUN: not tmplangc %s 2>&1 | FileCheck %s
+// RUN: tmplangc %s --dump-hir=simple
 
-fn foo -> i32 {}
-
-// CHECK:Sema failed!
+fn foo0 -> i32 {}
+fn foo1 -> (i32) {}
+fn foo2 -> () {}
+fn foo3 -> (((((((()))))))) {}

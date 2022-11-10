@@ -12,19 +12,11 @@ namespace {
 class SemaAnalyzerVisitor : public RecursiveASTVisitor<SemaAnalyzerVisitor> {
 public:
   using Base = RecursiveASTVisitor<SemaAnalyzerVisitor>;
-
-  bool visitFunctionDecl(const FunctionDecl &funcDecl) {
-    auto *builtinType = llvm::dyn_cast<BuiltinType>(&funcDecl.getReturnType());
-    if (!builtinType || builtinType->getBuiltinKind() != BuiltinType::K_Unit) {
-      return false;
-    }
-
-    return true;
-  }
 };
 
 } // namespace
 
 bool tmplang::Sema(CompilationUnit &compUnit) {
+  // At the moment, it does nothing
   return SemaAnalyzerVisitor{}.traverseNode(compUnit);
 }

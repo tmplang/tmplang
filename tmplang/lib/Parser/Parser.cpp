@@ -51,8 +51,12 @@ private:
   llvm::Optional<source::ParamDecl> Param();
   llvm::Optional<LexicalScope> Block();
   llvm::Optional<Token> FunctionType();
-  llvm::Optional<source::NamedType> Type();
   llvm::Optional<Token> Identifier();
+
+  // Types...
+  source::RAIIType Type();
+  source::RAIIType NamedType();
+  source::RAIIType TupleType();
 
 private:
   llvm::Optional<Token> Match(llvm::ArrayRef<TokenKind> list);
@@ -114,8 +118,7 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
 
       return source::FunctionDecl::Create(
           *funcType, *id, *colon, std::move(*paramList),
-          source::FunctionDecl::ArrowAndType{*arrow,
-                                             source::NamedType(*returnType)},
+          source::FunctionDecl::ArrowAndType{*arrow, std::move(returnType)},
           block->LKeyBracket, block->RKeyBracket);
     }
 
@@ -140,8 +143,7 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
 
     return source::FunctionDecl::Create(
         *funcType, *id,
-        source::FunctionDecl::ArrowAndType{*arrow,
-                                           source::NamedType(*returnType)},
+        source::FunctionDecl::ArrowAndType{*arrow, std::move(returnType)},
         block->LKeyBracket, block->RKeyBracket);
   }
 
@@ -186,7 +188,7 @@ llvm::Optional<source::ParamDecl> Parser::Param() {
     return llvm::None;
   }
 
-  return source::ParamDecl(*id, source::NamedType(*type));
+  return source::ParamDecl(std::move(type), *id);
 }
 
 /// Block = "{" "}";
@@ -205,14 +207,63 @@ llvm::Optional<Token> Parser::FunctionType() {
   return Match({TK_ProcType, TK_FnType});
 }
 
-/// Type = Identifier;
-llvm::Optional<source::NamedType> Parser::Type() {
-  auto id = Identifier();
-  if (!id) {
-    return llvm::None;
+/// Type = NamedType | TupleType;
+source::RAIIType Parser::Type() {
+  if (source::RAIIType namedType = NamedType()) {
+    return namedType;
   }
 
-  return source::NamedType(*id);
+  if (source::RAIIType tupleType = TupleType()) {
+    return tupleType;
+  }
+
+  return nullptr;
+}
+
+/// NamedType = Identifier;
+source::RAIIType Parser::NamedType() {
+  auto id = Identifier();
+  if (!id) {
+    return nullptr;
+  }
+
+  return source::make_RAIIType<source::NamedType>(*id);
+}
+
+/// TupleType = "(" ")" | "(" Type ")" | "(" Type ("," Type)+ ")"
+source::RAIIType Parser::TupleType() {
+  auto lparentheses = Match({TK_LParentheses});
+  if (!lparentheses) {
+    return nullptr;
+  }
+
+  llvm::SmallVector<source::RAIIType, 4> types;
+  llvm::SmallVector<Token, 3> commas;
+
+  // FIXME: By the use we are doing here on type (failable), means that we need
+  // a mechanims to inform building methods if they should report something on
+  // fail or not.
+
+  if (source::RAIIType firstType = Type()) {
+    types.push_back(std::move(firstType));
+    while (auto rparentheses =
+               TryMatch({TK_Comma}, /*consumeTokenIfMatch=*/true)) {
+      source::RAIIType followingType = Type();
+      if (!followingType) {
+        return nullptr;
+      }
+      types.push_back(std::move(followingType));
+      commas.push_back(std::move(*rparentheses));
+    }
+  }
+
+  auto rparentheses = Match({TK_RParentheses});
+  if (!rparentheses) {
+    return nullptr;
+  }
+
+  return source::make_RAIIType<source::TupleType>(
+      *lparentheses, std::move(types), std::move(commas), *rparentheses);
 }
 
 /// Identifier = [a-zA-Z][a-zA-Z0-9]*;

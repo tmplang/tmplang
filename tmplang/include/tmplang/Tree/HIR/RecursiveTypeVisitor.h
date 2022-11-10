@@ -19,6 +19,9 @@ public:
     switch (type.getKind()) {
     case Type::Kind::K_Builtin:
       return getDerived().traverseBuiltinType(*llvm::cast<BuiltinType>(&type));
+    case Type::K_Tuple:
+      return getDerived().traverseTupleType(*llvm::cast<TupleType>(&type));
+      break;
     }
     llvm_unreachable("All cases are handled");
   }
@@ -28,6 +31,9 @@ public:
     switch (type.getKind()) {
     case Type::Kind::K_Builtin:
       return getDerived().visitBuiltinType(*llvm::cast<BuiltinType>(&type));
+    case Type::K_Tuple:
+      return getDerived().visitTupleType(*llvm::cast<TupleType>(&type));
+      break;
     }
     llvm_unreachable("All cases are handled");
   }
@@ -38,6 +44,7 @@ protected:
   //=--------------------------------------------------------------------------=//
   // TODO: Move all of these to .def file to use macro magic
   bool visitBuiltinType(const BuiltinType &) { return true; }
+  bool visitTupleType(const TupleType &) { return true; }
   //=--------------------------------------------------------------------------=//
   // End visit functions
   //=--------------------------------------------------------------------------=//
@@ -47,6 +54,13 @@ protected:
   //=--------------------------------------------------------------------------=//
   bool traverseBuiltinType(const BuiltinType &builtinTy) {
     TRY_TO(visitType(builtinTy));
+    return true;
+  }
+  bool traverseTupleType(const TupleType &tupleType) {
+    TRY_TO(visitType(tupleType));
+    for (const Type *type : tupleType.getTypes()) {
+      TRY_TO(traverseType(*type));
+    }
     return true;
   }
   //=--------------------------------------------------------------------------=//
