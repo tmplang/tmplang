@@ -9,8 +9,11 @@ class Lexer {
 public:
   Lexer(llvm::StringRef input);
 
+  Token getPrevToken() const;
+  Token getCurrentToken() const;
+  Token peakNextToken() const;
+
   Token next();
-  Token prev() const;
 
   struct LexerState {
     LexerState(llvm::StringRef);
@@ -20,7 +23,10 @@ public:
 
     llvm::StringRef CurrentInput;
     SourceLocation CurrentLocation;
+
+    Token PrevToken;
     Token CurrentToken;
+    Token NextToken;
   };
 
 private:

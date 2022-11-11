@@ -11,14 +11,14 @@
 using namespace tmplang;
 
 static std::vector<Token> Lex(llvm::StringRef input) {
-  std::vector<Token> result;
   Lexer lexer(input);
+  Token tok = lexer.getCurrentToken();
+  std::vector<Token> result = {tok};
 
-  Token tok;
-  do {
+  while (tok.Kind != TK_EOF && tok.Kind != TK_Unknown) {
     tok = lexer.next();
     result.push_back(tok);
-  } while (tok.Kind != TK_EOF && tok.Kind != TK_Unknown);
+  }
 
   return result;
 }

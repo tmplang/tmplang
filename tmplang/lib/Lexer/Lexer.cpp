@@ -41,7 +41,10 @@ struct TokenBuilder {
 } // namespace
 
 Lexer::Lexer(llvm::StringRef input)
-    : State(input), DetectedEOL(State.CurrentInput.detectEOL()) {}
+    : State(input), DetectedEOL(State.CurrentInput.detectEOL()) {
+  State.CurrentToken = nextImpl();
+  State.NextToken = nextImpl();
+}
 
 // Matches pattern: [a-zA-Z][a-zA-Z0-9]+;
 static llvm::StringRef GetIdentifier(llvm::StringRef in) {
@@ -141,9 +144,18 @@ Token Lexer::nextImpl() {
   return tkBuilder.buildToken(tk, potentialId.size());
 }
 
-Token Lexer::next() { return State.CurrentToken = nextImpl(); }
+Token Lexer::getPrevToken() const { return State.PrevToken; }
+Token Lexer::getCurrentToken() const { return State.CurrentToken; }
+Token Lexer::peakNextToken() const { return State.NextToken; }
 
-Token Lexer::prev() const { return State.CurrentToken; }
+Token Lexer::next() {
+  // Rotate tokens
+  State.PrevToken = State.CurrentToken;
+  State.CurrentToken = State.NextToken;
+  State.NextToken = nextImpl();
+
+  return State.CurrentToken;
+}
 
 Lexer::LexerState::LexerState(llvm::StringRef input)
     : CurrentInput(input), CurrentLocation(1, 1), CurrentToken() {}

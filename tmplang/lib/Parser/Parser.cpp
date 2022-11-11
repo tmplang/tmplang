@@ -38,10 +38,7 @@ struct LexicalScope {
 
 class Parser {
 public:
-  Parser(Lexer &lex) : Lex(lex) {
-    // Retrieve first token
-    Lex.next();
-  }
+  Parser(Lexer &lex) : Lex(lex) {}
 
   llvm::Optional<source::CompilationUnit> Start();
 
@@ -277,7 +274,7 @@ source::RAIIType Parser::TupleType() {
 llvm::Optional<Token> Parser::Identifier() { return Match({TK_Identifier}); }
 
 llvm::Optional<Token> Parser::Match(llvm::ArrayRef<TokenKind> list) {
-  Token tk = Lex.prev();
+  Token tk = Lex.getCurrentToken();
   if (!llvm::is_contained(list, tk.Kind)) {
     Report(tk, list, llvm::errs());
     return llvm::None;
@@ -289,7 +286,7 @@ llvm::Optional<Token> Parser::Match(llvm::ArrayRef<TokenKind> list) {
 
 llvm::Optional<Token> Parser::TryMatch(llvm::ArrayRef<TokenKind> list,
                                        bool consumeTokenIfMatch) {
-  Token tk = Lex.prev();
+  Token tk = Lex.getCurrentToken();
   if (!llvm::is_contained(list, tk.Kind)) {
     return llvm::None;
   }
