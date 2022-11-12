@@ -14,6 +14,13 @@ struct SourceLocation {
   unsigned Column = 0;
 };
 
+struct SourceLocationSpan {
+  SourceLocation Start;
+  SourceLocation End;
+
+  bool operator==(const SourceLocationSpan  &other) const = default;
+};
+
 } // namespace tmplang
 
 #endif // TMPLANG_LEXER_SOURCELOCATION_H

@@ -36,20 +36,15 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &out, TokenKind k);
 
 struct Token {
   Token(TokenKind kind, SourceLocation start, SourceLocation end)
-      : Kind(kind), StartLocation(start), EndLocation(end) {
+      : Kind(kind), SrcLocSpan{start, end} {
     assert(kind != TokenKind::TK_Identifier &&
            "Invalid constructor for identifiers");
   }
   Token(llvm::StringRef id, SourceLocation start, SourceLocation end)
-      : Kind(TokenKind::TK_Identifier), StartLocation(start), EndLocation(end),
-        Lexeme(id) {
+      : Kind(TokenKind::TK_Identifier), SrcLocSpan{start, end}, Lexeme(id) {
     assert(!id.empty());
   }
   Token() : Kind(TK_Unknown) {}
-
-  TokenKind Kind;
-  SourceLocation StartLocation;
-  SourceLocation EndLocation;
 
   bool operator==(const Token &other) const = default;
 
@@ -61,6 +56,9 @@ struct Token {
     assert(Kind == TK_Identifier);
     return Lexeme;
   }
+
+  TokenKind Kind;
+  SourceLocationSpan SrcLocSpan;
 
 private:
   /// TODO: We could save a lot of bytes here if we keep the files open and
