@@ -2,13 +2,17 @@
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/MemoryBuffer.h>
+#include <llvm/Support/VirtualFileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 #include <tmplang/CLI/Arguments.h>
 #include <tmplang/CLI/CLPrinter.h>
 #include <tmplang/Lexer/Lexer.h>
 #include <tmplang/Parser/Parser.h>
 #include <tmplang/Sema/Sema.h>
+#include <tmplang/Support/FileManager.h>
 #include <tmplang/Tree/HIR/HIRBuilder.h>
+
+#include <memory>
 
 using namespace tmplang;
 
@@ -85,14 +89,17 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrStdIn =
-      llvm::MemoryBuffer::getFileOrSTDIN(inputs[0], /*isText*/ true);
-  if (std::error_code error = fileOrStdIn.getError()) {
-    printer.errs() << error.message() << ": '" << inputs[0] << "'\n";
+  auto fm =
+      std::make_unique<FileManager>(llvm::vfs::createPhysicalFileSystem());
+  assert(fm);
+
+  const TargetFileEntry *targetFileEntry = fm->findOrOpenTargetFile(inputs[0]);
+  if (!targetFileEntry) {
+    printer.errs() << "could not open file: '" << inputs[0] << "'\n";
     return 1;
   }
 
-  Lexer lexer(fileOrStdIn.get()->getBuffer());
+  Lexer lexer(targetFileEntry->Content->getBuffer());
   auto srcCompilationUnit = Parse(lexer);
   if (!srcCompilationUnit) {
     // TODO: Add proper message diagnostic handling
