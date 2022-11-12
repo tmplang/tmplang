@@ -93,8 +93,12 @@ llvm::Optional<source::CompilationUnit> Parser::Start() {
 ///  [4] | Function_Type, Identifier, Block;
 llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
   auto funcType = FunctionType();
+  if (!funcType) {
+    return llvm::None;
+  }
+
   auto id = Identifier();
-  if (!funcType || !id) {
+  if (!id) {
     return llvm::None;
   }
 
@@ -108,8 +112,12 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
     if (auto arrow = TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
       // [1]
       auto returnType = Type();
+      if (!returnType) {
+        return llvm::None;
+      }
+
       auto block = Block();
-      if (!returnType || !block) {
+      if (!block) {
         return llvm::None;
       }
 
@@ -133,8 +141,12 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
   if (auto arrow = TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
     // [3]
     auto returnType = Type();
+    if (!returnType) {
+      return llvm::None;
+    }
+
     auto block = Block();
-    if (!returnType || !block) {
+    if (!block) {
       return llvm::None;
     }
 
@@ -181,8 +193,12 @@ Parser::ParamList() {
 /// Param = Type Identifier;
 llvm::Optional<source::ParamDecl> Parser::Param() {
   auto type = Type();
+  if (!type) {
+    return llvm::None;
+  }
+
   auto id = Identifier();
-  if (!type || !id) {
+  if (!id) {
     return llvm::None;
   }
 
@@ -192,8 +208,12 @@ llvm::Optional<source::ParamDecl> Parser::Param() {
 /// Block = "{" "}";
 llvm::Optional<LexicalScope> Parser::Block() {
   auto lKeyBrace = Match({TK_LKeyBracket});
+  if (!lKeyBrace) {
+    return llvm::None;
+  }
+
   auto rKeyBrace = Match({TK_RKeyBracket});
-  if (!lKeyBrace || !rKeyBrace) {
+  if (!rKeyBrace) {
     return llvm::None;
   }
 
@@ -242,15 +262,16 @@ source::RAIIType Parser::TupleType() {
 
   constexpr TokenKind firstTokensOfType[] = {TK_LParentheses, TK_Identifier};
   if (TryMatch(firstTokensOfType, /*consumeTokenIfMatch=*/false)) {
-    source::RAIIType firstType = Type();
+    auto firstType = Type();
     if (!firstType) {
       // TODO: Emit error
+      return nullptr;
     }
 
     types.push_back(std::move(firstType));
 
     while (auto comma = TryMatch({TK_Comma}, /*consumeTokenIfMatch=*/true)) {
-      source::RAIIType followingType = Type();
+      auto followingType = Type();
       if (!followingType) {
         // TODO: Emit error
         return nullptr;
