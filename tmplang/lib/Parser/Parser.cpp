@@ -1,33 +1,9 @@
 #include <tmplang/Parser/Parser.h>
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/Support/raw_ostream.h>
 #include <tmplang/Tree/Source/Decls.h>
 #include <tmplang/Tree/Source/Types.h>
 
 using namespace tmplang;
-
-static void Report(Token got, llvm::ArrayRef<TokenKind> expected,
-                   llvm::raw_ostream &outs) {
-  llvm::StringRef text = expected.size() > 1
-                             ? "any of the following tokens were"
-                             : "the following token was";
-
-  auto printCommaSeparated = [](llvm::ArrayRef<TokenKind> tokens,
-                                llvm::raw_ostream &outs) {
-    for (auto tkAndIdx : llvm::enumerate(tokens)) {
-      if (tkAndIdx.index() != 0) {
-        outs << ", ";
-      }
-      outs << "'" << ToString(tkAndIdx.value()) << "'";
-    }
-  };
-
-  outs << "Unexpected token: '" << ToString(got.Kind) << "' when " << text
-       << " expected: ";
-  printCommaSeparated(expected, outs);
-  outs << "\n";
-}
 
 namespace {
 
@@ -56,9 +32,13 @@ private:
   source::RAIIType TupleType();
 
 private:
-  llvm::Optional<Token> Match(llvm::ArrayRef<TokenKind> list);
-  llvm::Optional<Token> TryMatch(llvm::ArrayRef<TokenKind> list,
-                                 bool consumeTokenIfMatch = false);
+  /// Checks if the current tokens is any of the \ref expected tokens. If so
+  /// returns current token
+  llvm::Optional<Token> is(llvm::ArrayRef<TokenKind> expected) const;
+
+  /// Checks if the current tokens is any of the \ref expected tokens. If so
+  /// returns current token and advances to the next token
+  llvm::Optional<Token> consume(llvm::ArrayRef<TokenKind> expected);
 
   Lexer &Lex;
 };
@@ -71,7 +51,7 @@ llvm::Optional<source::CompilationUnit> Parser::Start() {
   source::CompilationUnit compilationUnit;
 
   while (true) {
-    if (TryMatch({TokenKind::TK_EOF}, /*consumeTok*/ true)) {
+    if (consume({TokenKind::TK_EOF})) {
       return compilationUnit;
     }
 
@@ -103,13 +83,13 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
   }
 
   // [1] && [2]
-  if (auto colon = TryMatch({TK_Colon}, /*consumeTok*/ true)) {
+  if (auto colon = consume({TK_Colon})) {
     auto paramList = ParamList();
     if (!paramList) {
       return llvm::None;
     }
 
-    if (auto arrow = TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
+    if (auto arrow = consume({TK_RArrow})) {
       // [1]
       auto returnType = Type();
       if (!returnType) {
@@ -138,7 +118,7 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
                                         block->LKeyBracket, block->RKeyBracket);
   }
 
-  if (auto arrow = TryMatch({TK_RArrow}, /*consumeTok*/ true)) {
+  if (auto arrow = consume({TK_RArrow})) {
     // [3]
     auto returnType = Type();
     if (!returnType) {
@@ -177,7 +157,7 @@ Parser::ParamList() {
 
   paramList.Elems.push_back(std::move(*firstParam));
 
-  while (auto comma = TryMatch({TK_Comma}, /*consumeTok*/ true)) {
+  while (auto comma = consume({TK_Comma})) {
     auto param = Param();
     if (!param) {
       return llvm::None;
@@ -207,12 +187,12 @@ llvm::Optional<source::ParamDecl> Parser::Param() {
 
 /// Block = "{" "}";
 llvm::Optional<LexicalScope> Parser::Block() {
-  auto lKeyBrace = Match({TK_LKeyBracket});
+  auto lKeyBrace = consume({TK_LKeyBracket});
   if (!lKeyBrace) {
     return llvm::None;
   }
 
-  auto rKeyBrace = Match({TK_RKeyBracket});
+  auto rKeyBrace = consume({TK_RKeyBracket});
   if (!rKeyBrace) {
     return llvm::None;
   }
@@ -222,18 +202,18 @@ llvm::Optional<LexicalScope> Parser::Block() {
 
 /// Function_type = "proc" | "fn";
 llvm::Optional<Token> Parser::FunctionType() {
-  return Match({TK_ProcType, TK_FnType});
+  return consume({TK_ProcType, TK_FnType});
 }
 
 /// Type = NamedType | TupleType;
 source::RAIIType Parser::Type() {
   constexpr TokenKind firstTokensOfNamedType[] = {TK_Identifier};
-  if (TryMatch(firstTokensOfNamedType, /*consumeTokenIfMatch=*/false)) {
+  if (is(firstTokensOfNamedType)) {
     return NamedType();
   }
 
   constexpr TokenKind firstTokensOfTupleType[] = {TK_LParentheses};
-  if (TryMatch(firstTokensOfTupleType, /*consumeTokenIfMatch=*/false)) {
+  if (is(firstTokensOfTupleType)) {
     return TupleType();
   }
 
@@ -252,7 +232,7 @@ source::RAIIType Parser::NamedType() {
 
 /// TupleType = "(" ( Type ("," Type)* )? ")";
 source::RAIIType Parser::TupleType() {
-  auto lparentheses = Match({TK_LParentheses});
+  auto lparentheses = consume({TK_LParentheses});
   if (!lparentheses) {
     return nullptr;
   }
@@ -261,7 +241,7 @@ source::RAIIType Parser::TupleType() {
   llvm::SmallVector<Token, 3> commas;
 
   constexpr TokenKind firstTokensOfType[] = {TK_LParentheses, TK_Identifier};
-  if (TryMatch(firstTokensOfType, /*consumeTokenIfMatch=*/false)) {
+  if (is(firstTokensOfType)) {
     auto firstType = Type();
     if (!firstType) {
       // TODO: Emit error
@@ -270,7 +250,7 @@ source::RAIIType Parser::TupleType() {
 
     types.push_back(std::move(firstType));
 
-    while (auto comma = TryMatch({TK_Comma}, /*consumeTokenIfMatch=*/true)) {
+    while (auto comma = consume({TK_Comma})) {
       auto followingType = Type();
       if (!followingType) {
         // TODO: Emit error
@@ -282,7 +262,7 @@ source::RAIIType Parser::TupleType() {
     }
   }
 
-  auto rparentheses = Match({TK_RParentheses});
+  auto rparentheses = consume({TK_RParentheses});
   if (!rparentheses) {
     return nullptr;
   }
@@ -292,31 +272,20 @@ source::RAIIType Parser::TupleType() {
 }
 
 /// Identifier = [a-zA-Z][a-zA-Z0-9]*;
-llvm::Optional<Token> Parser::Identifier() { return Match({TK_Identifier}); }
+llvm::Optional<Token> Parser::Identifier() { return consume({TK_Identifier}); }
 
-llvm::Optional<Token> Parser::Match(llvm::ArrayRef<TokenKind> list) {
-  Token tk = Lex.getCurrentToken();
-  if (!llvm::is_contained(list, tk.Kind)) {
-    Report(tk, list, llvm::errs());
-    return llvm::None;
-  }
-
-  Lex.next();
-  return tk;
+llvm::Optional<Token> Parser::is(llvm::ArrayRef<TokenKind> expected) const {
+  const Token tk = Lex.getCurrentToken();
+  return llvm::is_contained(expected, tk.Kind) ? tk : llvm::Optional<Token>{};
 }
 
-llvm::Optional<Token> Parser::TryMatch(llvm::ArrayRef<TokenKind> list,
-                                       bool consumeTokenIfMatch) {
-  Token tk = Lex.getCurrentToken();
-  if (!llvm::is_contained(list, tk.Kind)) {
-    return llvm::None;
-  }
-
-  if (consumeTokenIfMatch) {
+llvm::Optional<Token> Parser::consume(llvm::ArrayRef<TokenKind> expected) {
+  if (auto tk = is(expected)) {
     Lex.next();
+    return tk;
   }
 
-  return tk;
+  return llvm::None;
 }
 
 llvm::Optional<source::CompilationUnit> tmplang::Parse(tmplang::Lexer &lex) {
