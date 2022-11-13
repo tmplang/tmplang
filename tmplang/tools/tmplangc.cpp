@@ -10,6 +10,7 @@
 #include <tmplang/Parser/Parser.h>
 #include <tmplang/Sema/Sema.h>
 #include <tmplang/Support/FileManager.h>
+#include <tmplang/Support/SourceManager.h>
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 
 #include <memory>
@@ -48,14 +49,15 @@ ParseDumpHIRArg(llvm::opt::Arg &arg, CLPrinter &out) {
 }
 
 static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
-                    hir::CompilationUnit &compUnit) {
+                    const hir::CompilationUnit &compUnit,
+                    const SourceManager &sm) {
   llvm::Optional<hir::Node::PrintConfig> cfg = ParseDumpHIRArg(arg, out);
   if (!cfg) {
     // Errors already reported
     return 1;
   }
 
-  compUnit.dump(*cfg);
+  compUnit.dump(sm, *cfg);
   return 0;
 }
 
@@ -115,8 +117,9 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
+  auto sm = std::make_unique<SourceManager>(*targetFileEntry);
   if (auto *dumpHIRArg = parsedCompilerArgs->getLastArg(OPT_dump_hir)) {
-    return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit);
+    return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit, *sm);
   }
 
   if (!tmplang::Sema(*hirCompilationUnit)) {

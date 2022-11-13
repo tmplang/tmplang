@@ -11,6 +11,8 @@ class raw_ostream;
 
 namespace tmplang {
 
+class SourceManager;
+
 enum TokenKind {
   TK_EOF,
   TK_Unknown,
@@ -48,9 +50,8 @@ struct Token {
 
   bool operator==(const Token &other) const = default;
 
-  void print(llvm::raw_ostream &out) const;
-  void dump() const;
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &out, const Token &t);
+  void print(llvm::raw_ostream &out, const SourceManager &sm) const;
+  void dump(const SourceManager &sm) const;
 
   llvm::StringRef getLexeme() const {
     assert(Kind == TK_Identifier);

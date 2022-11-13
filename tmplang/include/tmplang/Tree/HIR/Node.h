@@ -10,9 +10,12 @@ namespace llvm {
 class raw_ostream;
 } // namespace llvm
 
-namespace tmplang::source {
+namespace tmplang {
+class SourceManager;
+namespace source {
 class Node;
-} // namespace tmplang::source
+} // namespace source
+} // namespace tmplang
 
 namespace tmplang::hir {
 
@@ -38,8 +41,9 @@ public:
     LLVM_MARK_AS_BITMASK_ENUM(Color)
   };
 
-  void print(llvm::raw_ostream &, PrintConfig = PrintConfig::Color) const;
-  void dump(PrintConfig = PrintConfig::All) const;
+  void print(llvm::raw_ostream &, const SourceManager &,
+             PrintConfig = PrintConfig::Color) const;
+  void dump(const SourceManager &, PrintConfig = PrintConfig::All) const;
 
 protected:
   explicit Node(Kind k, const source::Node &node)

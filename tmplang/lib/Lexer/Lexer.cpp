@@ -14,10 +14,8 @@ struct TokenBuilder {
   Token buildIdentifier(llvm::StringRef lexeme) {
     SourceLocation startLocation = State.CurrentLocation;
     State.advance(lexeme.size());
-    // Adjust since tokens starts at 1:1
     return Token(lexeme, startLocation,
-                 SourceLocation(State.CurrentLocation.Line,
-                                State.CurrentLocation.Column - 1));
+                 State.CurrentLocation - /*offset starts at 1*/ 1);
   }
 
   Token buildToken(TokenKind kind, unsigned nChars = 1) {
@@ -29,10 +27,8 @@ struct TokenBuilder {
 
     SourceLocation startLocation = State.CurrentLocation;
     State.advance(nChars);
-    // Adjust since tokens starts at 1:1
     return Token(kind, startLocation,
-                 SourceLocation(State.CurrentLocation.Line,
-                                State.CurrentLocation.Column - 1));
+                 State.CurrentLocation - /*offset starts at 1*/ 1);
   }
 
   Lexer::LexerState &State;
@@ -158,37 +154,20 @@ Token Lexer::next() {
 }
 
 Lexer::LexerState::LexerState(llvm::StringRef input)
-    : CurrentInput(input), CurrentLocation(1, 1), CurrentToken() {}
+    : CurrentInput(input), CurrentLocation(1), CurrentToken() {}
 
 void Lexer::LexerState::advance(unsigned nChars) {
-  static llvm::StringLiteral newLineChars = "\n\r\f";
-  bool newLine = false;
-  if (nChars == 1) {
-    newLine = llvm::is_contained(newLineChars, CurrentInput.front());
-  } else {
-    assert(!CurrentInput.substr(0, nChars).contains(newLineChars) &&
-           "New line characters can not appear on multi char token");
-  }
-
-  if (newLine) {
-    CurrentLocation.Line++;
-    CurrentLocation.Column = 1;
-  } else {
-    CurrentLocation.Column += nChars;
-  }
   CurrentInput = CurrentInput.drop_front(nChars);
+  CurrentLocation += nChars;
 }
 
 void Lexer::LexerState::consumeUntilEOLOrEOF() {
-  size_t it = CurrentInput.find(CurrentInput.detectEOL());
-  if (it == llvm::StringRef::npos) {
-    // No more end of lines, so it must be end of file
-    CurrentLocation.Column += CurrentInput.size();
-    CurrentInput = llvm::StringRef{};
-  } else {
-    CurrentInput =
-        CurrentInput.drop_front(it + CurrentInput.detectEOL().size());
-    CurrentLocation.Column = 1;
-    CurrentLocation.Line += 1;
-  }
+  const size_t it = CurrentInput.find(CurrentInput.detectEOL());
+  const size_t toAdvance =
+      it == llvm::StringRef::npos
+          // No more end of lines, so it must be end of file
+          ? CurrentInput.size()
+          // Just consume all until EOL + EOL size
+          : it + CurrentInput.detectEOL().size();
+  advance(toAdvance);
 }
