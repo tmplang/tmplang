@@ -2,9 +2,12 @@
 
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallString.h>
+#include <llvm/ADT/Twine.h>
 #include <llvm/Support/ErrorHandling.h>
-#include <llvm/Support/raw_ostream.h>
+#include <tmplang/Diagnostics/Hint.h>
 #include <tmplang/Support/SourceManager.h>
+
+#include "DiagnosticPrettyPrinter.h"
 
 #include <cmath>
 
@@ -20,27 +23,6 @@ llvm::StringLiteral tmplang::ToString(DiagnosticSeverity sev) {
   llvm_unreachable("All cases covered");
 }
 
-namespace {
-
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors RED =
-    llvm::raw_ostream::RED;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors WHITE =
-    llvm::raw_ostream::WHITE;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors YELLOW =
-    llvm::raw_ostream::YELLOW;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors GREEN =
-    llvm::raw_ostream::GREEN;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors CYAN =
-    llvm::raw_ostream::CYAN;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors BLACK =
-    llvm::raw_ostream::BLACK;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors BLUE =
-    llvm::raw_ostream::BLUE;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors MAGENTA =
-    llvm::raw_ostream::MAGENTA;
-
-} // namespace
-
 DiagnosticSeverity Diagnostic::getSeverity() const {
   return DiagnosticMessages[static_cast<unsigned>(Id)].Sev;
 }
@@ -54,8 +36,9 @@ void Diagnostic::print(llvm::raw_ostream &out, const SourceManager &sm) const {
   printSummary(out);
   out << "\n";
   printLocation(out, sm);
-  out << "\n";
   printContext(out, sm);
+  out << "\n";
+  printHint(out, sm);
   out << "\n";
 }
 
@@ -95,19 +78,11 @@ void Diagnostic::printLocation(llvm::raw_ostream &out,
                    << ':' << lineAndColumn.Column << '\n';
 }
 
-static void
-PrintContextLine(llvm::raw_ostream &out, llvm::StringRef lhs,
-                 llvm::StringRef rhs = "",
-                 llvm::Optional<llvm::raw_ostream::Colors> color = llvm::None) {
-  out << ' ' << lhs << ' ';
-  out.changeColor(BLUE, /*Bold=*/true) << '|';
-  out.resetColor() << ' ';
-
-  if (color) {
-    out.changeColor(*color);
-  }
-  out << rhs;
-  out.resetColor() << '\n';
+void Diagnostic::printHint(llvm::raw_ostream &out,
+                           const SourceManager &sm) const {
+  out.changeColor(YELLOW) << "Hint";
+  out.resetColor() << ": \n";
+  H.print(out, sm);
 }
 
 namespace {
@@ -125,10 +100,6 @@ GetSubscriptForContext(const unsigned lineWidth, const LineAndColumn start,
                        const LineAndColumn end,
                        const SubscriptPosition subsPos) {
   llvm::SmallString<80> result;
-
-  const char caret = '^';
-  const char space = ' ';
-  const char tilde = '~';
 
   switch (subsPos) {
   case SubscriptPosition::First:

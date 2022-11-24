@@ -1,7 +1,6 @@
 #include <Testing.h>
 
-#include <tmplang/Parser/Parser.h>
-#include <tmplang/Tree/HIR/HIRBuilder.h>
+#include "../common/Parser.h"
 
 using namespace tmplang;
 
@@ -15,8 +14,7 @@ TEST(HIRTest, Invalid) {
   };
 
   for (const llvm::StringLiteral &code : tests) {
-    Lexer lex(code);
-    auto srcCompUnit = Parse(lex);
+    auto srcCompUnit = CleanParse(code);
     ASSERT_TRUE(srcCompUnit);
     hir::HIRContext ctx;
     auto hirCompUnit = hir::buildHIR(*srcCompUnit, ctx);

@@ -14,6 +14,7 @@ class raw_ostream;
 namespace tmplang {
 
 class SourceManager;
+class Hint;
 
 /// Simple wrapper for stderr that allows enable or not colors when printing
 struct diagnostic_ostream final : public llvm::raw_fd_ostream {
@@ -53,8 +54,8 @@ static inline constexpr struct {
 /// it is created
 class Diagnostic {
 public:
-  Diagnostic(DiagId id, SourceLocationSpan locSpan)
-      : Id(id), LocSpan(locSpan) {}
+  Diagnostic(DiagId id, SourceLocationSpan locSpan, const Hint &hint)
+      : Id(id), LocSpan(locSpan), H(hint) {}
 
   Diagnostic() = delete;
   Diagnostic(const Diagnostic &) = delete;
@@ -111,6 +112,8 @@ private:
   */
   void printContext(llvm::raw_ostream &, const SourceManager &sm) const;
 
+  void printHint(llvm::raw_ostream &, const SourceManager &sm) const;
+
   DiagnosticSeverity getSeverity() const;
   llvm::StringRef getMessage() const;
 
@@ -118,6 +121,8 @@ private:
   // Prefer using the Id, so we don't have to store the message and the severity
   DiagId Id;
   SourceLocationSpan LocSpan;
+  // This is inmediate l-value. It will invalid just after building the diagnostic.
+  const Hint &H;
 };
 
 } // namespace tmplang

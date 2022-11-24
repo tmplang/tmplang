@@ -10,7 +10,7 @@
 #define WARN(ID, MSG) DIAG(ID, DiagnosticSeverity::Warning, MSG)
 #endif
 
-ERROR(missing_function_type, "missing function type on function definition")
+ERROR(missing_subprogram_class, "missing subprogram classification on subprogram definition")
 
 #undef WARN
 #undef ERROR
