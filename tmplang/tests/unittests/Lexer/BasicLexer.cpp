@@ -3,54 +3,91 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/STLArrayExtras.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Support/VirtualFileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 #include <tmplang/Lexer/Lexer.h>
+#include <tmplang/Support/FileManager.h>
+#include <tmplang/Support/SourceManager.h>
 
 #include <string>
 
 using namespace tmplang;
 
 static std::vector<Token> Lex(llvm::StringRef input) {
-  std::vector<Token> result;
   Lexer lexer(input);
+  Token tok = lexer.getCurrentToken();
+  std::vector<Token> result = {tok};
 
-  Token tok;
-  do {
+  while (tok.Kind != TK_EOF && tok.Kind != TK_Unknown) {
     tok = lexer.next();
     result.push_back(tok);
-  } while (tok.Kind != TK_EOF && tok.Kind != TK_Unknown);
+  }
 
   return result;
 }
 
-static std::string Toks(llvm::ArrayRef<Token> resultTokens) {
+static std::string Toks(llvm::ArrayRef<Token> resultTokens,
+                        const SourceManager &sm) {
   std::string result;
   llvm::raw_string_ostream o(result);
-  bool first = true;
-  for (Token tok : resultTokens) {
-    if (!first) {
-      o << ", ";
-    }
-    first = false;
-    o << tok;
-  }
+  llvm::interleaveComma(resultTokens, o, [&](Token tok) { tok.print(o, sm); });
   return o.str();
 }
 
-static void CheckResult(llvm::ArrayRef<Token> targetTokens,
-                        llvm::ArrayRef<Token> resultTokens) {
-  SCOPED_TRACE("Result tokens: {" + Toks(resultTokens) + "}\n");
+namespace {
+/// Imitates a Token but with Line and Column, instead of encoded offset
+struct MimicToken {
+  MimicToken(llvm::StringRef id, LineAndColumn start, LineAndColumn end)
+      : Lex(id), Kind(TokenKind::TK_Identifier), Start(start), End(end) {}
+  MimicToken(TokenKind kind, LineAndColumn start, LineAndColumn end)
+      : Lex(ToString(kind)), Kind(kind), Start(start), End(end) {}
+
+  llvm::StringRef Lex;
+  TokenKind Kind;
+  LineAndColumn Start;
+  LineAndColumn End;
+};
+} // namespace
+
+static void CheckResult(llvm::ArrayRef<MimicToken> targetTokens,
+                        llvm::ArrayRef<Token> resultTokens,
+                        const SourceManager &sm) {
+  SCOPED_TRACE("Result tokens: {" + Toks(resultTokens, sm) + "}\n");
   ASSERT_EQ(resultTokens.size(), targetTokens.size());
+
   for (size_t i = 0; i < resultTokens.size(); ++i) {
     SCOPED_TRACE("Token at index " + std::to_string(i));
-    ASSERT_EQ(resultTokens[i], targetTokens[i]);
+
+    const LineAndColumn begin =
+        sm.getLineAndColumn(resultTokens[i].SrcLocSpan.Start);
+    const LineAndColumn end =
+        sm.getLineAndColumn(resultTokens[i].SrcLocSpan.End);
+
+    EXPECT_EQ(begin, targetTokens[i].Start);
+    EXPECT_EQ(end, targetTokens[i].End);
+    EXPECT_EQ(resultTokens[i].Kind, targetTokens[i].Kind);
+    if (resultTokens[i].Kind == tmplang::TK_Identifier) {
+      EXPECT_EQ(resultTokens[i].getLexeme(), targetTokens[i].Lex);
+    }
   }
 }
 
 static void TestLexer(llvm::StringRef input,
-                      llvm::ArrayRef<Token> targetTokens) {
+                      llvm::ArrayRef<MimicToken> targetTokens) {
+  auto inMemoryFileSystem = std::make_unique<llvm::vfs::InMemoryFileSystem>();
+
+  const char *fileName = "./test";
+  inMemoryFileSystem->addFile(fileName, 0,
+                              llvm::MemoryBuffer::getMemBuffer(input));
+
+  FileManager fm(std::move(inMemoryFileSystem));
+  const TargetFileEntry *tfe = fm.findOrOpenTargetFile(fileName);
+  assert(tfe);
+
+  const SourceManager sm(*tfe);
+
   SCOPED_TRACE("Input: " + input.str());
-  CheckResult(targetTokens, Lex(input));
+  CheckResult(targetTokens, Lex(input), sm);
 }
 
 TEST(BasicLexer, Empty) { TestLexer("", {{TK_EOF, {1, 1}, {1, 1}}}); }
@@ -68,7 +105,7 @@ TEST(BasicLexer, LiteralError) {
 }
 
 TEST(BasicLexer, Joined) {
-  Token tokens[] = {
+  MimicToken tokens[] = {
       {"foo", {1, 1}, {1, 3}},      {TK_Comma, {1, 4}, {1, 4}},
       {"bar", {1, 5}, {1, 7}},      {TK_LKeyBracket, {1, 8}, {1, 8}},
       {TK_FnType, {1, 9}, {1, 10}}, {TK_EOF, {1, 11}, {1, 11}},
@@ -78,7 +115,7 @@ TEST(BasicLexer, Joined) {
 }
 
 TEST(BasicLexer, FullFunction) {
-  Token tokens[] = {
+  MimicToken tokens[] = {
       {TK_FnType, {1, 1}, {1, 2}},
       {"func", {1, 4}, {1, 7}},
       {TK_Colon, {1, 8}, {1, 8}},

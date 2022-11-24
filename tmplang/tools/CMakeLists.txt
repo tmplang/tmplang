@@ -10,6 +10,7 @@ target_link_libraries(tmplangc
   TmplangSourceTree
   TmplangSema
   TmplangHIRTree
+  TmplangSupport
 
   LLVMSupport
   LLVMOption

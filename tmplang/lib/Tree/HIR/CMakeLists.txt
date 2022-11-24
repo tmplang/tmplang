@@ -6,6 +6,9 @@ llvm_add_library(TmplangHIRTree
     Node.cpp
     Types.cpp
 
+    LINK_LIBS PUBLIC
+    TmplangSupport
+
     LINK_COMPONENTS
     Support
 )

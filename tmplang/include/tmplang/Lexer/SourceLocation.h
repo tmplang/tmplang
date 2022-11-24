@@ -1,17 +1,19 @@
 #ifndef TMPLANG_LEXER_SOURCELOCATION_H
 #define TMPLANG_LEXER_SOURCELOCATION_H
 
+#include <cstdint>
+
 namespace tmplang {
 
-/// Basic struct to hold positions on the source
-struct SourceLocation {
-  SourceLocation() = default;
-  SourceLocation(unsigned line, unsigned column) : Line(line), Column(column) {}
+/// Encoded source location, SourceManager is able to decode it. Must be ketp
+/// small. All nodes use this type so keep it small
+using SourceLocation = std::uint32_t;
 
-  bool operator==(const SourceLocation &other) const = default;
+struct SourceLocationSpan {
+  SourceLocation Start;
+  SourceLocation End;
 
-  unsigned Line = 0;
-  unsigned Column = 0;
+  bool operator==(const SourceLocationSpan  &other) const = default;
 };
 
 } // namespace tmplang

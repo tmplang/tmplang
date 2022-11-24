@@ -2,6 +2,7 @@
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
+#include <tmplang/Support/SourceManager.h>
 #include <tmplang/Tree/HIR/RecursiveNodeVisitor.h>
 #include <tmplang/Tree/HIR/RecursiveTypeVisitor.h>
 
@@ -150,9 +151,10 @@ public:
   using HIRBase = RecursiveASTVisitor<RecursiveHIRPrinter>;
   using TypeBase = RecursiveTypeVisitor<RecursiveHIRPrinter>;
 
-  RecursiveHIRPrinter(llvm::raw_ostream &os, Node::PrintConfig cfg)
+  RecursiveHIRPrinter(llvm::raw_ostream &os, const SourceManager &sm,
+                      Node::PrintConfig cfg)
       : TextTreeStructure(os, /*showColors=*/cfg & Node::PrintConfig::Color),
-        OS(os), Cfg(cfg) {}
+        OS(os), SM(sm), Cfg(cfg) {}
 
   bool visitNode(const Node &node) {
     {
@@ -237,11 +239,11 @@ private:
   void printSourceLocation(const Node &node) {
     ColorScope color(OS, Cfg, SourceLocationColor);
 
-    const SourceLocation begin = node.getBeginLoc();
-    const SourceLocation end = node.getEndLoc();
+    const LineAndColumn begin = SM.getLineAndColumn(node.getBeginLoc());
+    const LineAndColumn end = SM.getLineAndColumn(node.getEndLoc());
 
-    OS << llvm::formatv(" <{0},{1}-{2},{3}>", begin.Line, begin.Column, end.Line,
-                        end.Column);
+    OS << llvm::formatv(" <{0},{1}-{2},{3}>", begin.Line, begin.Column,
+                        end.Line, end.Column);
   }
 
   void printPointer(const void *ptr) {
@@ -261,22 +263,25 @@ private:
 
 private:
   llvm::raw_ostream &OS;
-  Node::PrintConfig Cfg;
+  const SourceManager &SM;
+  const Node::PrintConfig Cfg;
 };
 
 } // namespace
 
-void tmplang::hir::Node::print(llvm::raw_ostream &os, PrintConfig cfg) const {
-  RecursiveHIRPrinter(os, cfg).traverseNode(*this);
+void tmplang::hir::Node::print(llvm::raw_ostream &os, const SourceManager &sm,
+                               PrintConfig cfg) const {
+  RecursiveHIRPrinter(os, sm, cfg).traverseNode(*this);
 }
 
-void tmplang::hir::Node::dump(Node::PrintConfig cfg) const {
+void tmplang::hir::Node::dump(const SourceManager &sm,
+                              Node::PrintConfig cfg) const {
   // FIXME: Set our own debug streams
   if (llvm::dbgs().has_colors()) {
     llvm::dbgs().enable_colors(true);
   }
 
-  print(llvm::dbgs(), cfg);
+  print(llvm::dbgs(), sm, cfg);
 
   llvm::dbgs().enable_colors(false);
 }

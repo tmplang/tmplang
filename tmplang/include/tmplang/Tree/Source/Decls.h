@@ -20,7 +20,7 @@ public:
   SourceLocation getBeginLoc() const override {
     return ParamType->getBeginLoc();
   }
-  SourceLocation getEndLoc() const override { return Identifier.EndLocation; }
+  SourceLocation getEndLoc() const override { return Identifier.SrcLocSpan.End; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::ParamDecl;
@@ -46,8 +46,8 @@ public:
   }
   llvm::StringRef getName() const override { return Identifier.getLexeme(); }
   Token getFuncType() const { return FuncType; }
-  SourceLocation getBeginLoc() const override { return FuncType.StartLocation; }
-  SourceLocation getEndLoc() const override { return RKeyBracket.EndLocation; }
+  SourceLocation getBeginLoc() const override { return FuncType.SrcLocSpan.Start; }
+  SourceLocation getEndLoc() const override { return RKeyBracket.SrcLocSpan.End; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::FuncDecl;
