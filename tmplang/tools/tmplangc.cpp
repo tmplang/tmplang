@@ -6,6 +6,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <tmplang/CLI/Arguments.h>
 #include <tmplang/CLI/CLPrinter.h>
+#include <tmplang/Diagnostics/Diagnostic.h>
 #include <tmplang/Lexer/Lexer.h>
 #include <tmplang/Parser/Parser.h>
 #include <tmplang/Sema/Sema.h>
@@ -101,8 +102,13 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
+  auto sm = std::make_unique<SourceManager>(*targetFileEntry);
+
+  tmplang::diagnostic_ostream diagOuts(
+      parsedCompilerArgs->hasArg(OPT_color_diagnostics));
+
   Lexer lexer(targetFileEntry->Content->getBuffer());
-  auto srcCompilationUnit = Parse(lexer);
+  auto srcCompilationUnit = Parse(lexer, diagOuts, *sm);
   if (!srcCompilationUnit) {
     // TODO: Add proper message diagnostic handling
     printer.errs() << "There was a problem parsing the file\n";
@@ -117,7 +123,6 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  auto sm = std::make_unique<SourceManager>(*targetFileEntry);
   if (auto *dumpHIRArg = parsedCompilerArgs->getLastArg(OPT_dump_hir)) {
     return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit, *sm);
   }

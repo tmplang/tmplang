@@ -14,3 +14,9 @@ def h : Flag<["-"], "h">, Group<General_Group>, Alias<help>;
 // Dump options
 def dump_hir: CommaJoined<["--"], "dump-hir=">, Group<Dump_Group>,
               HelpText<"multi options: color|addr|loc|all|simple\nDefault: all">;
+
+def Diagnostics_Group : OptionGroup<"<diagnostics group>">, HelpText<"Diagnostics options">;
+
+// Diagnostics options
+def color_diagnostics : Flag<["--"], "color-diagnostics">, Group<Diagnostics_Group>,
+                        HelpText<"prints colorful diagnostics">;

@@ -2,6 +2,9 @@
 
 //      CHECK:Syntax: [[FILEPATH:.*]]tmplangc [options] <input>
 //CHECK-EMPTY:
+// CHECK-NEXT:Diagnostics options:
+// CHECK-NEXT:  --color-diagnostics            prints colorful diagnostics
+//CHECK-EMPTY:
 // CHECK-NEXT:Dump options:
 // CHECK-NEXT:  --dump-hir=                    multi options: color|addr|loc|all|simple
 // CHECK-NEXT:                                 Default: all

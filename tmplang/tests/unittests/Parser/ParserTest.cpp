@@ -1,6 +1,6 @@
 #include <Testing.h>
 
-#include <tmplang/Parser/Parser.h>
+#include "../common/Parser.h"
 
 using namespace tmplang;
 
@@ -18,8 +18,7 @@ TEST(ParserTest, Valid) {
       "fn foo {}"};
 
   for (const llvm::StringLiteral &code : tests) {
-    Lexer lex(code);
-    EXPECT_TRUE(Parse(lex));
+    EXPECT_TRUE(CleanParse(code));
   }
 }
 
@@ -37,7 +36,6 @@ TEST(ParserTest, Invalid) {
   };
 
   for (const llvm::StringLiteral &code : tests) {
-    Lexer lex(code);
-    EXPECT_FALSE(Parse(lex));
+    EXPECT_FALSE(CleanParse(code));
   }
 }

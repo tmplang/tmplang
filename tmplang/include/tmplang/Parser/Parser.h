@@ -7,9 +7,12 @@
 
 namespace tmplang {
 
+class SourceManager;
+
 /// Simple grammar verifier parser. Given a lexer which already contains the
 /// code returns wether the grammar can generate the input
-llvm::Optional<source::CompilationUnit> Parse(tmplang::Lexer &lex);
+llvm::Optional<source::CompilationUnit>
+Parse(tmplang::Lexer &, llvm::raw_ostream &out, const SourceManager &);
 
 } // namespace tmplang
 

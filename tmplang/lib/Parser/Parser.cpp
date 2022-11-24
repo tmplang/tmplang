@@ -1,5 +1,7 @@
 #include <tmplang/Parser/Parser.h>
 
+#include <tmplang/Diagnostics/Diagnostic.h>
+#include <tmplang/Diagnostics/Hint.h>
 #include <tmplang/Tree/Source/Decls.h>
 #include <tmplang/Tree/Source/Types.h>
 
@@ -14,7 +16,8 @@ struct LexicalScope {
 
 class Parser {
 public:
-  Parser(Lexer &lex) : Lex(lex) {}
+  Parser(Lexer &lex, llvm::raw_ostream &out, const SourceManager &sm)
+      : Lex(lex), Out(out), SM(sm) {}
 
   llvm::Optional<source::CompilationUnit> Start();
 
@@ -31,6 +34,10 @@ private:
   source::RAIIType NamedType();
   source::RAIIType TupleType();
 
+  Token getPrevToken() const;
+  Token getCurrToken() const;
+  Token peakNextToken() const;
+
 private:
   /// Checks if the current tokens is any of the \ref expected tokens. If so
   /// returns current token
@@ -41,6 +48,8 @@ private:
   llvm::Optional<Token> consume(llvm::ArrayRef<TokenKind> expected);
 
   Lexer &Lex;
+  llvm::raw_ostream &Out;
+  const SourceManager &SM;
 };
 
 } // namespace
@@ -74,6 +83,10 @@ llvm::Optional<source::CompilationUnit> Parser::Start() {
 llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
   auto funcType = FunctionType();
   if (!funcType) {
+    Diagnostic(DiagId::err_missing_subprogram_class, getCurrToken().SrcLocSpan,
+               PreprendHint(getCurrToken().SrcLocSpan.Start,
+                            {ToString(TK_FnType), ToString(TK_ProcType)}))
+        .print(Out, SM);
     return llvm::None;
   }
 
@@ -274,6 +287,10 @@ source::RAIIType Parser::TupleType() {
 /// Identifier = [a-zA-Z][a-zA-Z0-9]*;
 llvm::Optional<Token> Parser::Identifier() { return consume({TK_Identifier}); }
 
+Token Parser::getPrevToken() const { return Lex.getPrevToken(); }
+Token Parser::getCurrToken() const { return Lex.getCurrentToken(); }
+Token Parser::peakNextToken() const { return Lex.peakNextToken(); }
+
 llvm::Optional<Token> Parser::is(llvm::ArrayRef<TokenKind> expected) const {
   const Token tk = Lex.getCurrentToken();
   return llvm::is_contained(expected, tk.Kind) ? tk : llvm::Optional<Token>{};
@@ -288,6 +305,8 @@ llvm::Optional<Token> Parser::consume(llvm::ArrayRef<TokenKind> expected) {
   return llvm::None;
 }
 
-llvm::Optional<source::CompilationUnit> tmplang::Parse(tmplang::Lexer &lex) {
-  return Parser(lex).Start();
+llvm::Optional<source::CompilationUnit>
+tmplang::Parse(tmplang::Lexer &lex, llvm::raw_ostream &out,
+               const SourceManager &sm) {
+  return Parser(lex, out, sm).Start();
 }

@@ -1,0 +1,17 @@
+#ifndef DIAG
+#define DIAG(ID, SEV, MSG)
+#endif
+
+#ifndef ERROR
+#define ERROR(ID, MSG) DIAG(err_##ID, DiagnosticSeverity::Error, MSG)
+#endif
+
+#ifndef WARN
+#define WARN(ID, MSG) DIAG(ID, DiagnosticSeverity::Warning, MSG)
+#endif
+
+ERROR(missing_subprogram_class, "missing subprogram classification on subprogram definition")
+
+#undef WARN
+#undef ERROR
+#undef DIAG
