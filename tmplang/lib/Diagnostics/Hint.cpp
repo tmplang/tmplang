@@ -17,7 +17,7 @@ void PreprendHint::print(llvm::raw_ostream &out,
   llvm::SmallString<80> smallStr;
   llvm::raw_svector_ostream adaptor(smallStr);
 
-  adaptor.enable_colors(true);
+  adaptor.enable_colors(out.colors_enabled());
 
   if (Hints.size() > 1) {
     adaptor.changeColor(YELLOW) << '{';
@@ -57,6 +57,53 @@ void PreprendHint::print(llvm::raw_ostream &out,
   // Line with caret
   const std::string spaces(std::log10(lineAndColStart.Line) + 1, ' ');
   PrintContextLine(out, spaces,
-                   GetSubscriptLine(0, totalSizeWithoutColors) + " " +
-                       extraMsg, GREEN);
+                   GetSubscriptLine(0, totalSizeWithoutColors) + " " + extraMsg,
+                   GREEN);
+}
+
+void InsertTextAtHint::print(llvm::raw_ostream &out,
+                             const SourceManager &sm) const {
+  // Line with source code
+  const LineAndColumn lineAndColStart = sm.getLineAndColumn(SrcLoc);
+  const llvm::StringRef line = sm.getLine(SrcLoc);
+
+  const unsigned adjustedColumn = lineAndColStart.Column - 1;
+
+  llvm::SmallString<80> smallStr;
+  llvm::raw_svector_ostream adaptor(smallStr);
+
+  adaptor.enable_colors(out.colors_enabled());
+
+  llvm::StringRef lhsLine = line.substr(0, adjustedColumn);
+  adaptor.resetColor() << lhsLine;
+
+  const bool needsLeftSep = !lhsLine.endswith(RequiredLSep);
+  if (needsLeftSep) {
+    // If it does no end with the required left separator, add it
+    adaptor << RequiredLSep;
+  }
+
+  adaptor.changeColor(CYAN) << TextToInsert;
+  adaptor.resetColor();
+
+  llvm::StringRef rhsLine = line.substr(adjustedColumn);
+  const bool needsRightSep = !rhsLine.startswith(RequiredRSep);
+  if (needsRightSep) {
+    // If it does no end with the required right separator, add it
+    adaptor << RequiredRSep;
+  }
+  adaptor << rhsLine;
+
+  // Print source code with inserton
+  PrintContextLine(out, std::to_string(lineAndColStart.Line), smallStr);
+
+  const std::string spaces(std::log10(lineAndColStart.Line) + 1, ' ');
+  // Print subscript
+
+  PrintContextLine(
+      out, spaces,
+      GetSubscriptLine(adjustedColumn +
+                           (needsLeftSep ? RequiredLSep.size() : 0),
+                       TextToInsert.size()),
+      GREEN);
 }

@@ -13,9 +13,10 @@ namespace tmplang {
 
 class SourceManager;
 
-/// Severity level of the diagnostic
 enum class HintKind : std::uint8_t {
   PreprendHint = 0,
+  InsertTextAtHint,
+  NoHint
 };
 
 /// Simple diagnostic builder. It is intended to be used to be printed as soon
@@ -27,7 +28,7 @@ public:
 
   HintKind getKind() const { return Kind; }
 
-  virtual void print(llvm::raw_ostream &, const SourceManager &) const = 0;
+  virtual void print(llvm::raw_ostream &, const SourceManager &) const {};
 
 private:
   HintKind Kind;
@@ -49,6 +50,38 @@ public:
 private:
   SourceLocation SrcLoc;
   llvm::ArrayRef<llvm::StringRef> Hints;
+};
+
+class InsertTextAtHint : public Hint {
+public:
+  InsertTextAtHint(SourceLocation srcLoc, llvm::StringRef txt,
+                   llvm::StringRef requiredLSep = " ",
+                   llvm::StringRef requiredRSep = " ")
+      : Hint(HintKind::PreprendHint), SrcLoc(srcLoc), TextToInsert(txt),
+        RequiredLSep(requiredLSep), RequiredRSep(requiredRSep) {
+    assert(!txt.empty());
+  }
+
+  void print(llvm::raw_ostream &, const SourceManager &) const override;
+
+  static bool classof(const Hint *h) {
+    return h->getKind() == HintKind::PreprendHint;
+  }
+
+private:
+  SourceLocation SrcLoc;
+  llvm::StringRef TextToInsert;
+  llvm::StringRef RequiredLSep;
+  llvm::StringRef RequiredRSep;
+};
+
+class NoHint : public Hint {
+public:
+  NoHint() : Hint(HintKind::NoHint) {}
+
+  static bool classof(const Hint *h) {
+    return h->getKind() == HintKind::NoHint;
+  }
 };
 
 } // namespace tmplang

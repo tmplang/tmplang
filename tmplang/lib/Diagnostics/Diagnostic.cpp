@@ -3,6 +3,7 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/Twine.h>
+#include <llvm/Support/Casting.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <tmplang/Diagnostics/Hint.h>
 #include <tmplang/Support/SourceManager.h>
@@ -80,6 +81,10 @@ void Diagnostic::printLocation(llvm::raw_ostream &out,
 
 void Diagnostic::printHint(llvm::raw_ostream &out,
                            const SourceManager &sm) const {
+  if (llvm::isa<NoHint>(&H)) {
+    return;
+  }
+
   out.changeColor(YELLOW) << "Hint";
   out.resetColor() << ": \n";
   H.print(out, sm);
