@@ -62,8 +62,6 @@ struct Token {
   SourceLocationSpan SrcLocSpan;
 
 private:
-  /// TODO: We could save a lot of bytes here if we keep the files open and
-  ///       reused offset-driven locations to retrieve from the source
   llvm::SmallString<32> Lexeme;
 };
 
