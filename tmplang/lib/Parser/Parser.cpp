@@ -35,24 +35,28 @@ private:
   source::RAIIType TupleType();
 
   // Utility functions
-  Token getPrevToken() const;
-  Token getCurrToken() const;
-  Token peakNextToken() const;
+  Token prevTk() const;
+  Token tk() const;
+  Token nextTk() const;
 
   SourceLocation getStartCurrToken() const;
   SourceLocation getEndCurrToken() const;
 
   bool emitUnknownToken(const bool force = false) const;
 
-private:
-  /// Checks if the current tokens is any of the \ref expected tokens. If so
-  /// returns current token
-  llvm::Optional<Token> is(llvm::ArrayRef<TokenKind> expected) const;
-
   /// Checks if the current tokens is any of the \ref expected tokens. If so
   /// returns current token and advances to the next token
-  llvm::Optional<Token> consume(llvm::ArrayRef<TokenKind> expected);
+  template <typename... TKind_t>
+  llvm::Optional<Token> consume(TKind_t... expected) {
+    const Token currTk = tk();
+    if (currTk.isOneOf(expected...)) {
+      Lex.next();
+      return currTk;
+    }
+    return llvm::None;
+  }
 
+private:
   Lexer &Lex;
   llvm::raw_ostream &Out;
   const SourceManager &SM;
@@ -66,7 +70,7 @@ llvm::Optional<source::CompilationUnit> Parser::Start() {
   source::CompilationUnit compilationUnit;
 
   while (true) {
-    if (consume({TokenKind::TK_EOF})) {
+    if (consume(TokenKind::TK_EOF)) {
       return compilationUnit;
     }
 
@@ -90,10 +94,9 @@ llvm::Optional<source::CompilationUnit> Parser::Start() {
 llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
   auto funcType = FunctionType();
   if (!funcType) {
-    if (getCurrToken().Kind == TK_Identifier) {
-      Diagnostic(DiagId::err_missing_subprogram_class,
-                 getCurrToken().SrcLocSpan,
-                 PreprendHint(getCurrToken().SrcLocSpan.Start,
+    if (tk().is(TK_Identifier)) {
+      Diagnostic(DiagId::err_missing_subprogram_class, tk().getSpan(),
+                 PreprendHint(tk().getSpan().Start,
                               {ToString(TK_FnType), ToString(TK_ProcType)}))
           .print(Out, SM);
     } else {
@@ -104,21 +107,21 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
 
   auto id = Identifier();
   if (!id) {
-    Diagnostic(DiagId::err_missing_subprogram_id, getCurrToken().SrcLocSpan,
+    Diagnostic(DiagId::err_missing_subprogram_id, tk().getSpan(),
                InsertTextAtHint(getStartCurrToken(), "<subprogram_identifier>"))
         .print(Out, SM);
     return llvm::None;
   }
 
   // [1] && [2]
-  if (auto colon = consume({TK_Colon})) {
+  if (auto colon = consume(TK_Colon)) {
     auto paramList = ParamList();
     if (!paramList) {
       // Nothing to report here, reported on ParamList
       return llvm::None;
     }
 
-    if (auto arrow = consume({TK_RArrow})) {
+    if (auto arrow = consume(TK_RArrow)) {
       // [1]
       auto returnType = Type();
       if (!returnType) {
@@ -138,12 +141,11 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
           block->LKeyBracket, block->RKeyBracket);
     }
 
-    constexpr TokenKind firstTokensOfType[] = {TK_Identifier, TK_LParentheses};
-    if (is(firstTokensOfType)) {
+    if (tk().isOneOf(/*firstTokensOfType*/ TK_Identifier, TK_LParentheses)) {
       // Missing arrow
-      Diagnostic(DiagId::err_missing_arrow, getPrevToken().SrcLocSpan,
-                 InsertTextAtHint(getPrevToken().SrcLocSpan.End + 1,
-                                  ToString(TK_RArrow)))
+      Diagnostic(
+          DiagId::err_missing_arrow, prevTk().getSpan(),
+          InsertTextAtHint(prevTk().getSpan().End + 1, ToString(TK_RArrow)))
           .print(Out, SM);
       return llvm::None;
     }
@@ -160,7 +162,7 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
                                         block->LKeyBracket, block->RKeyBracket);
   }
 
-  if (auto arrow = consume({TK_RArrow})) {
+  if (auto arrow = consume(TK_RArrow)) {
     // [3]
     auto returnType = Type();
     if (!returnType) {
@@ -180,12 +182,11 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
         block->LKeyBracket, block->RKeyBracket);
   }
 
-  constexpr TokenKind firstTokensOfType[] = {TK_Identifier, TK_LParentheses};
-  if (is(firstTokensOfType)) {
+  if (tk().isOneOf(/*firstTokensOfType*/ TK_Identifier, TK_LParentheses)) {
     // Missing arrow
-    Diagnostic(DiagId::err_missing_arrow, getPrevToken().SrcLocSpan,
-               InsertTextAtHint(getPrevToken().SrcLocSpan.End + 1,
-                                ToString(TK_RArrow)))
+    Diagnostic(
+        DiagId::err_missing_arrow, prevTk().getSpan(),
+        InsertTextAtHint(prevTk().getSpan().End + 1, ToString(TK_RArrow)))
         .print(Out, SM);
     return llvm::None;
   }
@@ -217,7 +218,7 @@ Parser::ParamList() {
 
   paramList.Elems.push_back(std::move(*firstParam));
 
-  while (auto comma = consume({TK_Comma})) {
+  while (auto comma = consume(TK_Comma)) {
     auto param = Param();
     if (!param) {
       // Nothing to report here, reported on Param
@@ -242,7 +243,7 @@ llvm::Optional<source::ParamDecl> Parser::Param() {
   auto id = Identifier();
   if (!id) {
     Diagnostic(DiagId::err_missing_variable_identifier_after_type,
-               getCurrToken().SrcLocSpan,
+               tk().getSpan(),
                InsertTextAtHint(getStartCurrToken(), "<parameter_id>"))
         .print(Out, SM);
     return llvm::None;
@@ -257,10 +258,10 @@ llvm::Optional<LexicalScope> Parser::Block() {
     return llvm::None;
   }
 
-  auto lKeyBrace = consume({TK_LKeyBracket});
+  auto lKeyBrace = consume(TK_LKeyBracket);
   if (!lKeyBrace) {
-    Diagnostic(DiagId::err_missing_left_key_brace, getPrevToken().SrcLocSpan,
-               InsertTextAtHint(getPrevToken().SrcLocSpan.End + 1, "{"))
+    Diagnostic(DiagId::err_missing_left_key_brace, prevTk().getSpan(),
+               InsertTextAtHint(prevTk().getSpan().End + 1, "{"))
         .print(Out, SM);
     return llvm::None;
   }
@@ -269,10 +270,10 @@ llvm::Optional<LexicalScope> Parser::Block() {
     return llvm::None;
   }
 
-  auto rKeyBrace = consume({TK_RKeyBracket});
+  auto rKeyBrace = consume(TK_RKeyBracket);
   if (!rKeyBrace) {
-    Diagnostic(DiagId::err_missing_right_key_brace, getPrevToken().SrcLocSpan,
-               InsertTextAtHint(getPrevToken().SrcLocSpan.End + 1, "}"))
+    Diagnostic(DiagId::err_missing_right_key_brace, prevTk().getSpan(),
+               InsertTextAtHint(prevTk().getSpan().End + 1, "}"))
         .print(Out, SM);
     return llvm::None;
   }
@@ -282,36 +283,31 @@ llvm::Optional<LexicalScope> Parser::Block() {
 
 /// Function_type = "proc" | "fn";
 llvm::Optional<Token> Parser::FunctionType() {
-  return consume({TK_ProcType, TK_FnType});
+  return consume(TK_ProcType, TK_FnType);
 }
 
 /// Type = NamedType | TupleType;
 source::RAIIType Parser::Type() {
-  constexpr TokenKind firstTokensOfNamedType[] = {TK_Identifier};
-  if (is(firstTokensOfNamedType)) {
+  if (tk().is(/*firstTokensOfNamedType*/ TK_Identifier)) {
     return NamedType();
   }
 
-  constexpr TokenKind firstTokensOfTupleType[] = {TK_LParentheses};
-  if (is(firstTokensOfTupleType)) {
+  if (tk().is(/*firstTokensOfTupleType*/ TK_LParentheses)) {
     return TupleType();
   }
-
-  const TokenKind currTokenKind = getCurrToken().Kind;
 
   if (emitUnknownToken()) {
     return nullptr;
   }
 
-  if (currTokenKind == TK_RParentheses && getPrevToken().Kind != TK_Comma) {
+  if (tk().is(TK_RParentheses) && prevTk().isNot(TK_Comma)) {
     Diagnostic(DiagId::err_missing_left_parenthesis_opening_tuple,
-               getCurrToken().SrcLocSpan,
-               InsertTextAtHint(getPrevToken().SrcLocSpan.End + 1, "("))
+               tk().getSpan(),
+               InsertTextAtHint(prevTk().getSpan().End + 1, "("))
         .print(Out, SM);
   } else {
-    Diagnostic(
-        DiagId::err_missing_type, getPrevToken().SrcLocSpan,
-        InsertTextAtHint(getPrevToken().SrcLocSpan.End + 1, "<type>", " ", " "))
+    Diagnostic(DiagId::err_missing_type, prevTk().getSpan(),
+               InsertTextAtHint(prevTk().getSpan().End + 1, "<type>", " ", " "))
         .print(Out, SM);
   }
 
@@ -328,14 +324,13 @@ source::RAIIType Parser::NamedType() {
 
 /// TupleType = "(" ( Type ("," Type)* )? ")";
 source::RAIIType Parser::TupleType() {
-  auto lparentheses = consume({TK_LParentheses});
+  auto lparentheses = consume(TK_LParentheses);
   assert(lparentheses && "This is validated on the call-site");
 
   llvm::SmallVector<source::RAIIType, 4> types;
   llvm::SmallVector<Token, 3> commas;
 
-  constexpr TokenKind firstTokensOfType[] = {TK_LParentheses, TK_Identifier};
-  if (is(firstTokensOfType)) {
+  if (tk().isOneOf(/*firstTokensOfType*/ TK_LParentheses, TK_Identifier)) {
     auto firstType = Type();
     if (!firstType) {
       // Nothing to report here, reported on Type
@@ -344,7 +339,7 @@ source::RAIIType Parser::TupleType() {
 
     types.push_back(std::move(firstType));
 
-    while (auto comma = consume({TK_Comma})) {
+    while (auto comma = consume(TK_Comma)) {
       auto followingType = Type();
       if (!followingType) {
         // Nothing to do here, reported on Type
@@ -356,7 +351,7 @@ source::RAIIType Parser::TupleType() {
     }
   }
 
-  auto rparentheses = consume({TK_RParentheses});
+  auto rparentheses = consume(TK_RParentheses);
   if (!rparentheses) {
     // In these cases:
     //   [1] fn foo: (i32 i32 )   [...]
@@ -370,15 +365,13 @@ source::RAIIType Parser::TupleType() {
     DiagId id = DiagId::err_missing_right_parenthesis_closing_tuple;
     llvm::StringRef toInsert = ")";
 
-    if (getCurrToken().Kind == TK_Identifier &&
-        (peakNextToken().Kind == TK_RParentheses ||
-         peakNextToken().Kind == TK_Identifier ||
-         peakNextToken().Kind == TK_Comma)) {
+    if (tk().is(TK_Identifier) &&
+        nextTk().isOneOf(TK_RParentheses, TK_Identifier, TK_Comma)) {
       id = DiagId::err_missing_comma_prior_tuple_param;
       toInsert = ",";
     }
 
-    Diagnostic(id, getCurrToken().SrcLocSpan,
+    Diagnostic(id, tk().getSpan(),
                InsertTextAtHint(getStartCurrToken(), toInsert))
         .print(Out, SM);
     return nullptr;
@@ -389,41 +382,24 @@ source::RAIIType Parser::TupleType() {
 }
 
 /// Identifier = [a-zA-Z][a-zA-Z0-9]*;
-llvm::Optional<Token> Parser::Identifier() { return consume({TK_Identifier}); }
+llvm::Optional<Token> Parser::Identifier() { return consume(TK_Identifier); }
 
-Token Parser::getPrevToken() const { return Lex.getPrevToken(); }
-Token Parser::getCurrToken() const { return Lex.getCurrentToken(); }
-Token Parser::peakNextToken() const { return Lex.peakNextToken(); }
+Token Parser::prevTk() const { return Lex.getPrevToken(); }
+Token Parser::tk() const { return Lex.getCurrentToken(); }
+Token Parser::nextTk() const { return Lex.peakNextToken(); }
 
 SourceLocation Parser::getStartCurrToken() const {
-  return getCurrToken().SrcLocSpan.Start;
+  return tk().getSpan().Start;
 }
-SourceLocation Parser::getEndCurrToken() const {
-  return getCurrToken().SrcLocSpan.End;
-}
+SourceLocation Parser::getEndCurrToken() const { return tk().getSpan().End; }
 
 bool Parser::emitUnknownToken(const bool force) const {
-  if (force || is(TK_Unknown)) {
-    Diagnostic(DiagId::err_found_unknown_token, getCurrToken().SrcLocSpan,
-               NoHint())
+  if (force || tk().is(TK_Unknown)) {
+    Diagnostic(DiagId::err_found_unknown_token, tk().getSpan(), NoHint())
         .print(Out, SM);
     return true;
   }
   return false;
-}
-
-llvm::Optional<Token> Parser::is(llvm::ArrayRef<TokenKind> expected) const {
-  const Token tk = Lex.getCurrentToken();
-  return llvm::is_contained(expected, tk.Kind) ? tk : llvm::Optional<Token>{};
-}
-
-llvm::Optional<Token> Parser::consume(llvm::ArrayRef<TokenKind> expected) {
-  if (auto tk = is(expected)) {
-    Lex.next();
-    return tk;
-  }
-
-  return llvm::None;
 }
 
 llvm::Optional<source::CompilationUnit>

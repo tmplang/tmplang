@@ -54,3 +54,13 @@ void Token::dump(const SourceManager &sm) const {
   // FIXME: Add our own debug stream
   print(llvm::dbgs(), sm);
 }
+
+bool Token::is(TokenKind kind) const { return Kind == kind; }
+
+bool Token::isNot(TokenKind kind) const { return !is(kind); }
+
+bool Token::isOneOf(TokenKind f, TokenKind s) const { return is(f) || is(s); }
+
+bool Token::isOneOf(TokenKind f, TokenKind s, TokenKind t) const {
+  return isOneOf(f, s) || is(t);
+}
