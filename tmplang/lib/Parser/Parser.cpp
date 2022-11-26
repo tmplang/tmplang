@@ -44,16 +44,12 @@ private:
 
   bool emitUnknownToken(const bool force = false) const;
 
-  /// Checks if the current tokens is any of the \ref expected tokens. If so
-  /// returns current token and advances to the next token
-  template <typename... TKind_t>
-  llvm::Optional<Token> consume(TKind_t... expected) {
-    const Token currTk = tk();
-    if (currTk.isOneOf(expected...)) {
-      Lex.next();
-      return currTk;
-    }
-    return llvm::None;
+  /// Returns current token and retrives next one, updating prevTk, tk and
+  /// nextTk
+  Token consume() {
+    Token token = tk();
+    Lex.next();
+    return token;
   }
 
 private:
@@ -70,7 +66,7 @@ llvm::Optional<source::CompilationUnit> Parser::Start() {
   source::CompilationUnit compilationUnit;
 
   while (true) {
-    if (consume(TokenKind::TK_EOF)) {
+    if (tk().is(TokenKind::TK_EOF)) {
       return compilationUnit;
     }
 
@@ -114,14 +110,17 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
   }
 
   // [1] && [2]
-  if (auto colon = consume(TK_Colon)) {
+  if (tk().is(TK_Colon)) {
+    auto colon = consume();
+
     auto paramList = ParamList();
     if (!paramList) {
       // Nothing to report here, reported on ParamList
       return llvm::None;
     }
 
-    if (auto arrow = consume(TK_RArrow)) {
+    if (tk().is(TK_RArrow)) {
+      auto arrow = consume();
       // [1]
       auto returnType = Type();
       if (!returnType) {
@@ -136,8 +135,8 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
       }
 
       return source::FunctionDecl::Create(
-          *funcType, *id, *colon, std::move(*paramList),
-          source::FunctionDecl::ArrowAndType{*arrow, std::move(returnType)},
+          *funcType, *id, colon, std::move(*paramList),
+          source::FunctionDecl::ArrowAndType{arrow, std::move(returnType)},
           block->LKeyBracket, block->RKeyBracket);
     }
 
@@ -157,12 +156,13 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
       return llvm::None;
     }
 
-    return source::FunctionDecl::Create(*funcType, *id, *colon,
+    return source::FunctionDecl::Create(*funcType, *id, colon,
                                         std::move(*paramList),
                                         block->LKeyBracket, block->RKeyBracket);
   }
 
-  if (auto arrow = consume(TK_RArrow)) {
+  if (tk().is(TK_RArrow)) {
+    auto arrow = consume();
     // [3]
     auto returnType = Type();
     if (!returnType) {
@@ -178,7 +178,7 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
 
     return source::FunctionDecl::Create(
         *funcType, *id,
-        source::FunctionDecl::ArrowAndType{*arrow, std::move(returnType)},
+        source::FunctionDecl::ArrowAndType{arrow, std::move(returnType)},
         block->LKeyBracket, block->RKeyBracket);
   }
 
@@ -218,7 +218,9 @@ Parser::ParamList() {
 
   paramList.Elems.push_back(std::move(*firstParam));
 
-  while (auto comma = consume(TK_Comma)) {
+  while (tk().is(TK_Comma)) {
+    Token comma = consume();
+
     auto param = Param();
     if (!param) {
       // Nothing to report here, reported on Param
@@ -226,7 +228,7 @@ Parser::ParamList() {
     }
 
     paramList.Elems.push_back(std::move(*param));
-    paramList.Commas.push_back(*comma);
+    paramList.Commas.push_back(comma);
   }
 
   return paramList;
@@ -258,32 +260,35 @@ llvm::Optional<LexicalScope> Parser::Block() {
     return llvm::None;
   }
 
-  auto lKeyBrace = consume(TK_LKeyBracket);
-  if (!lKeyBrace) {
+  if (tk().isNot(TK_LKeyBracket)) {
     Diagnostic(DiagId::err_missing_left_key_brace, prevTk().getSpan(),
                InsertTextAtHint(prevTk().getSpan().End + 1, "{"))
         .print(Out, SM);
     return llvm::None;
   }
+  Token lKeyBrace = consume();
 
   if (emitUnknownToken()) {
     return llvm::None;
   }
 
-  auto rKeyBrace = consume(TK_RKeyBracket);
-  if (!rKeyBrace) {
+  if (tk().isNot(TK_RKeyBracket)) {
     Diagnostic(DiagId::err_missing_right_key_brace, prevTk().getSpan(),
                InsertTextAtHint(prevTk().getSpan().End + 1, "}"))
         .print(Out, SM);
     return llvm::None;
   }
+  Token rKeyBrace = consume();
 
-  return LexicalScope{*lKeyBrace, *rKeyBrace};
+  return LexicalScope{lKeyBrace, rKeyBrace};
 }
 
 /// Function_type = "proc" | "fn";
 llvm::Optional<Token> Parser::FunctionType() {
-  return consume(TK_ProcType, TK_FnType);
+  if (tk().isOneOf(TK_ProcType, TK_FnType)) {
+    return consume();
+  }
+  return llvm::None;
 }
 
 /// Type = NamedType | TupleType;
@@ -324,8 +329,9 @@ source::RAIIType Parser::NamedType() {
 
 /// TupleType = "(" ( Type ("," Type)* )? ")";
 source::RAIIType Parser::TupleType() {
-  auto lparentheses = consume(TK_LParentheses);
-  assert(lparentheses && "This is validated on the call-site");
+  Token lparentheses = consume();
+  assert(lparentheses.is(TK_LParentheses) &&
+         "This is validated on the call-site");
 
   llvm::SmallVector<source::RAIIType, 4> types;
   llvm::SmallVector<Token, 3> commas;
@@ -339,7 +345,9 @@ source::RAIIType Parser::TupleType() {
 
     types.push_back(std::move(firstType));
 
-    while (auto comma = consume(TK_Comma)) {
+    while (tk().is(TK_Comma)) {
+      Token comma = consume();
+
       auto followingType = Type();
       if (!followingType) {
         // Nothing to do here, reported on Type
@@ -347,12 +355,11 @@ source::RAIIType Parser::TupleType() {
       }
 
       types.push_back(std::move(followingType));
-      commas.push_back(std::move(*comma));
+      commas.push_back(std::move(comma));
     }
   }
 
-  auto rparentheses = consume(TK_RParentheses);
-  if (!rparentheses) {
+  if (tk().isNot(TK_RParentheses)) {
     // In these cases:
     //   [1] fn foo: (i32 i32 )   [...]
     //   [2] fn foo: (i32 i32 var [...]
@@ -376,13 +383,16 @@ source::RAIIType Parser::TupleType() {
         .print(Out, SM);
     return nullptr;
   }
+  Token rparentheses = consume();
 
   return source::make_RAIIType<source::TupleType>(
-      *lparentheses, std::move(types), std::move(commas), *rparentheses);
+      lparentheses, std::move(types), std::move(commas), rparentheses);
 }
 
 /// Identifier = [a-zA-Z][a-zA-Z0-9]*;
-llvm::Optional<Token> Parser::Identifier() { return consume(TK_Identifier); }
+llvm::Optional<Token> Parser::Identifier() {
+  return tk().is(TK_Identifier) ? consume() : llvm::Optional<Token>{};
+}
 
 Token Parser::prevTk() const { return Lex.getPrevToken(); }
 Token Parser::tk() const { return Lex.getCurrentToken(); }
