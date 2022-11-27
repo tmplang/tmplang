@@ -12,53 +12,48 @@
 
 using namespace tmplang;
 
-void PreprendHint::print(llvm::raw_ostream &out,
-                         const SourceManager &sm) const {
+namespace {
+struct FormatedHintStrAndSize {
+  const unsigned SizeWithNoColors;
+  llvm::SmallString<80> FormatedHint;
+};
+} // namespace
+
+static FormatedHintStrAndSize
+GetFormatedHintsAsStr(const bool colors,
+                      llvm::ArrayRef<llvm::StringRef> hints) {
   llvm::SmallString<80> smallStr;
   llvm::raw_svector_ostream adaptor(smallStr);
 
-  adaptor.enable_colors(out.colors_enabled());
+  adaptor.enable_colors(colors);
 
-  if (Hints.size() > 1) {
+  if (hints.size() > 1) {
     adaptor.changeColor(YELLOW) << '{';
     adaptor.resetColor();
   }
 
   printInterleaved(
-      Hints,
+      hints,
       [&](llvm::StringRef str) {
         adaptor.changeColor(CYAN) << str;
         adaptor.resetColor();
       },
       adaptor);
 
-  if (Hints.size() > 1) {
+  if (hints.size() > 1) {
     adaptor.changeColor(YELLOW) << '}';
     adaptor.resetColor();
   }
-  adaptor << ' ';
-
-  // Line with source code
-  const LineAndColumn lineAndColStart = sm.getLineAndColumn(SrcLoc);
-  PrintContextLine(out, std::to_string(lineAndColStart.Line),
-                   smallStr + sm.getLine(SrcLoc));
 
   // clang-format off
-  const unsigned totalSizeWithoutColors = 
-    (Hints.size() > 1 ? 2 : 0) + // left and right key braces
-    (Hints.size() - 1) * 2 + // commas and spaces
-    std::accumulate(Hints.begin(), Hints.end(), 0,             //
+  const unsigned totalSizeWithoutColors =
+    (hints.size() > 1 ? 2 : 0) + // left and right key braces
+    (hints.size() - 1) * 2 + // commas and spaces
+    std::accumulate(hints.begin(), hints.end(), 0,             //
       [](unsigned n, llvm::StringRef rhs){ return n + rhs.size(); }); // content
   // clang-format on
 
-  llvm::StringRef extraMsg =
-      Hints.size() > 1 ? "try one of the following" : "try this";
-
-  // Line with caret
-  const std::string spaces(std::log10(lineAndColStart.Line) + 1, ' ');
-  PrintContextLine(out, spaces,
-                   GetSubscriptLine(0, totalSizeWithoutColors) + " " + extraMsg,
-                   GREEN);
+  return {totalSizeWithoutColors, smallStr};
 }
 
 void InsertTextAtHint::print(llvm::raw_ostream &out,
@@ -69,10 +64,8 @@ void InsertTextAtHint::print(llvm::raw_ostream &out,
 
   const unsigned adjustedColumn = lineAndColStart.Column - 1;
 
-  llvm::SmallString<80> smallStr;
-  llvm::raw_svector_ostream adaptor(smallStr);
-
-  adaptor.enable_colors(out.colors_enabled());
+  llvm::SmallString<80> lineToPrint;
+  llvm::raw_svector_ostream adaptor(lineToPrint);
 
   llvm::StringRef lhsLine = line.substr(0, adjustedColumn);
   adaptor.resetColor() << lhsLine;
@@ -83,8 +76,9 @@ void InsertTextAtHint::print(llvm::raw_ostream &out,
     adaptor << RequiredLSep;
   }
 
-  adaptor.changeColor(CYAN) << TextToInsert;
-  adaptor.resetColor();
+  const FormatedHintStrAndSize textAndSize =
+      GetFormatedHintsAsStr(out.colors_enabled(), Hints);
+  adaptor << textAndSize.FormatedHint;
 
   llvm::StringRef rhsLine = line.substr(adjustedColumn);
   const bool needsRightSep = !rhsLine.startswith(RequiredRSep);
@@ -95,15 +89,18 @@ void InsertTextAtHint::print(llvm::raw_ostream &out,
   adaptor << rhsLine;
 
   // Print source code with inserton
-  PrintContextLine(out, std::to_string(lineAndColStart.Line), smallStr);
+  PrintContextLine(out, std::to_string(lineAndColStart.Line), lineToPrint);
+
+  llvm::StringRef subscriptText =
+      Hints.size() > 1 ? " try adding one of the following" : "";
 
   const std::string spaces(std::log10(lineAndColStart.Line) + 1, ' ');
   // Print subscript
-
   PrintContextLine(
       out, spaces,
       GetSubscriptLine(adjustedColumn +
                            (needsLeftSep ? RequiredLSep.size() : 0),
-                       TextToInsert.size()),
+                       textAndSize.SizeWithNoColors) +
+          subscriptText,
       GREEN);
 }

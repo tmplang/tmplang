@@ -107,8 +107,8 @@ llvm::Optional<source::FunctionDecl> Parser::FunctionDefinition() {
   if (!funcType) {
     if (tk().is(TK_Identifier)) {
       Diagnostic(DiagId::err_missing_subprogram_class, tk().getSpan(),
-                 PreprendHint(tk().getSpan().Start,
-                              {ToString(TK_FnType), ToString(TK_ProcType)}))
+                 InsertTextAtHint(tk().getSpan().Start,
+                              {ToString(TK_FnType), ToString(TK_ProcType)}, ""))
           .print(Out, SM);
     } else {
       emitUnknownToken(/*force*/ true);
