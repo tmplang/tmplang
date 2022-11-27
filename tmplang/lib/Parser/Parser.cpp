@@ -35,9 +35,9 @@ private:
   source::RAIIType TupleType();
 
   // Utility functions
-  Token prevTk() const;
-  Token tk() const;
-  Token nextTk() const;
+  const Token &prevTk() const;
+  const Token &tk() const;
+  const Token &nextTk() const;
 
   SourceLocation getStartCurrToken() const;
   SourceLocation getEndCurrToken() const;
@@ -394,9 +394,9 @@ llvm::Optional<Token> Parser::Identifier() {
   return tk().is(TK_Identifier) ? consume() : llvm::Optional<Token>{};
 }
 
-Token Parser::prevTk() const { return Lex.getPrevToken(); }
-Token Parser::tk() const { return Lex.getCurrentToken(); }
-Token Parser::nextTk() const { return Lex.peakNextToken(); }
+const Token &Parser::prevTk() const { return Lex.getPrevToken(); }
+const Token &Parser::tk() const { return Lex.getCurrentToken(); }
+const Token &Parser::nextTk() const { return Lex.peakNextToken(); }
 
 SourceLocation Parser::getStartCurrToken() const {
   return tk().getSpan().Start;

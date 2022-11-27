@@ -9,9 +9,9 @@ class Lexer {
 public:
   Lexer(llvm::StringRef input);
 
-  Token getPrevToken() const;
-  Token getCurrentToken() const;
-  Token peakNextToken() const;
+  const Token &getPrevToken() const;
+  const Token &getCurrentToken() const;
+  const Token &peakNextToken() const;
 
   Token next();
 

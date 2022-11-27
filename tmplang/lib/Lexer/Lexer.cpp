@@ -140,9 +140,9 @@ Token Lexer::nextImpl() {
   return tkBuilder.buildToken(tk, potentialId.size());
 }
 
-Token Lexer::getPrevToken() const { return State.PrevToken; }
-Token Lexer::getCurrentToken() const { return State.CurrentToken; }
-Token Lexer::peakNextToken() const { return State.NextToken; }
+const Token &Lexer::getPrevToken() const { return State.PrevToken; }
+const Token &Lexer::getCurrentToken() const { return State.CurrentToken; }
+const Token &Lexer::peakNextToken() const { return State.NextToken; }
 
 Token Lexer::next() {
   // Rotate tokens
