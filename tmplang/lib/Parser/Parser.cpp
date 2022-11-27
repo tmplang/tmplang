@@ -17,7 +17,11 @@ struct LexicalScope {
 class Parser {
 public:
   Parser(Lexer &lex, llvm::raw_ostream &out, const SourceManager &sm)
-      : Lex(lex), Out(out), SM(sm) {}
+      : Lex(lex), Out(out), SM(sm) {
+    // These two "consume" calls will initialize the current and next token
+    consume();
+    consume();
+  }
 
   llvm::Optional<source::CompilationUnit> Start();
 
@@ -48,7 +52,12 @@ private:
   /// nextTk
   Token consume() {
     Token token = tk();
-    Lex.next();
+
+    // Rotate tokens
+    ParserState.PrevToken = ParserState.CurrToken;
+    ParserState.CurrToken = ParserState.NextToken;
+    ParserState.NextToken = Lex.next();
+
     return token;
   }
 
@@ -56,6 +65,12 @@ private:
   Lexer &Lex;
   llvm::raw_ostream &Out;
   const SourceManager &SM;
+
+  struct {
+    Token PrevToken;
+    Token CurrToken;
+    Token NextToken;
+  } ParserState;
 };
 
 } // namespace
@@ -394,9 +409,9 @@ llvm::Optional<Token> Parser::Identifier() {
   return tk().is(TK_Identifier) ? consume() : llvm::Optional<Token>{};
 }
 
-const Token &Parser::prevTk() const { return Lex.getPrevToken(); }
-const Token &Parser::tk() const { return Lex.getCurrentToken(); }
-const Token &Parser::nextTk() const { return Lex.peakNextToken(); }
+const Token &Parser::prevTk() const { return ParserState.PrevToken; }
+const Token &Parser::tk() const { return ParserState.CurrToken; }
+const Token &Parser::nextTk() const { return ParserState.NextToken; }
 
 SourceLocation Parser::getStartCurrToken() const {
   return tk().getSpan().Start;

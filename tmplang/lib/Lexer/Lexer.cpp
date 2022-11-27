@@ -37,10 +37,7 @@ struct TokenBuilder {
 } // namespace
 
 Lexer::Lexer(llvm::StringRef input)
-    : State(input), DetectedEOL(State.CurrentInput.detectEOL()) {
-  State.CurrentToken = nextImpl();
-  State.NextToken = nextImpl();
-}
+    : State(input), DetectedEOL(State.CurrentInput.detectEOL()) {}
 
 // Matches pattern: [a-zA-Z][a-zA-Z0-9]+;
 static llvm::StringRef GetIdentifier(llvm::StringRef in) {
@@ -54,7 +51,7 @@ static llvm::StringRef GetIdentifier(llvm::StringRef in) {
   });
 }
 
-Token Lexer::nextImpl() {
+Token Lexer::next() {
   TokenBuilder tkBuilder(State);
 
   if (State.CurrentInput.empty()) {
@@ -66,7 +63,7 @@ Token Lexer::nextImpl() {
   // Handle new lines
   if (State.CurrentInput.startswith(DetectedEOL)) {
     State.consumeUntilEOLOrEOF();
-    return nextImpl();
+    return next();
   }
 
   switch (State.CurrentInput.front()) {
@@ -100,14 +97,14 @@ Token Lexer::nextImpl() {
   case '\t':
   case '\v':
     State.advance();
-    return nextImpl();
+    return next();
   case '/':
     if (!State.CurrentInput.startswith("//")) {
       return tkBuilder.buildToken(TK_Unknown);
     }
     // Simple comment case. Ignore all until EOL or EOF
     State.consumeUntilEOLOrEOF();
-    return nextImpl();
+    return next();
   default:
     break;
   }
@@ -140,21 +137,8 @@ Token Lexer::nextImpl() {
   return tkBuilder.buildToken(tk, potentialId.size());
 }
 
-const Token &Lexer::getPrevToken() const { return State.PrevToken; }
-const Token &Lexer::getCurrentToken() const { return State.CurrentToken; }
-const Token &Lexer::peakNextToken() const { return State.NextToken; }
-
-Token Lexer::next() {
-  // Rotate tokens
-  State.PrevToken = State.CurrentToken;
-  State.CurrentToken = State.NextToken;
-  State.NextToken = nextImpl();
-
-  return State.CurrentToken;
-}
-
 Lexer::LexerState::LexerState(llvm::StringRef input)
-    : CurrentInput(input), CurrentLocation(1), CurrentToken() {}
+    : CurrentInput(input), CurrentLocation(1) {}
 
 void Lexer::LexerState::advance(unsigned nChars) {
   CurrentInput = CurrentInput.drop_front(nChars);
