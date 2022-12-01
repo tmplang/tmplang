@@ -58,12 +58,21 @@ struct Token {
     return Lexeme;
   }
 
-  TokenKind Kind;
-  SourceLocationSpan SrcLocSpan;
+  /// Query functions to know if the Token is or not of some kind/s
+  bool is(TokenKind kind) const;
+  bool isNot(TokenKind kind) const;
+  bool isOneOf(TokenKind f, TokenKind s) const;
+  bool isOneOf(TokenKind f, TokenKind s, TokenKind t) const;
+
+  template <typename... TKind_t> bool isOneOf(TKind_t... kinds) const {
+    return ((kinds == Kind) || ...);
+  }
+
+  SourceLocationSpan getSpan() const { return SrcLocSpan; }
 
 private:
-  /// TODO: We could save a lot of bytes here if we keep the files open and
-  ///       reused offset-driven locations to retrieve from the source
+  TokenKind Kind;
+  SourceLocationSpan SrcLocSpan;
   llvm::SmallString<32> Lexeme;
 };
 

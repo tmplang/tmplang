@@ -15,10 +15,10 @@ using namespace tmplang;
 
 static std::vector<Token> Lex(llvm::StringRef input) {
   Lexer lexer(input);
-  Token tok = lexer.getCurrentToken();
+  Token tok = lexer.next();
   std::vector<Token> result = {tok};
 
-  while (tok.Kind != TK_EOF && tok.Kind != TK_Unknown) {
+  while (!tok.isOneOf(TK_EOF, TK_Unknown)) {
     tok = lexer.next();
     result.push_back(tok);
   }
@@ -59,14 +59,14 @@ static void CheckResult(llvm::ArrayRef<MimicToken> targetTokens,
     SCOPED_TRACE("Token at index " + std::to_string(i));
 
     const LineAndColumn begin =
-        sm.getLineAndColumn(resultTokens[i].SrcLocSpan.Start);
+        sm.getLineAndColumn(resultTokens[i].getSpan().Start);
     const LineAndColumn end =
-        sm.getLineAndColumn(resultTokens[i].SrcLocSpan.End);
+        sm.getLineAndColumn(resultTokens[i].getSpan().End);
 
     EXPECT_EQ(begin, targetTokens[i].Start);
     EXPECT_EQ(end, targetTokens[i].End);
-    EXPECT_EQ(resultTokens[i].Kind, targetTokens[i].Kind);
-    if (resultTokens[i].Kind == tmplang::TK_Identifier) {
+    EXPECT_TRUE(resultTokens[i].is(targetTokens[i].Kind));
+    if (resultTokens[i].is(TK_Identifier)) {
       EXPECT_EQ(resultTokens[i].getLexeme(), targetTokens[i].Lex);
     }
   }

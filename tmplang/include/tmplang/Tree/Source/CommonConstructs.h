@@ -14,8 +14,8 @@ template <typename T, unsigned N> struct CommaSeparatedList {
       : Elems(std::move(elems)), Commas(std::move(commas)) {
     assert((Elems.empty() && Commas.empty()) ||
            (Elems.size() == Commas.size() + 1));
-    assert(llvm::all_of(Commas,
-                       [](const Token &tk) { return tk.Kind == TK_Comma; }));
+    assert(
+        llvm::all_of(Commas, [](const Token &tk) { return tk.is(TK_Comma); }));
   }
 
   llvm::SmallVector<T, N> Elems;

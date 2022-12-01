@@ -7,6 +7,7 @@ llvm_add_library(TmplangHIRTree
     Types.cpp
 
     LINK_LIBS PUBLIC
+    TmplangLexer
     TmplangSupport
 
     LINK_COMPONENTS

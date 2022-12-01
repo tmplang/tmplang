@@ -88,8 +88,8 @@ HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
 }
 
 static FunctionDecl::FunctionKind GetFunctionKind(Token tk) {
-  assert(tk.Kind == TokenKind::TK_ProcType || tk.Kind == TokenKind::TK_FnType);
-  if (tk.Kind == TokenKind::TK_ProcType) {
+  assert(tk.isOneOf(TK_ProcType, TK_FnType));
+  if (tk.is(TK_ProcType)) {
     return FunctionDecl::proc;
   }
   return FunctionDecl::fn;

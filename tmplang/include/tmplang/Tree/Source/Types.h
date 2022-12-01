@@ -16,9 +16,9 @@ public:
   llvm::StringRef getName() const { return Identifier.getLexeme(); }
 
   SourceLocation getBeginLoc() const override {
-    return Identifier.SrcLocSpan.Start;
+    return Identifier.getSpan().Start;
   }
-  SourceLocation getEndLoc() const override { return Identifier.SrcLocSpan.End; }
+  SourceLocation getEndLoc() const override { return Identifier.getSpan().End; }
 
   static bool classof(const Type *T) { return T->getKind() == Kind::NamedType; }
 
@@ -37,9 +37,11 @@ public:
   llvm::ArrayRef<RAIIType> getTypes() const { return TypesAndCommas.Elems; }
 
   SourceLocation getBeginLoc() const override {
-    return LParentheses.SrcLocSpan.Start;
+    return LParentheses.getSpan().Start;
   }
-  SourceLocation getEndLoc() const override { return RParentheses.SrcLocSpan.End; }
+  SourceLocation getEndLoc() const override {
+    return RParentheses.getSpan().End;
+  }
 
   static bool classof(const Type *T) { return T->getKind() == Kind::TupleType; }
 

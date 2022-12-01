@@ -9,10 +9,6 @@ class Lexer {
 public:
   Lexer(llvm::StringRef input);
 
-  Token getPrevToken() const;
-  Token getCurrentToken() const;
-  Token peakNextToken() const;
-
   Token next();
 
   struct LexerState {
@@ -23,15 +19,9 @@ public:
 
     llvm::StringRef CurrentInput;
     SourceLocation CurrentLocation;
-
-    Token PrevToken;
-    Token CurrentToken;
-    Token NextToken;
   };
 
 private:
-  Token nextImpl();
-
   LexerState State;
   // Detected End of Line
   llvm::StringRef DetectedEOL;
