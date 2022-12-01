@@ -17,6 +17,7 @@ public:
   const Type &getType() const { return *ParamType; }
 
   llvm::StringRef getName() const override { return Identifier.getLexeme(); }
+  Token getIdentifier() const { return Identifier; }
   SourceLocation getBeginLoc() const override {
     return ParamType->getBeginLoc();
   }
@@ -46,6 +47,14 @@ public:
   }
   llvm::StringRef getName() const override { return Identifier.getLexeme(); }
   Token getFuncType() const { return FuncType; }
+  Token getIdentifier() const { return Identifier; }
+  const llvm::Optional<Token> &getColon() const { return Colon; }
+  llvm::Optional<Token> getArrow() const {
+    return OptArrowAndType ? OptArrowAndType->Arrow : llvm::Optional<Token>{};
+  }
+  Token getLKeyBracket() const { return LKeyBracket; }
+  Token getRKeyBracket() const { return RKeyBracket; }
+
   SourceLocation getBeginLoc() const override {
     return FuncType.getSpan().Start;
   }
