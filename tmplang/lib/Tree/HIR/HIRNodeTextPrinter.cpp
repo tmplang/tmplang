@@ -239,11 +239,21 @@ private:
   void printSourceLocation(const Node &node) {
     ColorScope color(OS, Cfg, SourceLocationColor);
 
-    const LineAndColumn begin = SM.getLineAndColumn(node.getBeginLoc());
-    const LineAndColumn end = SM.getLineAndColumn(node.getEndLoc());
+    auto getLocStr = [&](SourceLocation loc) -> llvm::SmallString<10> {
+      switch (loc) {
+      case RecoveryLoc:
+        return llvm::StringRef("[recovery sloc]");
+      case InvalidLoc:
+        return llvm::StringRef("[invalid sloc]");
+      default: {
+        const LineAndColumn begin = SM.getLineAndColumn(loc);
+        return llvm::formatv("{0},{1}", begin.Line, begin.Column);
+      }
+      }
+    };
 
-    OS << llvm::formatv(" <{0},{1}-{2},{3}>", begin.Line, begin.Column,
-                        end.Line, end.Column);
+    OS << llvm::formatv(" <{0}-{1}>", getLocStr(node.getBeginLoc()),
+                        getLocStr(node.getEndLoc()));
   }
 
   void printPointer(const void *ptr) {

@@ -21,8 +21,8 @@ public:
     FunctionDeclarations.push_back(std::move(funcDecl));
   }
 
-  SourceLocation getBeginLoc() const override;
-  SourceLocation getEndLoc() const override;
+  SourceLocation getBeginLoc() const override { return InvalidLoc; }
+  SourceLocation getEndLoc() const override { return InvalidLoc; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::CompilationUnit;
