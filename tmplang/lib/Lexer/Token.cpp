@@ -46,8 +46,8 @@ llvm::raw_ostream &tmplang::operator<<(llvm::raw_ostream &out, TokenKind k) {
 void Token::print(llvm::raw_ostream &out, const SourceManager &sm) const {
   const LineAndColumn start = sm.getLineAndColumn(SrcLocSpan.Start);
   const LineAndColumn end = sm.getLineAndColumn(SrcLocSpan.End);
-  out << llvm::formatv("['{0}' {1}:{2}-{3}:{4}]", ToString(Kind).data(),
-                       start.Line, start.Column, end.Line, end.Column);
+  out << llvm::formatv("['{0}' {1}:{2}-{3}:{4}]", getLexeme(), start.Line,
+                       start.Column, end.Line, end.Column);
 }
 
 void Token::dump(const SourceManager &sm) const {

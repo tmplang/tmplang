@@ -54,8 +54,7 @@ struct Token {
   void dump(const SourceManager &sm) const;
 
   llvm::StringRef getLexeme() const {
-    assert(Kind == TK_Identifier);
-    return Lexeme;
+    return Kind == TK_Identifier ? Lexeme : ToString(Kind);
   }
 
   /// Query functions to know if the Token is or not of some kind/s
