@@ -73,7 +73,8 @@ struct Token {
 private:
   TokenKind Kind;
   SourceLocationSpan SrcLocSpan;
-  llvm::SmallString<32> Lexeme;
+  /// Since we keep open the file, storing a reference to the source is valid
+  llvm::StringRef Lexeme;
 };
 
 } // namespace tmplang
