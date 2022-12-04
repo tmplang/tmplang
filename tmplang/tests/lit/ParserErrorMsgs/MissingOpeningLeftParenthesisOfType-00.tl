@@ -3,5 +3,5 @@
 
 proc foo: ) var {}
 
-// CHECK:error:  missing left parenthesis opening tuple
+// CHECK:error: missing left parenthesis opening tuple
 // CHECK:proc foo: ( ) var {}

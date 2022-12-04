@@ -1,10 +1,10 @@
 #ifndef TMPLANG_TREE_HIR_NODE_H
 #define TMPLANG_TREE_HIR_NODE_H
 
+#include <llvm/ADT/BitmaskEnum.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <tmplang/Lexer/SourceLocation.h>
-#include <llvm/ADT/BitmaskEnum.h>
 
 namespace llvm {
 class raw_ostream;
@@ -29,8 +29,8 @@ public:
 
   Kind getKind() const { return NodeKind; }
 
-  SourceLocation getBeginLoc() const;
-  SourceLocation getEndLoc() const;
+  tmplang::SourceLocation getBeginLoc() const;
+  tmplang::SourceLocation getEndLoc() const;
 
   enum PrintConfig {
     None = 0,

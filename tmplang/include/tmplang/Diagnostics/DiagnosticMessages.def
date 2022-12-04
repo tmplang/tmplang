@@ -12,9 +12,11 @@
 
 ERROR(found_unknown_token,                     "found unexpected token")
 ERROR(missing_arrow,                           "missing type arrow")
+ERROR(missing_comma,                           "missing needed comma between parameters")
+ERROR(missing_comma_prior_tuple_param,         "missing comma before next tuple parameter")
+ERROR(missing_colon,                           "missing needed colon before start of parameter list")
 ERROR(missing_left_key_brace,                  "missing left key brace")
 ERROR(missing_left_parenthesis_opening_tuple,  "missing left parenthesis opening tuple")
-ERROR(missing_comma_prior_tuple_param,         "missing comma before next tuple parameter")
 ERROR(missing_right_key_brace,                 "missing right key brace")
 ERROR(missing_right_parenthesis_closing_tuple, "missing right parenthesis closing tuple")
 ERROR(missing_subprogram_class,                "missing subprogram classification on subprogram definition")

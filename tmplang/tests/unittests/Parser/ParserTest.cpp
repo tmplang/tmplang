@@ -36,6 +36,7 @@ TEST(ParserTest, Invalid) {
   };
 
   for (const llvm::StringLiteral &code : tests) {
-    EXPECT_FALSE(CleanParse(code));
+    llvm::Optional<source::CompilationUnit> compUnit = CleanParse(code);
+    EXPECT_TRUE(!compUnit || compUnit->didRecoverFromAnError());
   }
 }

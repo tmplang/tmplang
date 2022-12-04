@@ -1,3 +1,4 @@
+#include "tmplang/Tree/Source/Node.h"
 #include <llvm/Option/ArgList.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/InitLLVM.h>
@@ -18,23 +19,24 @@
 
 using namespace tmplang;
 
-static llvm::Optional<hir::Node::PrintConfig>
-ParseDumpHIRArg(llvm::opt::Arg &arg, CLPrinter &out) {
+template <typename PrintConfig_t>
+static llvm::Optional<PrintConfig_t> ParseDumpArg(llvm::opt::Arg &arg,
+                                                  CLPrinter &out) {
   if (arg.getNumValues() == 0) {
     out.errs() << "At least one value of the followings is required: "
                   "'color|addr|loc|all|simple'\n";
     return llvm::None;
   }
 
-  hir::Node::PrintConfig printCfg = hir::Node::PrintConfig::None;
+  PrintConfig_t printCfg = PrintConfig_t::None;
   for (llvm::StringRef option : arg.getValues()) {
-    llvm::Optional<tmplang::hir::Node::PrintConfig> parsedOption =
-        llvm::StringSwitch<llvm::Optional<hir::Node::PrintConfig>>(option)
-            .Case("color", hir::Node::PrintConfig::Color)
-            .Case("addr", hir::Node::PrintConfig::Address)
-            .Case("loc", hir::Node::PrintConfig::SourceLocation)
-            .Case("simple", hir::Node::PrintConfig::None)
-            .Case("all", hir::Node::PrintConfig::All)
+    llvm::Optional<PrintConfig_t> parsedOption =
+        llvm::StringSwitch<llvm::Optional<PrintConfig_t>>(option)
+            .Case("color", PrintConfig_t::Color)
+            .Case("addr", PrintConfig_t::Address)
+            .Case("loc", PrintConfig_t::SourceLocation)
+            .Case("simple", PrintConfig_t::None)
+            .Case("all", PrintConfig_t::All)
             .Default(llvm::None);
 
     if (!parsedOption) {
@@ -49,10 +51,23 @@ ParseDumpHIRArg(llvm::opt::Arg &arg, CLPrinter &out) {
   return printCfg;
 }
 
+static bool DumpSrc(llvm::opt::Arg &arg, CLPrinter &out,
+                    const source::CompilationUnit &compUnit,
+                    const SourceManager &sm) {
+  auto cfg = ParseDumpArg<source::Node::PrintConfig>(arg, out);
+  if (!cfg) {
+    // Errors already reported
+    return 1;
+  }
+
+  compUnit.dump(sm, *cfg);
+  return compUnit.didRecoverFromAnError();
+}
+
 static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
                     const hir::CompilationUnit &compUnit,
                     const SourceManager &sm) {
-  llvm::Optional<hir::Node::PrintConfig> cfg = ParseDumpHIRArg(arg, out);
+  auto cfg = ParseDumpArg<hir::Node::PrintConfig>(arg, out);
   if (!cfg) {
     // Errors already reported
     return 1;
@@ -115,6 +130,10 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
+  if (auto *dumpSrcArg = parsedCompilerArgs->getLastArg(OPT_dump_src)) {
+    return DumpSrc(*dumpSrcArg, printer, *srcCompilationUnit, *sm);
+  }
+
   hir::HIRContext ctx;
   auto hirCompilationUnit = hir::buildHIR(*srcCompilationUnit, ctx);
   if (!hirCompilationUnit) {
@@ -132,5 +151,5 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  return 0;
+  return srcCompilationUnit->didRecoverFromAnError();
 }

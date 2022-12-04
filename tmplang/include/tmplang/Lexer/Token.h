@@ -37,13 +37,16 @@ llvm::StringLiteral ToString(TokenKind tk);
 llvm::raw_ostream &operator<<(llvm::raw_ostream &out, TokenKind k);
 
 struct Token {
-  Token(TokenKind kind, SourceLocation start, SourceLocation end)
-      : Kind(kind), SrcLocSpan{start, end} {
+  Token(TokenKind kind, SourceLocation start, SourceLocation end,
+        bool isRecovery = false)
+      : Kind(kind), IsErrorRecoveryToken(isRecovery), SrcLocSpan{start, end} {
     assert(kind != TokenKind::TK_Identifier &&
            "Invalid constructor for identifiers");
   }
-  Token(llvm::StringRef id, SourceLocation start, SourceLocation end)
-      : Kind(TokenKind::TK_Identifier), SrcLocSpan{start, end}, Lexeme(id) {
+  Token(llvm::StringRef id, SourceLocation start, SourceLocation end,
+        bool isRecovery = false)
+      : Kind(TokenKind::TK_Identifier),
+        IsErrorRecoveryToken(isRecovery), SrcLocSpan{start, end}, Lexeme(id) {
     assert(!id.empty());
   }
   Token() : Kind(TK_Unknown) {}
@@ -67,10 +70,12 @@ struct Token {
     return ((kinds == Kind) || ...);
   }
 
+  bool isErrorRecoveryToken() const { return IsErrorRecoveryToken; }
   SourceLocationSpan getSpan() const { return SrcLocSpan; }
 
 private:
   TokenKind Kind;
+  bool IsErrorRecoveryToken = false;
   SourceLocationSpan SrcLocSpan;
   /// Since we keep open the file, storing a reference to the source is valid
   llvm::StringRef Lexeme;
