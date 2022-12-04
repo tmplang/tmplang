@@ -15,14 +15,14 @@ class Type;
 
 class CompilationUnit : public Node {
 public:
-  CompilationUnit() : Node(Node::Kind::CompilationUnit) {}
+  CompilationUnit(std::vector<FunctionDecl> functions,
+                  bool didRecoverFromAnError)
+      : Node(Node::Kind::CompilationUnit),
+        ContainsErrorRecoveryTokens(didRecoverFromAnError),
+        FunctionDeclarations(std::move(functions)) {}
 
-  void addFunctionDecl(FunctionDecl funcDecl) {
-    FunctionDeclarations.push_back(std::move(funcDecl));
-  }
-
-  SourceLocation getBeginLoc() const override;
-  SourceLocation getEndLoc() const override;
+  tmplang::SourceLocation getBeginLoc() const override { return InvalidLoc; }
+  tmplang::SourceLocation getEndLoc() const override { return InvalidLoc; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::CompilationUnit;
@@ -32,7 +32,10 @@ public:
     return FunctionDeclarations;
   }
 
+  bool didRecoverFromAnError() const { return ContainsErrorRecoveryTokens; }
+
 private:
+  bool ContainsErrorRecoveryTokens;
   std::vector<FunctionDecl> FunctionDeclarations;
 };
 

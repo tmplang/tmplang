@@ -34,43 +34,37 @@ private:
   HintKind Kind;
 };
 
-class PreprendHint : public Hint {
-public:
-  PreprendHint(SourceLocation srcLoc, llvm::ArrayRef<llvm::StringRef> hints)
-      : Hint(HintKind::PreprendHint), SrcLoc(srcLoc), Hints(std::move(hints)) {
-    assert(!Hints.empty());
-  }
-
-  void print(llvm::raw_ostream &, const SourceManager &) const override;
-
-  static bool classof(const Hint *h) {
-    return h->getKind() == HintKind::PreprendHint;
-  }
-
-private:
-  SourceLocation SrcLoc;
-  llvm::ArrayRef<llvm::StringRef> Hints;
-};
-
 class InsertTextAtHint : public Hint {
 public:
-  InsertTextAtHint(SourceLocation srcLoc, llvm::StringRef txt,
+  InsertTextAtHint(SourceLocation srcLoc, llvm::StringRef hint,
+                   llvm::StringRef requiredLSep = " ",
+                   llvm::StringRef requiredRSep = " ",
+                   llvm::StringRef subscriptMSg = "")
+      : Hint(HintKind::InsertTextAtHint), SrcLoc(srcLoc), Hints(),
+        RequiredLSep(requiredLSep), RequiredRSep(requiredRSep) {
+    assert(!hint.empty());
+    Hints.push_back(hint);
+  }
+
+  InsertTextAtHint(SourceLocation srcLoc, llvm::ArrayRef<llvm::StringRef> hints,
                    llvm::StringRef requiredLSep = " ",
                    llvm::StringRef requiredRSep = " ")
-      : Hint(HintKind::PreprendHint), SrcLoc(srcLoc), TextToInsert(txt),
+      : Hint(HintKind::InsertTextAtHint), SrcLoc(srcLoc), Hints(hints),
         RequiredLSep(requiredLSep), RequiredRSep(requiredRSep) {
-    assert(!txt.empty());
+    assert(!Hints.empty());
+    assert(llvm::none_of(Hints,
+                         [](llvm::StringRef hint) { return hint.empty(); }));
   }
 
   void print(llvm::raw_ostream &, const SourceManager &) const override;
 
   static bool classof(const Hint *h) {
-    return h->getKind() == HintKind::PreprendHint;
+    return h->getKind() == HintKind::InsertTextAtHint;
   }
 
 private:
   SourceLocation SrcLoc;
-  llvm::StringRef TextToInsert;
+  llvm::SmallVector<llvm::StringRef, 3> Hints;
   llvm::StringRef RequiredLSep;
   llvm::StringRef RequiredRSep;
 };

@@ -1,7 +1,18 @@
 #ifndef TMPLANG_TREE_SOURCE_NODE_H
 #define TMPLANG_TREE_SOURCE_NODE_H
 
+#include <llvm/ADT/BitmaskEnum.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/ErrorHandling.h>
 #include <tmplang/Lexer/SourceLocation.h>
+
+namespace llvm {
+class raw_ostream;
+} // namespace llvm
+
+namespace tmplang {
+class SourceManager;
+} // namespace tmplang
 
 namespace tmplang::source {
 
@@ -16,6 +27,19 @@ public:
   virtual SourceLocation getBeginLoc() const = 0;
   virtual SourceLocation getEndLoc() const = 0;
 
+  enum PrintConfig {
+    None = 0,
+    Address = 1 << 0,
+    SourceLocation = 1 << 1,
+    Color = 1 << 2,
+    All = Address | SourceLocation | Color,
+    LLVM_MARK_AS_BITMASK_ENUM(Color)
+  };
+
+  void print(llvm::raw_ostream &, const SourceManager &,
+             PrintConfig = PrintConfig::Color) const;
+  void dump(const SourceManager &, PrintConfig = PrintConfig::All) const;
+
   Kind getKind() const { return NodeKind; }
 
 protected:
@@ -25,6 +49,20 @@ protected:
 private:
   Kind NodeKind;
 };
+
+inline llvm::StringLiteral ToString(Node::Kind kind) {
+  switch (kind) {
+#define HIRNode(KIND)                                                          \
+  case Node::Kind::KIND:                                                       \
+    return #KIND;
+#include "../Nodes.def"
+#undef HIRNode
+  };
+  llvm_unreachable("All cases covered");
+}
+
+/// Make bitmask operations public
+LLVM_ENABLE_BITMASK_ENUMS_IN_NAMESPACE();
 
 } // namespace tmplang::source
 

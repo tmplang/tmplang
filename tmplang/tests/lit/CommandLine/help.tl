@@ -7,7 +7,7 @@
 //CHECK-EMPTY:
 // CHECK-NEXT:Dump options:
 // CHECK-NEXT:  --dump-hir=                    multi options: color|addr|loc|all|simple
-// CHECK-NEXT:                                 Default: all
+// CHECK-NEXT:  --dump-src=                    multi options: color|addr|loc|all|simple
 //CHECK-EMPTY:
 // CHECK-NEXT:Options:
 // CHECK-NEXT:  -h [ --help ]                  print help

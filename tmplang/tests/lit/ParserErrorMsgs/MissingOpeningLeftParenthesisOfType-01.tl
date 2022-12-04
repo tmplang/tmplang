@@ -1,0 +1,7 @@
+// RUN: not tmplangc %s 2>&1 | FileCheck %s 
+
+
+proc foo: (i32, )) var {}
+
+// CHECK:error: missing left parenthesis opening tuple
+// CHECK:proc foo: (i32, ( )) var {}

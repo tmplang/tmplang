@@ -1,6 +1,9 @@
 llvm_add_library(TmplangSourceTree
-    CompilationUnit.cpp
-    Decls.cpp
+    SourceNodeTextPrinter.cpp
+
+    LINK_LIBS PUBLIC
+    TmplangSupport
+    TmplangLexer
 
     LINK_COMPONENTS
     Support

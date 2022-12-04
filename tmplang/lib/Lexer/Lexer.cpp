@@ -19,13 +19,15 @@ struct TokenBuilder {
   }
 
   Token buildToken(TokenKind kind, unsigned nChars = 1) {
+    SourceLocation startLocation = State.CurrentLocation;
+
     if (kind == TokenKind::TK_EOF || kind == TokenKind::TK_Unknown) {
       // If it is a token that do not add chars, return same location for start
       // and end
-      return Token(kind, State.CurrentLocation, State.CurrentLocation);
+      State.advance(kind == TK_Unknown ? 1 : 0);
+      return Token(kind, startLocation, startLocation);
     }
 
-    SourceLocation startLocation = State.CurrentLocation;
     State.advance(nChars);
     return Token(kind, startLocation,
                  State.CurrentLocation - /*offset starts at 1*/ 1);

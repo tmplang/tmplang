@@ -12,8 +12,10 @@ def help : Flag<["--"], "help">, Group<General_Group>, HelpText<"print help">;
 def h : Flag<["-"], "h">, Group<General_Group>, Alias<help>;
 
 // Dump options
+def dump_src: CommaJoined<["--"], "dump-src=">, Group<Dump_Group>,
+              HelpText<"multi options: color|addr|loc|all|simple">;
 def dump_hir: CommaJoined<["--"], "dump-hir=">, Group<Dump_Group>,
-              HelpText<"multi options: color|addr|loc|all|simple\nDefault: all">;
+              HelpText<"multi options: color|addr|loc|all|simple">;
 
 def Diagnostics_Group : OptionGroup<"<diagnostics group>">, HelpText<"Diagnostics options">;
 

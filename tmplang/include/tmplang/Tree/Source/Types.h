@@ -14,6 +14,7 @@ public:
       : Type(Kind::NamedType), Identifier(identifier) {}
 
   llvm::StringRef getName() const { return Identifier.getLexeme(); }
+  Token getIdentifier() const { return Identifier; }
 
   SourceLocation getBeginLoc() const override {
     return Identifier.getSpan().Start;
@@ -34,7 +35,10 @@ public:
         TypesAndCommas(std::move(types), std::move(commas)),
         RParentheses(rparentheses) {}
 
+  Token getLParentheses() const { return LParentheses; }
   llvm::ArrayRef<RAIIType> getTypes() const { return TypesAndCommas.Elems; }
+  llvm::ArrayRef<Token> getCommas() const { return TypesAndCommas.Commas; }
+  Token getRParentheses() const { return RParentheses; }
 
   SourceLocation getBeginLoc() const override {
     return LParentheses.getSpan().Start;
