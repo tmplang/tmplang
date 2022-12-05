@@ -15,14 +15,13 @@ using namespace tmplang;
 namespace {
 struct FormatedHintStrAndSize {
   const unsigned SizeWithNoColors;
-  llvm::SmallString<80> FormatedHint;
+  SmallString<80> FormatedHint;
 };
 } // namespace
 
-static FormatedHintStrAndSize
-GetFormatedHintsAsStr(const bool colors,
-                      llvm::ArrayRef<llvm::StringRef> hints) {
-  llvm::SmallString<80> smallStr;
+static FormatedHintStrAndSize GetFormatedHintsAsStr(const bool colors,
+                                                    ArrayRef<StringRef> hints) {
+  SmallString<80> smallStr;
   llvm::raw_svector_ostream adaptor(smallStr);
 
   adaptor.enable_colors(colors);
@@ -34,7 +33,7 @@ GetFormatedHintsAsStr(const bool colors,
 
   printInterleaved(
       hints,
-      [&](llvm::StringRef str) {
+      [&](StringRef str) {
         adaptor.changeColor(CYAN) << str;
         adaptor.resetColor();
       },
@@ -50,24 +49,23 @@ GetFormatedHintsAsStr(const bool colors,
     (hints.size() > 1 ? 2 : 0) + // left and right key braces
     (hints.size() - 1) * 2 + // commas and spaces
     std::accumulate(hints.begin(), hints.end(), 0,             //
-      [](unsigned n, llvm::StringRef rhs){ return n + rhs.size(); }); // content
+      [](unsigned n, StringRef rhs){ return n + rhs.size(); }); // content
   // clang-format on
 
   return {totalSizeWithoutColors, smallStr};
 }
 
-void InsertTextAtHint::print(llvm::raw_ostream &out,
-                             const SourceManager &sm) const {
+void InsertTextAtHint::print(raw_ostream &out, const SourceManager &sm) const {
   // Line with source code
   const LineAndColumn lineAndColStart = sm.getLineAndColumn(SrcLoc);
-  const llvm::StringRef line = sm.getLine(SrcLoc);
+  const StringRef line = sm.getLine(SrcLoc);
 
   const unsigned adjustedColumn = lineAndColStart.Column - 1;
 
-  llvm::SmallString<80> lineToPrint;
+  SmallString<80> lineToPrint;
   llvm::raw_svector_ostream adaptor(lineToPrint);
 
-  llvm::StringRef lhsLine = line.substr(0, adjustedColumn);
+  StringRef lhsLine = line.substr(0, adjustedColumn);
   adaptor.resetColor() << lhsLine;
 
   const bool needsLeftSep = !lhsLine.endswith(RequiredLSep);
@@ -80,7 +78,7 @@ void InsertTextAtHint::print(llvm::raw_ostream &out,
       GetFormatedHintsAsStr(out.colors_enabled(), Hints);
   adaptor << textAndSize.FormatedHint;
 
-  llvm::StringRef rhsLine = line.substr(adjustedColumn);
+  StringRef rhsLine = line.substr(adjustedColumn);
   const bool needsRightSep = !rhsLine.startswith(RequiredRSep);
   if (needsRightSep) {
     // If it does no end with the required right separator, add it
@@ -91,7 +89,7 @@ void InsertTextAtHint::print(llvm::raw_ostream &out,
   // Print source code with inserton
   PrintContextLine(out, std::to_string(lineAndColStart.Line), lineToPrint);
 
-  llvm::StringRef subscriptText =
+  StringRef subscriptText =
       Hints.size() > 1 ? " try adding one of the following" : "";
 
   const std::string spaces(std::log10(lineAndColStart.Line) + 1, ' ');

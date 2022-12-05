@@ -2,10 +2,7 @@
 #define TMPLANG_CLI_ARGUMENTS_H
 
 #include <llvm/ADT/ArrayRef.h>
-
-namespace llvm {
-class raw_ostream;
-} // namespace llvm
+#include <tmplang/ADT/LLVM.h>
 
 namespace llvm::opt {
 class OptTable;
@@ -32,7 +29,7 @@ const llvm::opt::OptTable &GetOptionsTable();
 /// arguments. If any argument is missing, an error is printed on \ref errOut
 /// and nullptr is returned
 std::unique_ptr<llvm::opt::InputArgList>
-ParseArgs(llvm::ArrayRef<const char *> rawArgs, CLPrinter &);
+ParseArgs(ArrayRef<const char *> rawArgs, CLPrinter &);
 
 /// Checks for inmmediate args suck as --help or --version. If true is returned
 /// any of both options were found and got printed on \ref outs

@@ -13,7 +13,7 @@ public:
   explicit NamedType(Token identifier)
       : Type(Kind::NamedType), Identifier(identifier) {}
 
-  llvm::StringRef getName() const { return Identifier.getLexeme(); }
+  StringRef getName() const { return Identifier.getLexeme(); }
   Token getIdentifier() const { return Identifier; }
 
   SourceLocation getBeginLoc() const override {
@@ -29,15 +29,15 @@ protected:
 
 class TupleType final : public Type {
 public:
-  TupleType(Token lparentheses, llvm::SmallVectorImpl<RAIIType> &&types,
-            llvm::SmallVectorImpl<Token> &&commas, Token rparentheses)
+  TupleType(Token lparentheses, SmallVectorImpl<RAIIType> &&types,
+            SmallVectorImpl<Token> &&commas, Token rparentheses)
       : Type(Kind::TupleType), LParentheses(lparentheses),
         TypesAndCommas(std::move(types), std::move(commas)),
         RParentheses(rparentheses) {}
 
   Token getLParentheses() const { return LParentheses; }
-  llvm::ArrayRef<RAIIType> getTypes() const { return TypesAndCommas.Elems; }
-  llvm::ArrayRef<Token> getCommas() const { return TypesAndCommas.Commas; }
+  ArrayRef<RAIIType> getTypes() const { return TypesAndCommas.Elems; }
+  ArrayRef<Token> getCommas() const { return TypesAndCommas.Commas; }
   Token getRParentheses() const { return RParentheses; }
 
   SourceLocation getBeginLoc() const override {

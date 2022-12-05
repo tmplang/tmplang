@@ -10,15 +10,12 @@ using namespace tmplang::hir;
 
 namespace {
 
-static constexpr TerminalColor AddressColor = {llvm::raw_ostream::YELLOW,
-                                               false};
-static constexpr TerminalColor IdentifierColor = {llvm::raw_ostream::GREEN,
-                                                  false};
-static constexpr TerminalColor AttrColor = {llvm::raw_ostream::RED, false};
-static constexpr TerminalColor SourceLocationColor = {llvm::raw_ostream::CYAN,
-                                                      true};
-static constexpr TerminalColor NodeColor = {llvm::raw_ostream::GREEN, true};
-static constexpr TerminalColor TypeColor = {llvm::raw_ostream::BLUE, true};
+static constexpr TerminalColor AddressColor = {raw_ostream::YELLOW, false};
+static constexpr TerminalColor IdentifierColor = {raw_ostream::GREEN, false};
+static constexpr TerminalColor AttrColor = {raw_ostream::RED, false};
+static constexpr TerminalColor SourceLocationColor = {raw_ostream::CYAN, true};
+static constexpr TerminalColor NodeColor = {raw_ostream::GREEN, true};
+static constexpr TerminalColor TypeColor = {raw_ostream::BLUE, true};
 
 class RecursiveHIRPrinter : protected TextTreeStructure,
                             public RecursiveASTVisitor<RecursiveHIRPrinter>,
@@ -27,7 +24,7 @@ public:
   using HIRBase = RecursiveASTVisitor<RecursiveHIRPrinter>;
   using TypeBase = RecursiveTypeVisitor<RecursiveHIRPrinter>;
 
-  RecursiveHIRPrinter(llvm::raw_ostream &os, const SourceManager &sm,
+  RecursiveHIRPrinter(raw_ostream &os, const SourceManager &sm,
                       Node::PrintConfig cfg)
       : TextTreeStructure(os, cfg & Node::PrintConfig::Color), OS(os), SM(sm),
         Cfg(cfg) {}
@@ -110,25 +107,25 @@ public:
   //=--------------------------------------------------------------------------=//
 
 private:
-  void printAttribute(llvm::StringRef attr) {
+  void printAttribute(StringRef attr) {
     ColorScope color(OS, Cfg & Node::Color, AttrColor);
     OS << ' ' << attr;
   }
 
-  void printIdentifier(llvm::StringRef id) {
+  void printIdentifier(StringRef id) {
     ColorScope color(OS, Cfg & Node::Color, IdentifierColor);
     OS << ' ' << id;
   }
 
 private:
-  llvm::raw_ostream &OS;
+  raw_ostream &OS;
   const SourceManager &SM;
   const Node::PrintConfig Cfg;
 };
 
 } // namespace
 
-void tmplang::hir::Node::print(llvm::raw_ostream &os, const SourceManager &sm,
+void tmplang::hir::Node::print(raw_ostream &os, const SourceManager &sm,
                                PrintConfig cfg) const {
   RecursiveHIRPrinter(os, sm, cfg).traverseNode(*this);
 }

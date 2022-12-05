@@ -16,13 +16,13 @@ using namespace tmplang::hir;
 }
 
 /*static*/ const BuiltinType *BuiltinType::get(const HIRContext &ctx,
-                                               llvm::StringRef id) {
-  return llvm::StringSwitch<const BuiltinType *>(id)
+                                               StringRef id) {
+  return StringSwitch<const BuiltinType *>(id)
       .Case("i32", &ctx.i32Type)
       .Default(nullptr);
 }
 
-llvm::StringLiteral tmplang::hir::ToString(BuiltinType::Kind kind) {
+StringLiteral tmplang::hir::ToString(BuiltinType::Kind kind) {
   switch (kind) {
   case BuiltinType::K_i32:
     return "i32";
@@ -31,7 +31,7 @@ llvm::StringLiteral tmplang::hir::ToString(BuiltinType::Kind kind) {
 }
 
 /*static*/ const TupleType &TupleType::get(HIRContext &ctx,
-                                           llvm::ArrayRef<const Type *> types) {
+                                           ArrayRef<const Type *> types) {
   return ctx.TupleTypes.emplace_back(TupleType(types));
 }
 

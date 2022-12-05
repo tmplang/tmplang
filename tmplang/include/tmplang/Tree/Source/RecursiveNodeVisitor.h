@@ -19,11 +19,11 @@ public:
     switch (node.getKind()) {
     case Node::Kind::CompilationUnit:
       return getDerived().traverseCompilationUnit(
-          *llvm::cast<CompilationUnit>(&node));
+          *cast<CompilationUnit>(&node));
     case Node::Kind::FuncDecl:
-      return getDerived().traverseFuncDecl(*llvm::cast<FunctionDecl>(&node));
+      return getDerived().traverseFuncDecl(*cast<FunctionDecl>(&node));
     case Node::Kind::ParamDecl:
-      return getDerived().traverseParamDecl(*llvm::cast<ParamDecl>(&node));
+      return getDerived().traverseParamDecl(*cast<ParamDecl>(&node));
     }
     llvm_unreachable("All cases are handled");
   }
@@ -32,12 +32,11 @@ public:
   bool visitNode(const Node &node) {
     switch (node.getKind()) {
     case Node::Kind::CompilationUnit:
-      return getDerived().visitCompilationUnit(
-          *llvm::cast<CompilationUnit>(&node));
+      return getDerived().visitCompilationUnit(*cast<CompilationUnit>(&node));
     case Node::Kind::FuncDecl:
-      return getDerived().visitFunctionDecl(*llvm::cast<FunctionDecl>(&node));
+      return getDerived().visitFunctionDecl(*cast<FunctionDecl>(&node));
     case Node::Kind::ParamDecl:
-      return getDerived().visitParamDecl(*llvm::cast<ParamDecl>(&node));
+      return getDerived().visitParamDecl(*cast<ParamDecl>(&node));
     }
     llvm_unreachable("All cases are handled");
   }

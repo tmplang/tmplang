@@ -2,27 +2,23 @@
 #define TMPLANG_CLI_CLPRINTE_H
 
 #include <llvm/ADT/StringRef.h>
-
-namespace llvm {
-class raw_ostream;
-} // namespace llvm
+#include <tmplang/ADT/LLVM.h>
 
 namespace tmplang {
 
 class CLPrinter {
 public:
-  CLPrinter(llvm::raw_ostream &outs, llvm::raw_ostream &errs,
-            llvm::StringRef execName)
+  CLPrinter(raw_ostream &outs, raw_ostream &errs, StringRef execName)
       : Outs(outs), Errs(errs), ExecName(execName) {}
 
-  llvm::raw_ostream &outs();
-  llvm::raw_ostream &errs();
-  llvm::raw_ostream &warn();
-  llvm::StringRef getExecName() const;
+  raw_ostream &outs();
+  raw_ostream &errs();
+  raw_ostream &warn();
+  StringRef getExecName() const;
 
 private:
-  llvm::raw_ostream &Outs;
-  llvm::raw_ostream &Errs;
+  raw_ostream &Outs;
+  raw_ostream &Errs;
   std::string ExecName;
 };
 

@@ -2,7 +2,7 @@
 
 using namespace tmplang::hir;
 
-llvm::StringLiteral tmplang::hir::ToString(FunctionDecl::FunctionKind kind) {
+StringLiteral tmplang::hir::ToString(FunctionDecl::FunctionKind kind) {
   switch (kind) {
   case FunctionDecl::proc:
     return "proc";

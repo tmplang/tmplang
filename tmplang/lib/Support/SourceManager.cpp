@@ -7,7 +7,7 @@ using namespace tmplang;
 
 SourceManager::SourceManager(const TargetFileEntry &tfe)
     : TargetFile(tfe), MaxSL(tfe.Content->getBufferSize() + /*EOF*/ 1) {
-  llvm::StringRef content = tfe.Content->getBuffer();
+  StringRef content = tfe.Content->getBuffer();
 
   // Line 1 starts at offset 1, this way we can use 0 to invalid offsets
   OffsetValuesAtStartOfLines.push_back(1);
@@ -19,15 +19,13 @@ SourceManager::SourceManager(const TargetFileEntry &tfe)
   }
 }
 
-llvm::StringRef SourceManager::getFilePath() const {
-  return TargetFile.RealPathName;
-}
-llvm::StringRef SourceManager::getFileName() const {
+StringRef SourceManager::getFilePath() const { return TargetFile.RealPathName; }
+StringRef SourceManager::getFileName() const {
   return llvm::sys::path::filename(TargetFile.RealPathName);
 }
 
 static unsigned GetLineIdx(SourceLocation sl, const SourceLocation maxSL,
-                           llvm::ArrayRef<SourceLocation> SrcLocValPerLine) {
+                           ArrayRef<SourceLocation> SrcLocValPerLine) {
   assert(sl >= 1 && sl <= maxSL);
 
   // Return the index of the line that has the value strictly less or equal than
@@ -37,17 +35,16 @@ static unsigned GetLineIdx(SourceLocation sl, const SourceLocation maxSL,
   return std::distance(SrcLocValPerLine.begin(), std::prev(it));
 }
 
-llvm::StringRef SourceManager::getLine(SourceLocation sl) const {
-  llvm::SmallVector<llvm::StringRef, 1> line;
+StringRef SourceManager::getLine(SourceLocation sl) const {
+  SmallVector<StringRef, 1> line;
   getLines({sl, sl}, line);
   assert(line.size() == 1);
   return line.front();
 }
 
-void SourceManager::getLines(
-    const SourceLocationSpan span,
-    llvm::SmallVectorImpl<llvm::StringRef> &lines) const {
-  llvm::StringRef content = TargetFile.Content->getBuffer();
+void SourceManager::getLines(const SourceLocationSpan span,
+                             SmallVectorImpl<StringRef> &lines) const {
+  StringRef content = TargetFile.Content->getBuffer();
 
   const unsigned startIdx =
       GetLineIdx(span.Start, MaxSL, OffsetValuesAtStartOfLines);

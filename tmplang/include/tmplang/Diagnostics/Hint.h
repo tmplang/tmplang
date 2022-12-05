@@ -3,11 +3,8 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lexer/SourceLocation.h>
-
-namespace llvm {
-class raw_ostream;
-} // namespace llvm
 
 namespace tmplang {
 
@@ -28,7 +25,7 @@ public:
 
   HintKind getKind() const { return Kind; }
 
-  virtual void print(llvm::raw_ostream &, const SourceManager &) const {};
+  virtual void print(raw_ostream &, const SourceManager &) const {};
 
 private:
   HintKind Kind;
@@ -36,27 +33,24 @@ private:
 
 class InsertTextAtHint : public Hint {
 public:
-  InsertTextAtHint(SourceLocation srcLoc, llvm::StringRef hint,
-                   llvm::StringRef requiredLSep = " ",
-                   llvm::StringRef requiredRSep = " ",
-                   llvm::StringRef subscriptMSg = "")
+  InsertTextAtHint(SourceLocation srcLoc, StringRef hint,
+                   StringRef requiredLSep = " ", StringRef requiredRSep = " ",
+                   StringRef subscriptMSg = "")
       : Hint(HintKind::InsertTextAtHint), SrcLoc(srcLoc), Hints(),
         RequiredLSep(requiredLSep), RequiredRSep(requiredRSep) {
     assert(!hint.empty());
     Hints.push_back(hint);
   }
 
-  InsertTextAtHint(SourceLocation srcLoc, llvm::ArrayRef<llvm::StringRef> hints,
-                   llvm::StringRef requiredLSep = " ",
-                   llvm::StringRef requiredRSep = " ")
+  InsertTextAtHint(SourceLocation srcLoc, ArrayRef<StringRef> hints,
+                   StringRef requiredLSep = " ", StringRef requiredRSep = " ")
       : Hint(HintKind::InsertTextAtHint), SrcLoc(srcLoc), Hints(hints),
         RequiredLSep(requiredLSep), RequiredRSep(requiredRSep) {
     assert(!Hints.empty());
-    assert(llvm::none_of(Hints,
-                         [](llvm::StringRef hint) { return hint.empty(); }));
+    assert(llvm::none_of(Hints, [](StringRef hint) { return hint.empty(); }));
   }
 
-  void print(llvm::raw_ostream &, const SourceManager &) const override;
+  void print(raw_ostream &, const SourceManager &) const override;
 
   static bool classof(const Hint *h) {
     return h->getKind() == HintKind::InsertTextAtHint;
@@ -64,9 +58,9 @@ public:
 
 private:
   SourceLocation SrcLoc;
-  llvm::SmallVector<llvm::StringRef, 3> Hints;
-  llvm::StringRef RequiredLSep;
-  llvm::StringRef RequiredRSep;
+  SmallVector<StringRef, 3> Hints;
+  StringRef RequiredLSep;
+  StringRef RequiredRSep;
 };
 
 class NoHint : public Hint {

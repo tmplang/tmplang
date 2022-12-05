@@ -17,7 +17,7 @@ public:
   explicit CompilationUnit(const source::Node &srcNode)
       : Node(Node::Kind::CompilationUnit, srcNode) {}
 
-  llvm::ArrayRef<FunctionDecl> getFunctions() const { return FunctionDecls; }
+  ArrayRef<FunctionDecl> getFunctions() const { return FunctionDecls; }
 
   void addFunctionDecl(FunctionDecl funcDecl) {
     FunctionDecls.push_back(std::move(funcDecl));

@@ -28,7 +28,7 @@ public:
     return node->getKind() == Node::Kind::CompilationUnit;
   }
 
-  llvm::ArrayRef<FunctionDecl> getFunctionDecls() const {
+  ArrayRef<FunctionDecl> getFunctionDecls() const {
     return FunctionDeclarations;
   }
 

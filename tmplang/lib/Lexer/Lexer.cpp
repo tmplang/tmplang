@@ -11,7 +11,7 @@ namespace {
 struct TokenBuilder {
   explicit TokenBuilder(Lexer::LexerState &state) : State(state) {}
 
-  Token buildIdentifier(llvm::StringRef lexeme) {
+  Token buildIdentifier(StringRef lexeme) {
     SourceLocation startLocation = State.CurrentLocation;
     State.advance(lexeme.size());
     return Token(lexeme, startLocation,
@@ -38,11 +38,11 @@ struct TokenBuilder {
 
 } // namespace
 
-Lexer::Lexer(llvm::StringRef input)
+Lexer::Lexer(StringRef input)
     : State(input), DetectedEOL(State.CurrentInput.detectEOL()) {}
 
 // Matches pattern: [a-zA-Z][a-zA-Z0-9]+;
-static llvm::StringRef GetIdentifier(llvm::StringRef in) {
+static StringRef GetIdentifier(StringRef in) {
   bool first = true;
   return in.take_while([&first](char c) {
     if (first) {
@@ -60,7 +60,7 @@ Token Lexer::next() {
     return tkBuilder.buildToken(TK_EOF);
   }
 
-  llvm::Optional<TokenKind> simpleTokenMatched;
+  Optional<TokenKind> simpleTokenMatched;
 
   // Handle new lines
   if (State.CurrentInput.startswith(DetectedEOL)) {
@@ -120,14 +120,14 @@ Token Lexer::next() {
   // alphabetic values we can handle them here together.
   // CAVEAT: This is currently correct because the pattern a identifier matches
   // with, is compatible with "fn" and "proc:"
-  llvm::StringRef potentialId = GetIdentifier(State.CurrentInput);
+  StringRef potentialId = GetIdentifier(State.CurrentInput);
 
   if (potentialId.empty()) {
     // Invalid identifier, we don't know what this is
     return tkBuilder.buildToken(TK_Unknown);
   }
 
-  TokenKind tk = llvm::StringSwitch<TokenKind>(potentialId)
+  TokenKind tk = StringSwitch<TokenKind>(potentialId)
                      .Case(ToString(TK_ProcType), TK_ProcType)
                      .Case(ToString(TK_FnType), TK_FnType)
                      .Default(TK_Identifier);
@@ -139,7 +139,7 @@ Token Lexer::next() {
   return tkBuilder.buildToken(tk, potentialId.size());
 }
 
-Lexer::LexerState::LexerState(llvm::StringRef input)
+Lexer::LexerState::LexerState(StringRef input)
     : CurrentInput(input), CurrentLocation(1) {}
 
 void Lexer::LexerState::advance(unsigned nChars) {
@@ -150,7 +150,7 @@ void Lexer::LexerState::advance(unsigned nChars) {
 void Lexer::LexerState::consumeUntilEOLOrEOF() {
   const size_t it = CurrentInput.find(CurrentInput.detectEOL());
   const size_t toAdvance =
-      it == llvm::StringRef::npos
+      it == StringRef::npos
           // No more end of lines, so it must be end of file
           ? CurrentInput.size()
           // Just consume all until EOL + EOL size

@@ -2,14 +2,16 @@
 #define TMPLANG_TESTS_UNITTESTS_COMMON_PARSER_H
 
 #include <llvm/Support/VirtualFileSystem.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Parser/Parser.h>
 #include <tmplang/Support/FileManager.h>
 #include <tmplang/Support/SourceManager.h>
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 #include <tmplang/Tree/Source/CompilationUnit.h>
 
-inline llvm::Optional<tmplang::source::CompilationUnit>
-CleanParse(llvm::StringRef code) {
+namespace tmplang {
+
+inline Optional<tmplang::source::CompilationUnit> CleanParse(StringRef code) {
   auto inMemoryFileSystem = std::make_unique<llvm::vfs::InMemoryFileSystem>();
 
   const char *fileName = "./test";
@@ -25,5 +27,7 @@ CleanParse(llvm::StringRef code) {
 
   return Parse(lex, llvm::nulls(), sm);
 }
+
+} // namespace tmplang
 
 #endif // TMPLANG_TESTS_UNITTESTS_COMMON_PARSER_H

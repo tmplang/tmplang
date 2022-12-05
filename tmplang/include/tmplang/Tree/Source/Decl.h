@@ -12,7 +12,7 @@ public:
   virtual ~Decl() = default;
 
   /// All declarations have a name
-  virtual llvm::StringRef getName() const = 0;
+  virtual StringRef getName() const = 0;
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::FuncDecl ||

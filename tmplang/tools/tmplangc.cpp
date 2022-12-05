@@ -5,6 +5,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/VirtualFileSystem.h>
 #include <llvm/Support/raw_ostream.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/CLI/Arguments.h>
 #include <tmplang/CLI/CLPrinter.h>
 #include <tmplang/Diagnostics/Diagnostic.h>
@@ -20,29 +21,29 @@
 using namespace tmplang;
 
 template <typename PrintConfig_t>
-static llvm::Optional<PrintConfig_t> ParseDumpArg(llvm::opt::Arg &arg,
-                                                  CLPrinter &out) {
+static Optional<PrintConfig_t> ParseDumpArg(llvm::opt::Arg &arg,
+                                            CLPrinter &out) {
   if (arg.getNumValues() == 0) {
     out.errs() << "At least one value of the followings is required: "
                   "'color|addr|loc|all|simple'\n";
-    return llvm::None;
+    return None;
   }
 
   PrintConfig_t printCfg = PrintConfig_t::None;
-  for (llvm::StringRef option : arg.getValues()) {
-    llvm::Optional<PrintConfig_t> parsedOption =
-        llvm::StringSwitch<llvm::Optional<PrintConfig_t>>(option)
+  for (StringRef option : arg.getValues()) {
+    Optional<PrintConfig_t> parsedOption =
+        StringSwitch<Optional<PrintConfig_t>>(option)
             .Case("color", PrintConfig_t::Color)
             .Case("addr", PrintConfig_t::Address)
             .Case("loc", PrintConfig_t::SourceLocation)
             .Case("simple", PrintConfig_t::None)
             .Case("all", PrintConfig_t::All)
-            .Default(llvm::None);
+            .Default(None);
 
     if (!parsedOption) {
       out.errs() << "Invalid value '" << option << "' for flag "
                  << arg.getSpelling() << "\n";
-      return llvm::None;
+      return None;
     }
 
     printCfg |= *parsedOption;

@@ -11,13 +11,13 @@ namespace {
 
 class SymbolTable {
   struct Scope {
-    llvm::DenseSet<llvm::StringRef> Identifiers;
+    llvm::DenseSet<StringRef> Identifiers;
   };
 
 public:
   SymbolTable() {}
 
-  bool insertIdentifier(llvm::StringRef id) {
+  bool insertIdentifier(StringRef id) {
     // FIXME: This is very restrictive, this is not discriminating between
     // functions, variables, macros, types, ...; just identifiers :facepalm:
     //
@@ -34,18 +34,18 @@ public:
   void popScope() { ScopeStack.pop_back(); }
 
 private:
-  llvm::SmallVector<Scope> ScopeStack;
+  SmallVector<Scope> ScopeStack;
 };
 
 class HIRBuilder {
 public:
   HIRBuilder(HIRContext &ctx) : Ctx(ctx) {}
 
-  llvm::Optional<CompilationUnit> build(const source::CompilationUnit &);
+  Optional<CompilationUnit> build(const source::CompilationUnit &);
 
 private:
-  llvm::Optional<FunctionDecl> get(const source::FunctionDecl &);
-  llvm::Optional<ParamDecl> get(const source::ParamDecl &);
+  Optional<FunctionDecl> get(const source::FunctionDecl &);
+  Optional<ParamDecl> get(const source::ParamDecl &);
 
   const Type *get(const source::Type &);
 
@@ -57,11 +57,10 @@ private:
 const hir::Type *HIRBuilder::get(const source::Type &type) {
   switch (type.getKind()) {
   case source::Type::NamedType:
-    return BuiltinType::get(Ctx,
-                            llvm::cast<source::NamedType>(&type)->getName());
+    return BuiltinType::get(Ctx, cast<source::NamedType>(&type)->getName());
   case source::Type::TupleType:
-    const auto &tupleType = *llvm::cast<source::TupleType>(&type);
-    llvm::SmallVector<const hir::Type *> types;
+    const auto &tupleType = *cast<source::TupleType>(&type);
+    SmallVector<const hir::Type *> types;
     llvm::transform(tupleType.getTypes(), std::back_inserter(types),
                     [&](const source::RAIIType &type) { return get(*type); });
 
@@ -73,15 +72,14 @@ const hir::Type *HIRBuilder::get(const source::Type &type) {
   llvm_unreachable("All cases covered");
 }
 
-llvm::Optional<ParamDecl>
-HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
+Optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
   if (!SymTable.insertIdentifier(srcParamDecl.getName())) {
-    return llvm::None;
+    return None;
   }
 
   const Type *type = get(srcParamDecl.getType());
   if (!type) {
-    return llvm::None;
+    return None;
   }
 
   return ParamDecl(srcParamDecl, srcParamDecl.getName(), *type);
@@ -95,10 +93,9 @@ static FunctionDecl::FunctionKind GetFunctionKind(Token tk) {
   return FunctionDecl::fn;
 }
 
-llvm::Optional<FunctionDecl>
-HIRBuilder::get(const source::FunctionDecl &srcFunc) {
+Optional<FunctionDecl> HIRBuilder::get(const source::FunctionDecl &srcFunc) {
   if (!SymTable.insertIdentifier(srcFunc.getName())) {
-    return llvm::None;
+    return None;
   }
 
   std::vector<ParamDecl> paramList;
@@ -107,7 +104,7 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
   for (const source::ParamDecl &param : srcFunc.getParams()) {
     auto hirParamDecl = get(param);
     if (!hirParamDecl) {
-      return llvm::None;
+      return None;
     }
     paramList.push_back(std::move(*hirParamDecl));
   }
@@ -124,7 +121,7 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
   }
 
   if (!hirReturnType) {
-    return llvm::None;
+    return None;
   }
 
   // TODO: Process body
@@ -134,7 +131,7 @@ HIRBuilder::get(const source::FunctionDecl &srcFunc) {
                       std::move(paramList));
 }
 
-llvm::Optional<CompilationUnit>
+Optional<CompilationUnit>
 HIRBuilder::build(const source::CompilationUnit &compUnit) {
   CompilationUnit result(compUnit);
 
@@ -144,7 +141,7 @@ HIRBuilder::build(const source::CompilationUnit &compUnit) {
   for (const source::FunctionDecl &srcFunc : compUnit.getFunctionDecls()) {
     auto hirFunc = get(srcFunc);
     if (!hirFunc) {
-      return llvm::None;
+      return None;
     }
 
     result.addFunctionDecl(std::move(*hirFunc));
@@ -155,7 +152,7 @@ HIRBuilder::build(const source::CompilationUnit &compUnit) {
 
 } // namespace
 
-llvm::Optional<CompilationUnit>
+Optional<CompilationUnit>
 tmplang::hir::buildHIR(const source::CompilationUnit &compUnit,
                        HIRContext &ctx) {
   return HIRBuilder(ctx).build(compUnit);

@@ -1,6 +1,7 @@
 #ifndef TMPLANG_TREE_SOURCE_DECLS_H
 #define TMPLANG_TREE_SOURCE_DECLS_H
 
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lexer/Token.h>
 #include <tmplang/Tree/Source/CommonConstructs.h>
 #include <tmplang/Tree/Source/Decl.h>
@@ -16,9 +17,9 @@ public:
 
   const Type &getType() const { return *ParamType; }
 
-  llvm::StringRef getName() const override { return Identifier.getLexeme(); }
+  StringRef getName() const override { return Identifier.getLexeme(); }
   Token getIdentifier() const { return Identifier; }
-  const llvm::Optional<Token> &getComma() const { return Comma; }
+  const Optional<Token> &getComma() const { return Comma; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return ParamType->getBeginLoc();
@@ -36,7 +37,7 @@ public:
 private:
   RAIIType ParamType;
   Token Identifier;
-  llvm::Optional<Token> Comma;
+  Optional<Token> Comma;
 };
 
 class FunctionDecl final : public Decl {
@@ -49,13 +50,13 @@ public:
   const Type *getReturnType() const {
     return OptArrowAndType ? OptArrowAndType->RetType.get() : nullptr;
   }
-  const llvm::ArrayRef<ParamDecl> getParams() const { return ParamList; }
-  llvm::StringRef getName() const override { return Identifier.getLexeme(); }
+  const ArrayRef<ParamDecl> getParams() const { return ParamList; }
+  StringRef getName() const override { return Identifier.getLexeme(); }
   Token getFuncType() const { return FuncType; }
   Token getIdentifier() const { return Identifier; }
-  const llvm::Optional<Token> &getColon() const { return Colon; }
-  llvm::Optional<Token> getArrow() const {
-    return OptArrowAndType ? OptArrowAndType->Arrow : llvm::Optional<Token>{};
+  const Optional<Token> &getColon() const { return Colon; }
+  Optional<Token> getArrow() const {
+    return OptArrowAndType ? OptArrowAndType->Arrow : Optional<Token>{};
   }
   Token getLKeyBracket() const { return LKeyBracket; }
   Token getRKeyBracket() const { return RKeyBracket; }
@@ -76,9 +77,9 @@ public:
   /// fn foo -> i32 {}
   /// fn foo {}
   FunctionDecl(Token funcType, Token identifier, Token lKeyBracket,
-               Token rKeyBracket, llvm::Optional<Token> colon = llvm::None,
-               llvm::SmallVector<source::ParamDecl, 4> paramList = {},
-               llvm::Optional<ArrowAndType> arrowAndType = llvm::None)
+               Token rKeyBracket, Optional<Token> colon = llvm::None,
+               SmallVector<source::ParamDecl, 4> paramList = {},
+               Optional<ArrowAndType> arrowAndType = llvm::None)
       : Decl(Kind::FuncDecl), FuncType(funcType), Identifier(identifier),
         Colon(colon), ParamList(std::move(paramList)),
         OptArrowAndType(std::move(arrowAndType)), LKeyBracket(lKeyBracket),
@@ -91,9 +92,9 @@ public:
 private:
   Token FuncType;
   Token Identifier;
-  llvm::Optional<Token> Colon;
-  llvm::SmallVector<source::ParamDecl, 4> ParamList;
-  llvm::Optional<ArrowAndType> OptArrowAndType;
+  Optional<Token> Colon;
+  SmallVector<source::ParamDecl, 4> ParamList;
+  Optional<ArrowAndType> OptArrowAndType;
   Token LKeyBracket;
   /// TODO: Add body
   Token RKeyBracket;

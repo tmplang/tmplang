@@ -20,7 +20,7 @@ public:
     return node->getKind() == Node::Kind::ParamDecl;
   }
 
-  explicit ParamDecl(const source::Node &srcNode, llvm::StringRef name,
+  explicit ParamDecl(const source::Node &srcNode, StringRef name,
                      const Type &paramType)
       : Decl(Node::Kind::ParamDecl, srcNode, name), ParamType(paramType) {}
   virtual ~ParamDecl() = default;
@@ -38,13 +38,13 @@ public:
 
   FunctionKind getFunctionKind() const { return FuncKind; }
   const Type &getReturnType() const { return ReturnType; }
-  llvm::ArrayRef<ParamDecl> getParams() const { return Params; }
+  ArrayRef<ParamDecl> getParams() const { return Params; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::FuncDecl;
   }
 
-  explicit FunctionDecl(const source::Node &srcNode, llvm::StringRef name,
+  explicit FunctionDecl(const source::Node &srcNode, StringRef name,
                         FunctionKind kind, const Type &returnType,
                         std::vector<ParamDecl> params)
       : Decl(Node::Kind::FuncDecl, srcNode, name), FuncKind(kind),
@@ -57,7 +57,7 @@ private:
   std::vector<ParamDecl> Params;
 };
 
-llvm::StringLiteral ToString(FunctionDecl::FunctionKind kind);
+StringLiteral ToString(FunctionDecl::FunctionKind kind);
 
 } // namespace tmplang::hir
 

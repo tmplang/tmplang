@@ -2,6 +2,7 @@
 #define TMPLANG_SUPPORT_SOURCEMANAGER_H
 
 #include <llvm/ADT/StringRef.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lexer/SourceLocation.h>
 
 namespace tmplang {
@@ -18,12 +19,12 @@ class SourceManager {
 public:
   SourceManager(const TargetFileEntry &tfe);
 
-  llvm::StringRef getFilePath() const;
-  llvm::StringRef getFileName() const;
+  StringRef getFilePath() const;
+  StringRef getFileName() const;
 
-  llvm::StringRef getLine(SourceLocation sl) const;
+  StringRef getLine(SourceLocation sl) const;
   void getLines(const SourceLocationSpan span,
-                llvm::SmallVectorImpl<llvm::StringRef> &) const;
+                SmallVectorImpl<StringRef> &) const;
   LineAndColumn getLineAndColumn(SourceLocation sl) const;
 
 private:

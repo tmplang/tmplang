@@ -18,9 +18,9 @@ public:
   bool traverseType(const Type &type) {
     switch (type.getKind()) {
     case Type::Kind::K_Builtin:
-      return getDerived().traverseBuiltinType(*llvm::cast<BuiltinType>(&type));
+      return getDerived().traverseBuiltinType(*cast<BuiltinType>(&type));
     case Type::K_Tuple:
-      return getDerived().traverseTupleType(*llvm::cast<TupleType>(&type));
+      return getDerived().traverseTupleType(*cast<TupleType>(&type));
       break;
     }
     llvm_unreachable("All cases are handled");
@@ -30,9 +30,9 @@ public:
   bool visitType(const Type &type) {
     switch (type.getKind()) {
     case Type::Kind::K_Builtin:
-      return getDerived().visitBuiltinType(*llvm::cast<BuiltinType>(&type));
+      return getDerived().visitBuiltinType(*cast<BuiltinType>(&type));
     case Type::K_Tuple:
-      return getDerived().visitTupleType(*llvm::cast<TupleType>(&type));
+      return getDerived().visitTupleType(*cast<TupleType>(&type));
       break;
     }
     llvm_unreachable("All cases are handled");

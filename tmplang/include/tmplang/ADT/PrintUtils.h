@@ -3,12 +3,13 @@
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/raw_ostream.h>
+#include <tmplang/ADT/LLVM.h>
 
 namespace tmplang {
 
 template <typename Container, typename Printer>
 void printInterleaved(const Container &container, Printer printer,
-                      llvm::raw_ostream &os, llvm::StringRef sep = ", ") {
+                      raw_ostream &os, StringRef sep = ", ") {
   bool first = true;
   for (auto &element : container) {
     if (!first) {
@@ -21,8 +22,8 @@ void printInterleaved(const Container &container, Printer printer,
 }
 
 template <typename Container>
-void printInterleaved(const Container &container, llvm::raw_ostream &os,
-                      llvm::StringRef sep = ", ") {
+void printInterleaved(const Container &container, raw_ostream &os,
+                      StringRef sep = ", ") {
   printInterleaved(
       container, [&os](auto &e) { os << e; }, os, sep);
 }
