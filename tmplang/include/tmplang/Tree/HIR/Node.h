@@ -4,11 +4,8 @@
 #include <llvm/ADT/BitmaskEnum.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lexer/SourceLocation.h>
-
-namespace llvm {
-class raw_ostream;
-} // namespace llvm
 
 namespace tmplang {
 class SourceManager;
@@ -41,7 +38,7 @@ public:
     LLVM_MARK_AS_BITMASK_ENUM(Color)
   };
 
-  void print(llvm::raw_ostream &, const SourceManager &,
+  void print(raw_ostream &, const SourceManager &,
              PrintConfig = PrintConfig::Color) const;
   void dump(const SourceManager &, PrintConfig = PrintConfig::All) const;
 
@@ -60,7 +57,7 @@ private:
   const source::Node &SrcNode;
 };
 
-inline llvm::StringLiteral ToString(Node::Kind kind) {
+inline StringLiteral ToString(Node::Kind kind) {
   switch (kind) {
 #define HIRNode(KIND)                                                          \
   case Node::Kind::KIND:                                                       \

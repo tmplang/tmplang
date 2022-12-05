@@ -13,7 +13,7 @@ namespace tmplang::hir {
 
 class Decl : public Node {
 public:
-  llvm::StringRef getName() const { return Name; }
+  StringRef getName() const { return Name; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::FuncDecl ||
@@ -23,12 +23,12 @@ public:
   virtual ~Decl() = default;
 
 protected:
-  explicit Decl(Node::Kind k, const source::Node &srcNode, llvm::StringRef name)
+  explicit Decl(Node::Kind k, const source::Node &srcNode, StringRef name)
       : Node(k, srcNode), Name(name) {}
 
 private:
   /// All Decls have a name
-  llvm::SmallString<32> Name;
+  SmallString<32> Name;
 };
 
 } // namespace tmplang::hir

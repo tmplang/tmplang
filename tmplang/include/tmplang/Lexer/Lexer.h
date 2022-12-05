@@ -7,24 +7,24 @@ namespace tmplang {
 
 class Lexer {
 public:
-  Lexer(llvm::StringRef input);
+  Lexer(StringRef input);
 
   Token next();
 
   struct LexerState {
-    LexerState(llvm::StringRef);
+    LexerState(StringRef);
 
     void advance(unsigned nChars = 1);
     void consumeUntilEOLOrEOF();
 
-    llvm::StringRef CurrentInput;
+    StringRef CurrentInput;
     SourceLocation CurrentLocation;
   };
 
 private:
   LexerState State;
   // Detected End of Line
-  llvm::StringRef DetectedEOL;
+  StringRef DetectedEOL;
 };
 
 } // namespace tmplang

@@ -5,12 +5,10 @@
 
 using namespace tmplang;
 
-llvm::raw_ostream &CLPrinter::outs() { return Outs; }
+raw_ostream &CLPrinter::outs() { return Outs; }
 
-llvm::raw_ostream &CLPrinter::errs() { return Errs << ExecName << ": error: "; }
+raw_ostream &CLPrinter::errs() { return Errs << ExecName << ": error: "; }
 
-llvm::raw_ostream &CLPrinter::warn() {
-  return Errs << ExecName << ": warning: ";
-}
+raw_ostream &CLPrinter::warn() { return Errs << ExecName << ": warning: "; }
 
-llvm::StringRef CLPrinter::getExecName() const { return ExecName; }
+StringRef CLPrinter::getExecName() const { return ExecName; }

@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/Support/VirtualFileSystem.h>
+#include <tmplang/ADT/LLVM.h>
 
 namespace tmplang {
 
@@ -59,7 +60,7 @@ public:
   FileManager(std::unique_ptr<llvm::vfs::FileSystem> fs)
       : FileSystem(std::move(fs)) {}
 
-  const TargetFileEntry *findOrOpenTargetFile(llvm::StringRef filePath);
+  const TargetFileEntry *findOrOpenTargetFile(StringRef filePath);
 
 private:
   std::unique_ptr<llvm::vfs::FileSystem> FileSystem;

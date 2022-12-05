@@ -6,8 +6,7 @@ using namespace tmplang;
 
 FileEntry::~FileEntry() {}
 
-const TargetFileEntry *
-FileManager::findOrOpenTargetFile(llvm::StringRef filePath) {
+const TargetFileEntry *FileManager::findOrOpenTargetFile(StringRef filePath) {
   if (TargetFile) {
     return TargetFile.get();
   }

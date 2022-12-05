@@ -14,14 +14,14 @@
 
 namespace tmplang {
 
-static constexpr TerminalColor IndentColor = {llvm::raw_ostream::WHITE, false};
+static constexpr TerminalColor IndentColor = {raw_ostream::WHITE, false};
 
 class TextTreeStructure {
-  llvm::raw_ostream &OS;
+  raw_ostream &OS;
   const bool ShowColors;
 
   /// Pending[i] is an action to dump an entity at level i.
-  llvm::SmallVector<std::function<void(bool IsLastChild)>, 32> Pending;
+  SmallVector<std::function<void(bool IsLastChild)>, 32> Pending;
 
   /// Indicates whether we're at the top level.
   bool TopLevel = true;
@@ -40,7 +40,7 @@ public:
 
   /// Add a child of the current node with an optional label.
   /// Calls DoAddChild without arguments.
-  template <typename Fn> void AddChild(llvm::StringRef Label, Fn DoAddChild) {
+  template <typename Fn> void AddChild(StringRef Label, Fn DoAddChild) {
     // If we're at the top level, there's nothing interesting to do; just
     // run the dumper.
     if (TopLevel) {
@@ -106,7 +106,7 @@ public:
     FirstChild = false;
   }
 
-  TextTreeStructure(llvm::raw_ostream &OS, bool showColors)
+  TextTreeStructure(raw_ostream &OS, bool showColors)
       : OS(OS), ShowColors(showColors) {}
 };
 

@@ -7,10 +7,10 @@
 
 using namespace tmplang;
 
-llvm::SmallString<80> tmplang::GetSubscriptLine(unsigned start, unsigned size) {
+SmallString<80> tmplang::GetSubscriptLine(unsigned start, unsigned size) {
   assert(size >= 1);
 
-  llvm::SmallString<80> result;
+  SmallString<80> result;
   llvm::raw_svector_ostream adaptor(result);
 
   // Fill with spaces until caret
@@ -22,9 +22,8 @@ llvm::SmallString<80> tmplang::GetSubscriptLine(unsigned start, unsigned size) {
   return result;
 }
 
-void tmplang::PrintContextLine(llvm::raw_ostream &out, llvm::StringRef lhs,
-                               const llvm::Twine &rhs,
-                               llvm::raw_ostream::Colors rhsColor) {
+void tmplang::PrintContextLine(raw_ostream &out, StringRef lhs,
+                               const Twine &rhs, raw_ostream::Colors rhsColor) {
   out.changeColor(WHITE) << ' ' << lhs << ' ';
   out.changeColor(BLUE, /*Bold=*/true) << '|';
   out.changeColor(rhsColor) << ' ' << rhs << '\n';

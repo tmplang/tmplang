@@ -14,7 +14,7 @@
 
 using namespace tmplang;
 
-llvm::StringLiteral tmplang::ToString(DiagnosticSeverity sev) {
+StringLiteral tmplang::ToString(DiagnosticSeverity sev) {
   switch (sev) {
   case DiagnosticSeverity::Warning:
     return "warning";
@@ -27,11 +27,11 @@ llvm::StringLiteral tmplang::ToString(DiagnosticSeverity sev) {
 DiagnosticSeverity Diagnostic::getSeverity() const {
   return DiagnosticMessages[static_cast<unsigned>(Id)].Sev;
 }
-llvm::StringRef Diagnostic::getMessage() const {
+StringRef Diagnostic::getMessage() const {
   return DiagnosticMessages[static_cast<unsigned>(Id)].Msg;
 }
 
-void Diagnostic::print(llvm::raw_ostream &out, const SourceManager &sm) const {
+void Diagnostic::print(raw_ostream &out, const SourceManager &sm) const {
   printSeverity(out);
   out << ": ";
   printSummary(out);
@@ -43,7 +43,7 @@ void Diagnostic::print(llvm::raw_ostream &out, const SourceManager &sm) const {
   out << "\n";
 }
 
-void Diagnostic::printSeverity(llvm::raw_ostream &out) const {
+void Diagnostic::printSeverity(raw_ostream &out) const {
   const DiagnosticSeverity sev = getSeverity();
   switch (sev) {
   case DiagnosticSeverity::Warning:
@@ -59,15 +59,13 @@ void Diagnostic::printSeverity(llvm::raw_ostream &out) const {
   out.resetColor();
 }
 
-void Diagnostic::printSummary(llvm::raw_ostream &out) const {
-  out << getMessage();
-}
+void Diagnostic::printSummary(raw_ostream &out) const { out << getMessage(); }
 
 static int GetSpacesNeededForLocation(const DiagnosticSeverity sev) {
-  return ToString(sev).size() - llvm::StringRef("at").size();
+  return ToString(sev).size() - StringRef("at").size();
 }
 
-void Diagnostic::printLocation(llvm::raw_ostream &out,
+void Diagnostic::printLocation(raw_ostream &out,
                                const SourceManager &sm) const {
   const int neededSpaces = GetSpacesNeededForLocation(getSeverity());
   assert(neededSpaces >= 0 && "Are we using a severity msg lower than 'at'?");
@@ -79,9 +77,8 @@ void Diagnostic::printLocation(llvm::raw_ostream &out,
                    << ':' << lineAndColumn.Column << '\n';
 }
 
-void Diagnostic::printHint(llvm::raw_ostream &out,
-                           const SourceManager &sm) const {
-  if (llvm::isa<NoHint>(&H)) {
+void Diagnostic::printHint(raw_ostream &out, const SourceManager &sm) const {
+  if (isa<NoHint>(&H)) {
     return;
   }
 
@@ -100,11 +97,11 @@ enum class SubscriptPosition {
 
 } // namespace
 
-static llvm::SmallString<80>
-GetSubscriptForContext(const unsigned lineWidth, const LineAndColumn start,
-                       const LineAndColumn end,
-                       const SubscriptPosition subsPos) {
-  llvm::SmallString<80> result;
+static SmallString<80> GetSubscriptForContext(const unsigned lineWidth,
+                                              const LineAndColumn start,
+                                              const LineAndColumn end,
+                                              const SubscriptPosition subsPos) {
+  SmallString<80> result;
 
   switch (subsPos) {
   case SubscriptPosition::First:
@@ -135,9 +132,8 @@ static SubscriptPosition GetSubscriptPosition(const unsigned lineIdx,
                                    : SubscriptPosition::Middle;
 }
 
-void Diagnostic::printContext(llvm::raw_ostream &out,
-                              const SourceManager &sm) const {
-  llvm::SmallVector<llvm::StringRef, 2> lines;
+void Diagnostic::printContext(raw_ostream &out, const SourceManager &sm) const {
+  SmallVector<StringRef, 2> lines;
   sm.getLines(LocSpan, lines);
 
   const LineAndColumn lineAndColStart = sm.getLineAndColumn(LocSpan.Start);

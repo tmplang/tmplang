@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Tree/HIR/Type.h>
 
 namespace tmplang::hir {
@@ -16,7 +17,7 @@ public:
   Kind getBuiltinKind() const { return BKind; }
 
   static const BuiltinType &get(const HIRContext &, Kind);
-  static const BuiltinType *get(const HIRContext &, llvm::StringRef);
+  static const BuiltinType *get(const HIRContext &, StringRef);
 
   static bool classof(const Type *T) {
     return T->getKind() == Type::Kind::K_Builtin;
@@ -29,13 +30,13 @@ private:
   Kind BKind;
 };
 
-llvm::StringLiteral ToString(BuiltinType::Kind);
+StringLiteral ToString(BuiltinType::Kind);
 
 class TupleType final : public Type {
 public:
-  llvm::ArrayRef<const Type *> getTypes() const { return Types; }
+  ArrayRef<const Type *> getTypes() const { return Types; }
 
-  static const TupleType &get(HIRContext &, llvm::ArrayRef<const Type *> types);
+  static const TupleType &get(HIRContext &, ArrayRef<const Type *> types);
   static const TupleType &getUnit(const HIRContext &);
 
   static bool classof(const Type *T) {
@@ -44,10 +45,10 @@ public:
 
 private:
   friend class HIRContext;
-  explicit TupleType(llvm::ArrayRef<const Type *> types)
+  explicit TupleType(ArrayRef<const Type *> types)
       : Type(Type::Kind::K_Tuple), Types(types) {}
 
-  llvm::SmallVector<const Type *> Types;
+  SmallVector<const Type *> Types;
 };
 
 } // namespace tmplang::hir

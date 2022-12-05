@@ -10,16 +10,16 @@
 namespace tmplang {
 
 struct TerminalColor {
-  llvm::raw_ostream::Colors Color;
+  raw_ostream::Colors Color;
   bool Bold;
 };
 
 class ColorScope {
-  llvm::raw_ostream &O;
+  raw_ostream &O;
   bool ShowColors;
 
 public:
-  ColorScope(llvm::raw_ostream &O, bool showColors, TerminalColor color)
+  ColorScope(raw_ostream &O, bool showColors, TerminalColor color)
       : O(O), ShowColors(showColors) {
     if (ShowColors) {
       O.changeColor(color.Color, color.Bold);
@@ -34,16 +34,15 @@ public:
 
 inline void PrintSourceLocation(SourceLocationSpan span, bool showColors,
                                 TerminalColor termColor,
-                                const SourceManager &sm,
-                                llvm::raw_ostream &out) {
+                                const SourceManager &sm, raw_ostream &out) {
   ColorScope color(out, showColors, termColor);
 
-  auto getLocStr = [&](SourceLocation loc) -> llvm::SmallString<10> {
+  auto getLocStr = [&](SourceLocation loc) -> SmallString<10> {
     switch (loc) {
     case RecoveryLoc:
-      return llvm::StringRef("[recovery sloc]");
+      return StringRef("[recovery sloc]");
     case InvalidLoc:
-      return llvm::StringRef("[invalid sloc]");
+      return StringRef("[invalid sloc]");
     default: {
       const LineAndColumn begin = sm.getLineAndColumn(loc);
       return llvm::formatv("{0},{1}", begin.Line, begin.Column);
@@ -56,7 +55,7 @@ inline void PrintSourceLocation(SourceLocationSpan span, bool showColors,
 }
 
 inline void PrintPointer(const void *ptr, bool showColors,
-                         TerminalColor termColor, llvm::raw_ostream &out) {
+                         TerminalColor termColor, raw_ostream &out) {
   ColorScope color(out, showColors, termColor);
   out << ' ' << ptr;
 }

@@ -7,7 +7,7 @@
 
 using namespace tmplang;
 
-llvm::StringLiteral tmplang::ToString(TokenKind tk) {
+StringLiteral tmplang::ToString(TokenKind tk) {
   switch (tk) {
   case TK_EOF:
     return "<EOF>";
@@ -39,11 +39,11 @@ llvm::StringLiteral tmplang::ToString(TokenKind tk) {
   llvm_unreachable("Switch covers all cases");
 }
 
-llvm::raw_ostream &tmplang::operator<<(llvm::raw_ostream &out, TokenKind k) {
+raw_ostream &tmplang::operator<<(raw_ostream &out, TokenKind k) {
   return out << ToString(k);
 }
 
-void Token::print(llvm::raw_ostream &out, const SourceManager &sm) const {
+void Token::print(raw_ostream &out, const SourceManager &sm) const {
   const LineAndColumn start = sm.getLineAndColumn(SrcLocSpan.Start);
   const LineAndColumn end = sm.getLineAndColumn(SrcLocSpan.End);
   out << llvm::formatv("['{0}' {1}:{2}-{3}:{4}]", getLexeme(), start.Line,

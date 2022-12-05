@@ -3,11 +3,8 @@
 
 #include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/StringRef.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lexer/SourceLocation.h>
-
-namespace llvm {
-class raw_ostream;
-} // namespace llvm
 
 namespace tmplang {
 
@@ -33,8 +30,8 @@ enum TokenKind {
   TK_FnType,
   TK_ProcType,
 };
-llvm::StringLiteral ToString(TokenKind tk);
-llvm::raw_ostream &operator<<(llvm::raw_ostream &out, TokenKind k);
+StringLiteral ToString(TokenKind tk);
+raw_ostream &operator<<(raw_ostream &out, TokenKind k);
 
 struct Token {
   Token(TokenKind kind, SourceLocation start, SourceLocation end,
@@ -43,7 +40,7 @@ struct Token {
     assert(kind != TokenKind::TK_Identifier &&
            "Invalid constructor for identifiers");
   }
-  Token(llvm::StringRef id, SourceLocation start, SourceLocation end,
+  Token(StringRef id, SourceLocation start, SourceLocation end,
         bool isRecovery = false)
       : Kind(TokenKind::TK_Identifier),
         IsErrorRecoveryToken(isRecovery), SrcLocSpan{start, end}, Lexeme(id) {
@@ -53,10 +50,10 @@ struct Token {
 
   bool operator==(const Token &other) const = default;
 
-  void print(llvm::raw_ostream &out, const SourceManager &sm) const;
+  void print(raw_ostream &out, const SourceManager &sm) const;
   void dump(const SourceManager &sm) const;
 
-  llvm::StringRef getLexeme() const {
+  StringRef getLexeme() const {
     return Kind == TK_Identifier ? Lexeme : ToString(Kind);
   }
 
@@ -78,7 +75,7 @@ private:
   bool IsErrorRecoveryToken = false;
   SourceLocationSpan SrcLocSpan;
   /// Since we keep open the file, storing a reference to the source is valid
-  llvm::StringRef Lexeme;
+  StringRef Lexeme;
 };
 
 } // namespace tmplang

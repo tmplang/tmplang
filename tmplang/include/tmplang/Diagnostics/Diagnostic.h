@@ -3,13 +3,10 @@
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/raw_ostream.h>
+#include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lexer/SourceLocation.h>
 
 #include <bit>
-
-namespace llvm {
-class raw_ostream;
-} // namespace llvm
 
 namespace tmplang {
 
@@ -35,7 +32,7 @@ enum class DiagnosticSeverity : std::uint8_t {
 [[maybe_unused]] constexpr unsigned NumSeverityKinds =
     static_cast<unsigned>(DiagnosticSeverity::MaxSeverityVal) + 1;
 
-llvm::StringLiteral ToString(DiagnosticSeverity);
+StringLiteral ToString(DiagnosticSeverity);
 
 enum class DiagId : std::uint32_t {
 #define DIAG(ID, SEV, MSG) ID,
@@ -44,7 +41,7 @@ enum class DiagId : std::uint32_t {
 
 static inline constexpr struct {
   DiagnosticSeverity Sev;
-  llvm::StringLiteral Msg;
+  StringLiteral Msg;
 } DiagnosticMessages[] = {
 #define DIAG(ID, SEV, MSG) {SEV, MSG},
 #include "DiagnosticMessages.def"
@@ -63,7 +60,7 @@ public:
   Diagnostic &operator=(const Diagnostic &) = delete;
   Diagnostic &operator=(Diagnostic &&) = delete;
 
-  void print(llvm::raw_ostream &, const SourceManager &) const;
+  void print(raw_ostream &, const SourceManager &) const;
 
 private:
   /*
@@ -73,7 +70,7 @@ private:
     Example:
       error:
   */
-  void printSeverity(llvm::raw_ostream &) const;
+  void printSeverity(raw_ostream &) const;
 
   /*
     Format:
@@ -82,7 +79,7 @@ private:
     Example:
       missing function type on function definition
   */
-  void printSummary(llvm::raw_ostream &) const;
+  void printSummary(raw_ostream &) const;
 
   /*
     Format:
@@ -93,7 +90,7 @@ private:
          at: test.tmp:1:1 <- only this lines is printed by this function
       ^~~ <- <space_alignment_to_sev>
   */
-  void printLocation(llvm::raw_ostream &, const SourceManager &sm) const;
+  void printLocation(raw_ostream &, const SourceManager &sm) const;
 
   /*
   Format:
@@ -110,12 +107,12 @@ private:
              | ~
              |
   */
-  void printContext(llvm::raw_ostream &, const SourceManager &sm) const;
+  void printContext(raw_ostream &, const SourceManager &sm) const;
 
-  void printHint(llvm::raw_ostream &, const SourceManager &sm) const;
+  void printHint(raw_ostream &, const SourceManager &sm) const;
 
   DiagnosticSeverity getSeverity() const;
-  llvm::StringRef getMessage() const;
+  StringRef getMessage() const;
 
 private:
   // Prefer using the Id, so we don't have to store the message and the severity

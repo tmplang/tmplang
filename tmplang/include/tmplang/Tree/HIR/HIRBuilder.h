@@ -13,8 +13,8 @@ namespace tmplang::hir {
 
 /// Builds a CompilationUnit contaning all semantic information. This tree is
 /// not yet verified to be semantic correct.
-llvm::Optional<CompilationUnit> buildHIR(const source::CompilationUnit &,
-                                         HIRContext &);
+Optional<CompilationUnit> buildHIR(const source::CompilationUnit &,
+                                   HIRContext &);
 
 } // namespace tmplang::hir
 

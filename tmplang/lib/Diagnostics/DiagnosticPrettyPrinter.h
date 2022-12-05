@@ -4,35 +4,33 @@
 #include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/raw_ostream.h>
+#include <tmplang/ADT/LLVM.h>
 
 namespace tmplang {
 
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors RED =
-    llvm::raw_ostream::RED;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors WHITE =
-    llvm::raw_ostream::WHITE;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors YELLOW =
-    llvm::raw_ostream::YELLOW;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors GREEN =
-    llvm::raw_ostream::GREEN;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors CYAN =
-    llvm::raw_ostream::CYAN;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors BLACK =
-    llvm::raw_ostream::BLACK;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors BLUE =
-    llvm::raw_ostream::BLUE;
-[[maybe_unused]] static constexpr llvm::raw_ostream::Colors MAGENTA =
-    llvm::raw_ostream::MAGENTA;
+[[maybe_unused]] static constexpr raw_ostream::Colors RED = raw_ostream::RED;
+[[maybe_unused]] static constexpr raw_ostream::Colors WHITE =
+    raw_ostream::WHITE;
+[[maybe_unused]] static constexpr raw_ostream::Colors YELLOW =
+    raw_ostream::YELLOW;
+[[maybe_unused]] static constexpr raw_ostream::Colors GREEN =
+    raw_ostream::GREEN;
+[[maybe_unused]] static constexpr raw_ostream::Colors CYAN = raw_ostream::CYAN;
+[[maybe_unused]] static constexpr raw_ostream::Colors BLACK =
+    raw_ostream::BLACK;
+[[maybe_unused]] static constexpr raw_ostream::Colors BLUE = raw_ostream::BLUE;
+[[maybe_unused]] static constexpr raw_ostream::Colors MAGENTA =
+    raw_ostream::MAGENTA;
 
 constexpr static char caret = '^';
 constexpr static char tilde = '~';
 constexpr static char space = ' ';
 
-llvm::SmallString<80> GetSubscriptLine(unsigned start, unsigned size);
+SmallString<80> GetSubscriptLine(unsigned start, unsigned size);
 
-void PrintContextLine(llvm::raw_ostream &out, llvm::StringRef lhs,
-                      const llvm::Twine &rhs = llvm::Twine(""),
-                      llvm::raw_ostream::Colors rhsColor = WHITE);
+void PrintContextLine(raw_ostream &out, StringRef lhs,
+                      const Twine &rhs = Twine(""),
+                      raw_ostream::Colors rhsColor = WHITE);
 
 } // namespace tmplang
 

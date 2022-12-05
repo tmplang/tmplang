@@ -13,7 +13,7 @@
 
 using namespace tmplang;
 
-static std::vector<Token> Lex(llvm::StringRef input) {
+static std::vector<Token> Lex(StringRef input) {
   Lexer lexer(input);
   Token tok = lexer.next();
   std::vector<Token> result = {tok};
@@ -26,10 +26,9 @@ static std::vector<Token> Lex(llvm::StringRef input) {
   return result;
 }
 
-static std::string Toks(llvm::ArrayRef<Token> resultTokens,
-                        const SourceManager &sm) {
+static std::string Toks(ArrayRef<Token> resultTokens, const SourceManager &sm) {
   std::string result;
-  llvm::raw_string_ostream o(result);
+  raw_string_ostream o(result);
   llvm::interleaveComma(resultTokens, o, [&](Token tok) { tok.print(o, sm); });
   return o.str();
 }
@@ -37,21 +36,20 @@ static std::string Toks(llvm::ArrayRef<Token> resultTokens,
 namespace {
 /// Imitates a Token but with Line and Column, instead of encoded offset
 struct MimicToken {
-  MimicToken(llvm::StringRef id, LineAndColumn start, LineAndColumn end)
+  MimicToken(StringRef id, LineAndColumn start, LineAndColumn end)
       : Lex(id), Kind(TokenKind::TK_Identifier), Start(start), End(end) {}
   MimicToken(TokenKind kind, LineAndColumn start, LineAndColumn end)
       : Lex(ToString(kind)), Kind(kind), Start(start), End(end) {}
 
-  llvm::StringRef Lex;
+  StringRef Lex;
   TokenKind Kind;
   LineAndColumn Start;
   LineAndColumn End;
 };
 } // namespace
 
-static void CheckResult(llvm::ArrayRef<MimicToken> targetTokens,
-                        llvm::ArrayRef<Token> resultTokens,
-                        const SourceManager &sm) {
+static void CheckResult(ArrayRef<MimicToken> targetTokens,
+                        ArrayRef<Token> resultTokens, const SourceManager &sm) {
   SCOPED_TRACE("Result tokens: {" + Toks(resultTokens, sm) + "}\n");
   ASSERT_EQ(resultTokens.size(), targetTokens.size());
 
@@ -72,8 +70,7 @@ static void CheckResult(llvm::ArrayRef<MimicToken> targetTokens,
   }
 }
 
-static void TestLexer(llvm::StringRef input,
-                      llvm::ArrayRef<MimicToken> targetTokens) {
+static void TestLexer(StringRef input, ArrayRef<MimicToken> targetTokens) {
   auto inMemoryFileSystem = std::make_unique<llvm::vfs::InMemoryFileSystem>();
 
   const char *fileName = "./test";
@@ -173,7 +170,7 @@ TEST(BasicLexer, InvalidComment) {
 }
 
 TEST(BasicLexer, MultiLineWithComment) {
-  llvm::StringLiteral code = R"(
+  StringLiteral code = R"(
 //This functions does basically nothing
 fn foo: a Chr -> Int {
   // Implement this function, do something cool

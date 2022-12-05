@@ -9,8 +9,8 @@ namespace tmplang::source {
 
 template <typename T, unsigned N> struct CommaSeparatedList {
   CommaSeparatedList() = default;
-  CommaSeparatedList(llvm::SmallVectorImpl<T> &&elems,
-                     llvm::SmallVectorImpl<Token> &&commas)
+  CommaSeparatedList(SmallVectorImpl<T> &&elems,
+                     SmallVectorImpl<Token> &&commas)
       : Elems(std::move(elems)), Commas(std::move(commas)) {
     assert((Elems.empty() && Commas.empty()) ||
            (Elems.size() == Commas.size() + 1));
@@ -18,8 +18,8 @@ template <typename T, unsigned N> struct CommaSeparatedList {
         llvm::all_of(Commas, [](const Token &tk) { return tk.is(TK_Comma); }));
   }
 
-  llvm::SmallVector<T, N> Elems;
-  llvm::SmallVector<Token, N - 1> Commas;
+  SmallVector<T, N> Elems;
+  SmallVector<Token, N - 1> Commas;
 };
 
 } // namespace tmplang::source
