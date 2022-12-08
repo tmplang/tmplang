@@ -95,7 +95,7 @@ struct _IterOps<_ClassicAlgPolicy> {
   using __move_t = decltype(std::move(*std::declval<_Iter&>()));
 
   template <class _Iter>
-  _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14
+  _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_AFTER_CXX11
   static void __validate_iter_reference() {
     static_assert(is_same<__deref_t<_Iter>, typename iterator_traits<__uncvref_t<_Iter> >::reference>::value,
         "It looks like your iterator's `iterator_traits<It>::reference` does not match the return type of "
@@ -105,7 +105,7 @@ struct _IterOps<_ClassicAlgPolicy> {
 
   // iter_move
   template <class _Iter>
-  _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 static
+  _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_AFTER_CXX11 static
   // If the result of dereferencing `_Iter` is a reference type, deduce the result of calling `std::move` on it. Note
   // that the C++03 mode doesn't support `decltype(auto)` as the return type.
   __enable_if_t<
@@ -118,7 +118,7 @@ struct _IterOps<_ClassicAlgPolicy> {
   }
 
   template <class _Iter>
-  _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 static
+  _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_AFTER_CXX11 static
   // If the result of dereferencing `_Iter` is a value type, deduce the return value of this function to also be a
   // value -- otherwise, after `operator*` returns a temporary, this function would return a dangling reference to that
   // temporary. Note that the C++03 mode doesn't support `auto` as the return type.
@@ -146,13 +146,20 @@ struct _IterOps<_ClassicAlgPolicy> {
   }
 
   template <class _Iter>
-  _LIBCPP_HIDE_FROM_ABI static _LIBCPP_CONSTEXPR_SINCE_CXX14
+  _LIBCPP_HIDE_FROM_ABI static _LIBCPP_CONSTEXPR_AFTER_CXX11
   __uncvref_t<_Iter> next(_Iter&& __it,
                           typename iterator_traits<__uncvref_t<_Iter> >::difference_type __n = 1) {
     return std::next(std::forward<_Iter>(__it), __n);
   }
 
   // prev
+  template <class _Iter>
+  _LIBCPP_HIDE_FROM_ABI static _LIBCPP_CONSTEXPR_AFTER_CXX11
+  __uncvref_t<_Iter> prev(_Iter&& __iter,
+                 typename iterator_traits<__uncvref_t<_Iter> >::difference_type __n = 1) {
+    return std::prev(std::forward<_Iter>(__iter), __n);
+  }
+
   template <class _Iter>
   _LIBCPP_HIDE_FROM_ABI static _LIBCPP_CONSTEXPR_SINCE_CXX14
   __uncvref_t<_Iter> prev(_Iter&& __iter,

@@ -72,11 +72,11 @@ bool RISCVCodeGenPrepare::visitZExtInst(ZExtInst &ZExt) {
   // can determine that the sign bit of X is zero via a dominating condition.
   // This often occurs with widened induction variables.
   if (isImpliedByDomCondition(ICmpInst::ICMP_SGE, Src,
-                              Constant::getNullValue(Src->getType()), &ZExt,
+                              Constant::getNullValue(Src->getType()), ZExt,
                               *DL).value_or(false)) {
-    auto *SExt = new SExtInst(Src, ZExt.getType(), "", &ZExt);
-    SExt->takeName(&ZExt);
-    SExt->setDebugLoc(ZExt.getDebugLoc());
+    auto *SExt = new SExtInst(Src, ZExt->getType(), "", ZExt);
+    SExt->takeName(ZExt);
+    SExt->setDebugLoc(ZExt->getDebugLoc());
 
     ZExt.replaceAllUsesWith(SExt);
     ZExt.eraseFromParent();

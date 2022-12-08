@@ -189,7 +189,7 @@ __rotate_impl(_RandomAccessIterator __first, _RandomAccessIterator __middle, _Ra
 }
 
 template <class _AlgPolicy, class _Iterator, class _Sentinel>
-_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_AFTER_CXX11
 pair<_Iterator, _Iterator>
 __rotate(_Iterator __first, _Iterator __middle, _Sentinel __last) {
   using _Ret = pair<_Iterator, _Iterator>;

@@ -181,11 +181,17 @@
 #   endif
 # endif
 
-# ifndef __cpp_lib_ranges
-#   error "__cpp_lib_ranges should be defined in c++20"
-# endif
-# if __cpp_lib_ranges != 201811L
-#   error "__cpp_lib_ranges should have the value 201811L in c++20"
+# if !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES)
+#   ifndef __cpp_lib_ranges
+#     error "__cpp_lib_ranges should be defined in c++20"
+#   endif
+#   if __cpp_lib_ranges != 201811L
+#     error "__cpp_lib_ranges should have the value 201811L in c++20"
+#   endif
+# else
+#   ifdef __cpp_lib_ranges
+#     error "__cpp_lib_ranges should not be defined when !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES) is not defined!"
+#   endif
 # endif
 
 # ifdef __cpp_lib_ranges_starts_ends_with
@@ -242,11 +248,17 @@
 #   endif
 # endif
 
-# ifndef __cpp_lib_ranges
-#   error "__cpp_lib_ranges should be defined in c++2b"
-# endif
-# if __cpp_lib_ranges != 201811L
-#   error "__cpp_lib_ranges should have the value 201811L in c++2b"
+# if !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES)
+#   ifndef __cpp_lib_ranges
+#     error "__cpp_lib_ranges should be defined in c++2b"
+#   endif
+#   if __cpp_lib_ranges != 201811L
+#     error "__cpp_lib_ranges should have the value 201811L in c++2b"
+#   endif
+# else
+#   ifdef __cpp_lib_ranges
+#     error "__cpp_lib_ranges should not be defined when !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES) is not defined!"
+#   endif
 # endif
 
 # if !defined(_LIBCPP_VERSION)

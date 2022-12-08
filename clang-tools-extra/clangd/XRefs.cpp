@@ -1596,14 +1596,14 @@ declToHierarchyItem(const NamedDecl &ND, llvm::StringRef TUPath) {
     HI.range = HI.selectionRange;
   }
 
-  HI.uri = URIForFile::canonicalize(*FilePath, TUPath);
+  HI.uri = URIForFile::canonicalize(*FilePath, *TUPath);
 
   return HI;
 }
 
 static llvm::Optional<TypeHierarchyItem>
 declToTypeHierarchyItem(const NamedDecl &ND, llvm::StringRef TUPath) {
-  auto Result = declToHierarchyItem<TypeHierarchyItem>(ND, TUPath);
+  auto Result = declToHierarchyItem<TypeHierarchyItem>(ND);
   if (Result) {
     Result->deprecated = ND.isDeprecated();
     // Compute the SymbolID and store it in the 'data' field.
@@ -1616,8 +1616,8 @@ declToTypeHierarchyItem(const NamedDecl &ND, llvm::StringRef TUPath) {
 }
 
 static llvm::Optional<CallHierarchyItem>
-declToCallHierarchyItem(const NamedDecl &ND, llvm::StringRef TUPath) {
-  auto Result = declToHierarchyItem<CallHierarchyItem>(ND, TUPath);
+declToCallHierarchyItem(const NamedDecl &ND) {
+  auto Result = declToHierarchyItem<CallHierarchyItem>(ND);
   if (!Result)
     return Result;
   if (ND.isDeprecated())
@@ -2034,12 +2034,12 @@ getTypeHierarchy(ParsedAST &AST, Position Pos, int ResolveLevels,
     }
 
     Optional<TypeHierarchyItem> Result =
-        declToTypeHierarchyItem(*CXXRD, AST.tuPath());
+        declToTypeHierarchyItem(*CXXRD, TUPath);
     if (!Result)
       continue;
 
     RecursionProtectionSet RPSet;
-    fillSuperTypes(*CXXRD, AST.tuPath(), *Result, RPSet);
+    fillSuperTypes(*CXXRD, TUPath, *Result, RPSet);
 
     if (WantChildren && ResolveLevels > 0) {
       Result->children.emplace();

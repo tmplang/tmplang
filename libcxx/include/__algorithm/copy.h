@@ -88,7 +88,7 @@ template <class _InIter, class _Sent, class _OutIter,
           __enable_if_t<is_copy_constructible<_InIter>::value
                      && is_copy_constructible<_Sent>::value
                      && is_copy_constructible<_OutIter>::value, int> = 0>
-inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14
+inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_AFTER_CXX11
 pair<_InIter, _OutIter> __copy(_InIter __first, _Sent __last, _OutIter __result) {
   auto __range = std::__unwrap_range(__first, __last);
   auto __ret   = std::__copy_impl(std::move(__range.first), std::move(__range.second), std::__unwrap_iter(__result));
