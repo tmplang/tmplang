@@ -7231,9 +7231,8 @@ static SDValue extractShiftForRotate(SelectionDAG &DAG, SDValue OppShift,
                                      SDValue ExtractFrom, SDValue &Mask,
                                      const SDLoc &DL) {
   assert(OppShift && ExtractFrom && "Empty SDValue");
-  assert(
-      (OppShift.getOpcode() == ISD::SHL || OppShift.getOpcode() == ISD::SRL) &&
-      "Existing shift must be valid as a rotate half");
+  if (OppShift.getOpcode() != ISD::SHL && OppShift.getOpcode() != ISD::SRL)
+    return SDValue();
 
   ExtractFrom = stripConstantMask(DAG, ExtractFrom, Mask);
 
@@ -7641,6 +7640,10 @@ SDValue DAGCombiner::MatchRotate(SDValue LHS, SDValue RHS, const SDLoc &DL) {
     std::swap(LHSShift, RHSShift);
     std::swap(LHSMask, RHSMask);
   }
+
+  // Something has gone wrong - we've lost the shl/srl pair - bail.
+  if (LHSShift.getOpcode() != ISD::SHL || RHSShift.getOpcode() != ISD::SRL)
+    return SDValue();
 
   unsigned EltSizeInBits = VT.getScalarSizeInBits();
   SDValue LHSShiftArg = LHSShift.getOperand(0);

@@ -584,6 +584,13 @@ void RTLsTy::unregisterLib(__tgt_bin_desc *Desc) {
   PM->TblMapMtx.unlock();
 
   // TODO: Write some RTL->unload_image(...) function?
+  for (auto *R : UsedRTLs) {
+    if (R->deinit_plugin) {
+      if (R->deinit_plugin() != OFFLOAD_SUCCESS) {
+        DP("Failure deinitializing RTL %s!\n", R->RTLName.c_str());
+      }
+    }
+  }
 
   DP("Done unregistering library!\n");
 }

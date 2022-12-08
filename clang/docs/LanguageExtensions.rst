@@ -532,6 +532,8 @@ number of literals can be specified.  For example:
   vector int vi5 = (vector int)(1, 2, 3, 4);
   float4 vf = (float4)((float2)(1.0f, 2.0f), (float2)(3.0f, 4.0f));
 
+.. _Vector Operations:
+
 Vector Operations
 -----------------
 
@@ -759,6 +761,9 @@ performing the operation, and then truncating to ``_Float16``.
 * 32-bit ARM
 * 64-bit ARM (AArch64)
 * X86 (see below)
+
+On X86 targets, ``__bf16`` is supported as long as SSE2 is available, which
+includes all 64-bit and all recent 32-bit processors.
 
 On X86 targets, ``__bf16`` is supported as long as SSE2 is available, which
 includes all 64-bit and all recent 32-bit processors.

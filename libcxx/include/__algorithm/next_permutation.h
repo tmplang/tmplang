@@ -25,7 +25,8 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _AlgPolicy, class _Compare, class _BidirectionalIterator, class _Sentinel>
-_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 pair<_BidirectionalIterator, bool>
+_LIBCPP_CONSTEXPR_AFTER_CXX17
+pair<_BidirectionalIterator, bool>
 __next_permutation(_BidirectionalIterator __first, _Sentinel __last, _Compare&& __comp)
 {
     using _Result = pair<_BidirectionalIterator, bool>;

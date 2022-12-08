@@ -1113,8 +1113,10 @@ public:
 
 pthread_mutex_t SignalPoolT::mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static RTLDeviceInfoTy *DeviceInfoState = nullptr;
-static RTLDeviceInfoTy &DeviceInfo() { return *DeviceInfoState; }
+// Putting accesses to DeviceInfo global behind a function call prior
+// to changing to use init_plugin/deinit_plugin calls
+static RTLDeviceInfoTy DeviceInfoState;
+static RTLDeviceInfoTy &DeviceInfo() { return DeviceInfoState; }
 
 namespace {
 
@@ -1131,7 +1133,7 @@ int32_t dataRetrieve(int32_t DeviceId, void *HstPtr, void *TgtPtr, int64_t Size,
      (long long unsigned)(Elf64_Addr)HstPtr);
 
   Err = DeviceInfo().freesignalpoolMemcpyD2H(HstPtr, TgtPtr, (size_t)Size,
-                                             DeviceId);
+                                           DeviceId);
 
   if (Err != HSA_STATUS_SUCCESS) {
     DP("Error when copying data from device to host. Pointers: "
@@ -1495,8 +1497,8 @@ int32_t runRegionLocked(int32_t DeviceId, void *TgtEntryPtr, void **TgtArgs,
         // under a multiple reader lock, not a writer lock.
         static pthread_mutex_t HostcallInitLock = PTHREAD_MUTEX_INITIALIZER;
         pthread_mutex_lock(&HostcallInitLock);
-        uint64_t Buffer = hostrpc_assign_buffer(
-            DeviceInfo().HSAAgents[DeviceId], Queue, DeviceId);
+        uint64_t Buffer = hostrpc_assign_buffer(DeviceInfo().HSAAgents[DeviceId],
+                                                Queue, DeviceId);
         pthread_mutex_unlock(&HostcallInitLock);
         if (!Buffer) {
           DP("hostrpc_assign_buffer failed, gpu would dereference null and "
@@ -1858,7 +1860,7 @@ struct DeviceEnvironment {
         }
 
         return DeviceInfo().freesignalpoolMemcpyH2D(StatePtr, &HostDeviceEnv,
-                                                    StatePtrSize, DeviceId);
+                                                  StatePtrSize, DeviceId);
       }
     }
     return HSA_STATUS_SUCCESS;
@@ -2064,6 +2066,9 @@ int32_t __tgt_rtl_is_valid_binary_info(__tgt_device_image *image,
   return true;
 }
 
+int32_t __tgt_rtl_init_plugin() { return OFFLOAD_SUCCESS; }
+int32_t __tgt_rtl_deinit_plugin() { return OFFLOAD_SUCCESS; }
+
 int __tgt_rtl_number_of_devices() {
   // If the construction failed, no methods are safe to call
   if (DeviceInfo().ConstructionSucceeded) {
@@ -2114,8 +2119,7 @@ int32_t __tgt_rtl_init_device(int DeviceId) {
 
   if (print_kernel_trace & STARTUP_DETAILS)
     DP("Device#%-2d CU's: %2d %s\n", DeviceId,
-       DeviceInfo().ComputeUnits[DeviceId],
-       DeviceInfo().GPUName[DeviceId].c_str());
+       DeviceInfo().ComputeUnits[DeviceId], DeviceInfo().GPUName[DeviceId].c_str());
 
   // Query attributes to determine number of threads/block and blocks/grid.
   uint16_t WorkgroupMaxDim[3];
@@ -2127,8 +2131,7 @@ int32_t __tgt_rtl_init_device(int DeviceId) {
        RTLDeviceInfoTy::DefaultNumTeams);
   } else if (WorkgroupMaxDim[0] <= RTLDeviceInfoTy::HardTeamLimit) {
     DeviceInfo().GroupsPerDevice[DeviceId] = WorkgroupMaxDim[0];
-    DP("Using %d ROCm blocks per grid\n",
-       DeviceInfo().GroupsPerDevice[DeviceId]);
+    DP("Using %d ROCm blocks per grid\n", DeviceInfo().GroupsPerDevice[DeviceId]);
   } else {
     DeviceInfo().GroupsPerDevice[DeviceId] = RTLDeviceInfoTy::HardTeamLimit;
     DP("Max ROCm blocks per grid %d exceeds the hard team limit %d, capping "
@@ -2283,9 +2286,8 @@ __tgt_target_table *__tgt_rtl_load_binary_locked(int32_t DeviceId,
     return NULL;
 
   {
-    auto Env =
-        DeviceEnvironment(DeviceId, DeviceInfo().NumberOfDevices,
-                          DeviceInfo().Env.DynamicMemSize, Image, ImgSize);
+    auto Env = DeviceEnvironment(DeviceId, DeviceInfo().NumberOfDevices,
+                                 DeviceInfo().Env.DynamicMemSize, Image, ImgSize);
 
     auto &KernelInfo = DeviceInfo().KernelInfoTable[DeviceId];
     auto &SymbolInfo = DeviceInfo().SymbolInfoTable[DeviceId];
@@ -2442,8 +2444,8 @@ __tgt_target_table *__tgt_rtl_load_binary_locked(int32_t DeviceId,
         // If unified memory is present any target link variables
         // can access host addresses directly. There is no longer a
         // need for device copies.
-        Err = DeviceInfo().freesignalpoolMemcpyH2D(Varptr, E->addr,
-                                                   sizeof(void *), DeviceId);
+        Err = DeviceInfo().freesignalpoolMemcpyH2D(Varptr, E->addr, sizeof(void *),
+                                                 DeviceId);
         if (Err != HSA_STATUS_SUCCESS)
           DP("Error when copying USM\n");
         DP("Copy linked variable host address (" DPxMOD ")"
@@ -2603,12 +2605,11 @@ __tgt_target_table *__tgt_rtl_load_binary_locked(int32_t DeviceId,
     }
     check("Loading computation property", Err);
 
-    DeviceInfo().KernelsList.push_back(
-        KernelTy(ExecModeVal, WGSizeVal, DeviceId, CallStackAddr, E->name,
-                 KernargSegmentSize, DeviceInfo().KernArgPool,
-                 DeviceInfo().KernelArgPoolMap));
+    KernelsList.push_back(KernelTy(ExecModeVal, WGSizeVal, DeviceId,
+                                   CallStackAddr, E->name, KernargSegmentSize,
+                                   DeviceInfo().KernArgPool));
     __tgt_offload_entry Entry = *E;
-    Entry.addr = (void *)&DeviceInfo().KernelsList.back();
+    Entry.addr = (void *)&KernelsList.back();
     DeviceInfo().addOffloadEntry(DeviceId, Entry);
     DP("Entry point %ld maps to %s\n", E - HostBegin, E->name);
   }
