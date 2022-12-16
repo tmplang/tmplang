@@ -5,6 +5,8 @@
 #include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lexer/SourceLocation.h>
 
+#include <vector>
+
 namespace tmplang {
 
 class TargetFileEntry;
