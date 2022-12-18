@@ -15,6 +15,8 @@ StringLiteral tmplang::ToString(TokenKind tk) {
     return "<UNKNOWN>";
   case TK_Identifier:
     return "Ident";
+  case TK_IntegralNumber:
+    return "IntegralNumber";
   case TK_LParentheses:
     return "(";
   case TK_RParentheses:

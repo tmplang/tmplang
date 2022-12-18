@@ -7,14 +7,16 @@ using namespace tmplang;
 
 namespace {
 
+constexpr StringLiteral AllNumbers = "0123456789";
+
 /// Auxiliary struct to build tokens while updating the state of the Lexer
 struct TokenBuilder {
   explicit TokenBuilder(Lexer::LexerState &state) : State(state) {}
 
-  Token buildIdentifier(StringRef lexeme) {
+  template <TokenKind kind> Token buildFromLexeme(StringRef lexeme) {
     SourceLocation startLocation = State.CurrentLocation;
     State.advance(lexeme.size());
-    return Token(lexeme, startLocation,
+    return Token(lexeme, kind, startLocation,
                  State.CurrentLocation - /*offset starts at 1*/ 1);
   }
 
@@ -53,6 +55,13 @@ static StringRef GetIdentifier(StringRef in) {
   });
 }
 
+// Matches pattern: [0-9]([0-9_]*)
+// Eg: 1_000_000, 1000, 1_____0
+static StringRef GetNumber(StringRef in) {
+  return in.take_while(
+      [=](char c) { return c == '_' || is_contained(AllNumbers, c); });
+}
+
 Token Lexer::next() {
   TokenBuilder tkBuilder(State);
 
@@ -60,14 +69,13 @@ Token Lexer::next() {
     return tkBuilder.buildToken(TK_EOF);
   }
 
-  Optional<TokenKind> simpleTokenMatched;
-
   // Handle new lines
   if (State.CurrentInput.startswith(DetectedEOL)) {
     State.consumeUntilEOLOrEOF();
     return next();
   }
 
+  Optional<TokenKind> simpleTokenMatched;
   switch (State.CurrentInput.front()) {
   case '(':
     simpleTokenMatched = TK_LParentheses;
@@ -116,6 +124,12 @@ Token Lexer::next() {
                                 ToString(*simpleTokenMatched).size());
   }
 
+  // Numbers
+  if (is_contained(AllNumbers, State.CurrentInput.front())) {
+    const StringRef number = GetNumber(State.CurrentInput);
+    return tkBuilder.buildFromLexeme<TK_IntegralNumber>(number);
+  }
+
   // Identifier, ProcType and FnType case. Since all of them are a sequence of
   // alphabetic values we can handle them here together.
   // CAVEAT: This is currently correct because the pattern a identifier matches
@@ -133,7 +147,7 @@ Token Lexer::next() {
                      .Default(TK_Identifier);
 
   if (tk == TK_Identifier) {
-    return tkBuilder.buildIdentifier(potentialId);
+    return tkBuilder.buildFromLexeme<TK_Identifier>(potentialId);
   }
 
   return tkBuilder.buildToken(tk, potentialId.size());

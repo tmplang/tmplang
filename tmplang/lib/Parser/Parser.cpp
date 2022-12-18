@@ -79,7 +79,7 @@ private:
 
   // Utility functions to build recovery Tokens, and error reporting
   Token getRecoveryToken(TokenKind kind);
-  Token getRecoveryToken(StringRef id);
+  Token getRecoveryToken(StringRef id, TokenKind kind);
 
   template <Optional<Token> (Parser::*parsingFunc)(),
             Optional<Token> (Parser::*recoveryFunc)() = nullptr>
@@ -255,7 +255,7 @@ Optional<Token> Parser::missingSubprogramIdRecovery() {
              InsertTextAtHint(getStartCurrToken(), placeHolder))
       .print(Out, SM);
 
-  return getRecoveryToken(placeHolder);
+  return getRecoveryToken(placeHolder, TK_Identifier);
 }
 
 Optional<Token> Parser::missingReturnTypeArrowRecovery() {
@@ -345,7 +345,7 @@ Optional<Token> Parser::missingVariableOnParamRecovery() {
              InsertTextAtHint(getStartCurrToken(), paramId))
       .print(Out, SM);
 
-  return getRecoveryToken(paramId);
+  return getRecoveryToken(paramId, TK_Identifier);
 }
 
 /// Block = "{" "}";
@@ -536,9 +536,9 @@ Token Parser::getRecoveryToken(TokenKind kind) {
   return Token(kind, RecoveryLoc, RecoveryLoc, /*isRecovery=*/true);
 }
 
-Token Parser::getRecoveryToken(StringRef id) {
+Token Parser::getRecoveryToken(StringRef id, TokenKind kind) {
   ParserState.NumberOfRecoveriesPerformed++;
-  return Token(id, RecoveryLoc, RecoveryLoc, /*isRecovery=*/true);
+  return Token(id, kind, RecoveryLoc, RecoveryLoc, /*isRecovery=*/true);
 }
 
 Optional<source::CompilationUnit>

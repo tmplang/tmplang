@@ -1,6 +1,7 @@
 #ifndef TMPLANG_LEXER_TOKEN_H
 #define TMPLANG_LEXER_TOKEN_H
 
+#include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/StringRef.h>
 #include <tmplang/ADT/LLVM.h>
@@ -14,6 +15,7 @@ enum TokenKind {
   TK_EOF,
   TK_Unknown,
 
+  TK_IntegralNumber,
   TK_Identifier,
 
   // Delimiters
@@ -37,14 +39,15 @@ struct Token {
   Token(TokenKind kind, SourceLocation start, SourceLocation end,
         bool isRecovery = false)
       : Kind(kind), IsErrorRecoveryToken(isRecovery), SrcLocSpan{start, end} {
-    assert(kind != TokenKind::TK_Identifier &&
-           "Invalid constructor for identifiers");
+    assert(!llvm::is_contained({TK_Identifier, TK_IntegralNumber}, kind) &&
+           "Invalid constructor for identifiers or numbers");
   }
-  Token(StringRef id, SourceLocation start, SourceLocation end,
-        bool isRecovery = false)
-      : Kind(TokenKind::TK_Identifier),
-        IsErrorRecoveryToken(isRecovery), SrcLocSpan{start, end}, Lexeme(id) {
-    assert(!id.empty());
+  Token(StringRef lexeme, TokenKind kind, SourceLocation start,
+        SourceLocation end, bool isRecovery = false)
+      : Kind(kind), IsErrorRecoveryToken(isRecovery), SrcLocSpan{start, end},
+        Lexeme(lexeme) {
+    assert(!lexeme.empty());
+    assert(llvm::is_contained({TK_Identifier, TK_IntegralNumber}, kind));
   }
   Token() : Kind(TK_Unknown) {}
 
@@ -54,7 +57,7 @@ struct Token {
   void dump(const SourceManager &sm) const;
 
   StringRef getLexeme() const {
-    return Kind == TK_Identifier ? Lexeme : ToString(Kind);
+    return Kind == TK_Identifier || Kind == TK_IntegralNumber ? Lexeme : ToString(Kind);
   }
 
   /// Query functions to know if the Token is or not of some kind/s

@@ -36,8 +36,9 @@ static std::string Toks(ArrayRef<Token> resultTokens, const SourceManager &sm) {
 namespace {
 /// Imitates a Token but with Line and Column, instead of encoded offset
 struct MimicToken {
-  MimicToken(StringRef id, LineAndColumn start, LineAndColumn end)
-      : Lex(id), Kind(TokenKind::TK_Identifier), Start(start), End(end) {}
+  MimicToken(StringRef id, TokenKind kind, LineAndColumn start,
+             LineAndColumn end)
+      : Lex(id), Kind(kind), Start(start), End(end) {}
   MimicToken(TokenKind kind, LineAndColumn start, LineAndColumn end)
       : Lex(ToString(kind)), Kind(kind), Start(start), End(end) {}
 
@@ -91,21 +92,17 @@ TEST(BasicLexer, Empty) { TestLexer("", {{TK_EOF, {1, 1}, {1, 1}}}); }
 
 TEST(BasicLexer, EmptyFn) {
   TestLexer("fn foobar { }", {{TK_FnType, {1, 1}, {1, 2}},
-                              {"foobar", {1, 4}, {1, 9}},
+                              {"foobar", TK_Identifier, {1, 4}, {1, 9}},
                               {TK_LKeyBracket, {1, 11}, {1, 11}},
                               {TK_RKeyBracket, {1, 13}, {1, 13}},
                               {TK_EOF, {1, 14}, {1, 14}}});
 }
 
-TEST(BasicLexer, LiteralError) {
-  TestLexer("42abc", {{TK_Unknown, {1, 1}, {1, 1}}});
-}
-
 TEST(BasicLexer, Joined) {
   MimicToken tokens[] = {
-      {"foo", {1, 1}, {1, 3}},      {TK_Comma, {1, 4}, {1, 4}},
-      {"bar", {1, 5}, {1, 7}},      {TK_LKeyBracket, {1, 8}, {1, 8}},
-      {TK_FnType, {1, 9}, {1, 10}}, {TK_EOF, {1, 11}, {1, 11}},
+      {"foo", TK_Identifier, {1, 1}, {1, 3}}, {TK_Comma, {1, 4}, {1, 4}},
+      {"bar", TK_Identifier, {1, 5}, {1, 7}}, {TK_LKeyBracket, {1, 8}, {1, 8}},
+      {TK_FnType, {1, 9}, {1, 10}},           {TK_EOF, {1, 11}, {1, 11}},
   };
 
   TestLexer("foo,bar{fn", tokens);
@@ -114,13 +111,13 @@ TEST(BasicLexer, Joined) {
 TEST(BasicLexer, FullFunction) {
   MimicToken tokens[] = {
       {TK_FnType, {1, 1}, {1, 2}},
-      {"func", {1, 4}, {1, 7}},
+      {"func", TK_Identifier, {1, 4}, {1, 7}},
       {TK_Colon, {1, 8}, {1, 8}},
-      {"i32", {1, 10}, {1, 12}},
-      {"a", {1, 14}, {1, 14}},
+      {"i32", TK_Identifier, {1, 10}, {1, 12}},
+      {"a", TK_Identifier, {1, 14}, {1, 14}},
       {TK_Comma, {1, 15}, {1, 15}},
-      {"f32", {1, 17}, {1, 19}},
-      {"b", {1, 21}, {1, 21}},
+      {"f32", TK_Identifier, {1, 17}, {1, 19}},
+      {"b", TK_Identifier, {1, 21}, {1, 21}},
       {TK_LKeyBracket, {1, 23}, {1, 23}},
       {TK_RKeyBracket, {1, 24}, {1, 24}},
       {TK_EOF, {1, 25}, {1, 25}},
@@ -149,12 +146,12 @@ TEST(BasicLexer, MultiLine) {
   TestLexer("\tfn foo: a Chr -> Int {\n\n\t}",
             {
                 {TK_FnType, {1, 2}, {1, 3}},
-                {"foo", {1, 5}, {1, 7}},
+                {"foo", TK_Identifier, {1, 5}, {1, 7}},
                 {TK_Colon, {1, 8}, {1, 8}},
-                {"a", {1, 10}, {1, 10}},
-                {"Chr", {1, 12}, {1, 14}},
+                {"a", TK_Identifier, {1, 10}, {1, 10}},
+                {"Chr", TK_Identifier, {1, 12}, {1, 14}},
                 {TK_RArrow, {1, 16}, {1, 17}},
-                {"Int", {1, 19}, {1, 21}},
+                {"Int", TK_Identifier, {1, 19}, {1, 21}},
                 {TK_LKeyBracket, {1, 23}, {1, 23}},
                 {TK_RKeyBracket, {3, 2}, {3, 2}},
                 {TK_EOF, {3, 3}, {3, 3}},
@@ -177,27 +174,51 @@ fn foo: a Chr -> Int {
 }//)";
 
   TestLexer(code, {{TK_FnType, {3, 1}, {3, 2}},
-                   {"foo", {3, 4}, {3, 6}},
+                   {"foo", TK_Identifier, {3, 4}, {3, 6}},
                    {TK_Colon, {3, 7}, {3, 7}},
-                   {"a", {3, 9}, {3, 9}},
-                   {"Chr", {3, 11}, {3, 13}},
+                   {"a", TK_Identifier, {3, 9}, {3, 9}},
+                   {"Chr", TK_Identifier, {3, 11}, {3, 13}},
                    {TK_RArrow, {3, 15}, {3, 16}},
-                   {"Int", {3, 18}, {3, 20}},
+                   {"Int", TK_Identifier, {3, 18}, {3, 20}},
                    {TK_LKeyBracket, {3, 22}, {3, 22}},
                    {TK_RKeyBracket, {5, 1}, {5, 1}},
                    {TK_EOF, {5, 4}, {5, 4}}});
 }
 
 TEST(BasicLexer, Parentheses) {
-  TestLexer("fn foo -> (i32, i32)", {
-                                        {TK_FnType, {1, 1}, {1, 2}},
-                                        {"foo", {1, 4}, {1, 6}},
-                                        {TK_RArrow, {1, 8}, {1, 9}},
-                                        {TK_LParentheses, {1, 11}, {1, 11}},
-                                        {"i32", {1, 12}, {1, 14}},
-                                        {TK_Comma, {1, 15}, {1, 15}},
-                                        {"i32", {1, 17}, {1, 19}},
-                                        {TK_RParentheses, {1, 20}, {1, 20}},
-                                        {TK_EOF, {1, 21}, {1, 21}},
-                                    });
+  TestLexer("fn foo -> (i32, i32)",
+            {
+                {TK_FnType, {1, 1}, {1, 2}},
+                {"foo", TK_Identifier, {1, 4}, {1, 6}},
+                {TK_RArrow, {1, 8}, {1, 9}},
+                {TK_LParentheses, {1, 11}, {1, 11}},
+                {"i32", TK_Identifier, {1, 12}, {1, 14}},
+                {TK_Comma, {1, 15}, {1, 15}},
+                {"i32", TK_Identifier, {1, 17}, {1, 19}},
+                {TK_RParentheses, {1, 20}, {1, 20}},
+                {TK_EOF, {1, 21}, {1, 21}},
+            });
+}
+
+TEST(BasicLexer, Numbers) {
+  TestLexer("1", {
+                     {"1", TK_IntegralNumber, {1, 1}, {1, 1}},
+                     {TK_EOF, {1, 2}, {1, 2}},
+                 });
+  TestLexer("1000", {
+                        {"1000", TK_IntegralNumber, {1, 1}, {1, 4}},
+                        {TK_EOF, {1, 5}, {1, 5}},
+                    });
+  TestLexer("1_000_000", {
+                             {"1_000_000", TK_IntegralNumber, {1, 1}, {1, 9}},
+                             {TK_EOF, {1, 10}, {1, 10}},
+                         });
+  TestLexer("1_____00", {
+                            {"1_____00", TK_IntegralNumber, {1, 1}, {1, 8}},
+                            {TK_EOF, {1, 9}, {1, 9}},
+                        });
+}
+
+TEST(BasicLexer, InvalidNumber) {
+  TestLexer("_1", {{TK_Unknown, {1, 1}, {1, 1}}});
 }
