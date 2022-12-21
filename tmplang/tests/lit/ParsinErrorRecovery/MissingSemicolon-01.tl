@@ -3,5 +3,5 @@
 fn foo { 5 }
 
 // CHECK:ExprStmt: Err![;]
-// CHECK:ExprNumber: 5
+// CHECK:ExprIntegerNumber: 5
 

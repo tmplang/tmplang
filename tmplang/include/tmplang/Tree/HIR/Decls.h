@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <tmplang/Tree/HIR/Decl.h>
+#include <tmplang/Tree/HIR/Exprs.h>
 
 namespace tmplang::source {
 class Node;
@@ -37,8 +38,9 @@ public:
   };
 
   FunctionKind getFunctionKind() const { return FuncKind; }
-  const Type &getReturnType() const { return ReturnType; }
+  const Type &getReturnType() const { return *ReturnType; }
   ArrayRef<ParamDecl> getParams() const { return Params; }
+  ArrayRef<std::unique_ptr<Expr>> getBody() const { return Expressions; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::FunctionDecl;
@@ -46,15 +48,20 @@ public:
 
   explicit FunctionDecl(const source::Node &srcNode, StringRef name,
                         FunctionKind kind, const Type &returnType,
-                        std::vector<ParamDecl> params)
+                        std::vector<ParamDecl> params,
+                        std::vector<std::unique_ptr<Expr>> exprs)
       : Decl(Node::Kind::FunctionDecl, srcNode, name), FuncKind(kind),
-        ReturnType(returnType), Params(std::move(params)) {}
+        ReturnType(&returnType), Params(std::move(params)),
+        Expressions(std::move(exprs)) {}
   virtual ~FunctionDecl() = default;
+
+  FunctionDecl(FunctionDecl &&funcDecl) = default;
 
 private:
   FunctionKind FuncKind;
-  const Type &ReturnType;
+  const Type *ReturnType;
   std::vector<ParamDecl> Params;
+  std::vector<std::unique_ptr<Expr>> Expressions;
 };
 
 StringLiteral ToString(FunctionDecl::FunctionKind kind);

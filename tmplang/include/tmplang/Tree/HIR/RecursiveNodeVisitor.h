@@ -4,6 +4,7 @@
 #include <llvm/Support/Casting.h>
 #include <tmplang/Tree/HIR/CompilationUnit.h>
 #include <tmplang/Tree/HIR/Decls.h>
+#include <tmplang/Tree/HIR/Exprs.h>
 
 namespace tmplang::hir {
 
@@ -61,10 +62,17 @@ protected:
     for (const auto &param : funcDecl.getParams()) {
       TRY_TO(traverseNode(param));
     }
+    for (const auto &expr : funcDecl.getBody()) {
+      TRY_TO(traverseNode(*expr));
+    }
     return true;
   }
   bool traverseParamDecl(const ParamDecl &paramDecl) {
     TRY_TO(visitNode(paramDecl));
+    return true;
+  }
+  bool traverseExprIntegerNumber(const ExprIntegerNumber &num) {
+    TRY_TO(visitNode(num));
     return true;
   }
   //=--------------------------------------------------------------------------=//

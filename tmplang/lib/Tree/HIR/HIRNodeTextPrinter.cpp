@@ -13,6 +13,7 @@ namespace {
 static constexpr TerminalColor AddressColor = {raw_ostream::YELLOW, false};
 static constexpr TerminalColor IdentifierColor = {raw_ostream::GREEN, false};
 static constexpr TerminalColor AttrColor = {raw_ostream::RED, false};
+static constexpr TerminalColor LiteralColor = {raw_ostream::RED, false};
 static constexpr TerminalColor SourceLocationColor = {raw_ostream::CYAN, true};
 static constexpr TerminalColor NodeColor = {raw_ostream::GREEN, true};
 static constexpr TerminalColor TypeColor = {raw_ostream::BLUE, true};
@@ -76,6 +77,14 @@ public:
     printIdentifier(paramDecl.getName());
     return true;
   }
+
+  bool visitExprIntegerNumber(const ExprIntegerNumber &exprNum) {
+    OS << ' ';
+    traverseType(exprNum.getType());
+    OS << " :";
+    printLiteral(exprNum.getNumber());
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//
@@ -107,6 +116,11 @@ public:
   //=--------------------------------------------------------------------------=//
 
 private:
+  template <typename T> void printLiteral(T literal) {
+    ColorScope color(OS, Cfg & Node::PrintConfig::Color, LiteralColor);
+    OS << ' ' << literal;
+  }
+
   void printAttribute(StringRef attr) {
     ColorScope color(OS, Cfg & Node::Color, AttrColor);
     OS << ' ' << attr;

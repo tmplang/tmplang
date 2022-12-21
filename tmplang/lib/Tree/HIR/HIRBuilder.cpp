@@ -2,7 +2,9 @@
 
 #include <llvm/ADT/DenseSet.h>
 #include <llvm/Support/Casting.h>
+#include <tmplang/Tree/HIR/Exprs.h>
 #include <tmplang/Tree/Source/CompilationUnit.h>
+#include <tmplang/Tree/Source/Exprs.h>
 
 using namespace tmplang;
 using namespace tmplang::hir;
@@ -47,12 +49,34 @@ private:
   Optional<FunctionDecl> get(const source::FunctionDecl &);
   Optional<ParamDecl> get(const source::ParamDecl &);
 
+  std::unique_ptr<Expr> get(const source::Expr &);
   const Type *get(const source::Type &);
 
 private:
   HIRContext &Ctx;
   SymbolTable SymTable;
 };
+
+std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
+  // Current only possible type is ExprIntegerNumber
+  auto &exprNum = *cast<source::ExprIntegerNumber>(&expr);
+
+  int32_t num = 0;
+  for (const char c : exprNum.getNumber().getLexeme()) {
+    if (c == '_') {
+      continue;
+    }
+    assert(llvm::is_contained("0123456789", c) && "Expected a number");
+
+    num *= 10;
+    num += c - '0';
+  }
+
+  // FIXME: For now all numbers are signed 32 bits
+  return std::make_unique<hir::ExprIntegerNumber>(
+      expr, hir::BuiltinType::get(Ctx, BuiltinType::K_i32),
+      llvm::APInt(32, num, /*isSigned=*/true));
+}
 
 const hir::Type *HIRBuilder::get(const source::Type &type) {
   switch (type.getKind()) {
@@ -124,11 +148,27 @@ Optional<FunctionDecl> HIRBuilder::get(const source::FunctionDecl &srcFunc) {
     return None;
   }
 
-  // TODO: Process body
+  std::vector<std::unique_ptr<Expr>> bodyExprs;
+
+  SymTable.pushScope();
+  for (const source::ExprStmt &expr : srcFunc.getBlock().Exprs) {
+    auto *srcExpr = expr.getExpr();
+    if (!srcExpr) {
+      continue;
+    }
+
+    std::unique_ptr<hir::Expr> hirExpr = get(*srcExpr);
+    if (!hirExpr) {
+      return None;
+    }
+
+    bodyExprs.push_back(std::move(hirExpr));
+  }
+  SymTable.popScope();
 
   return FunctionDecl(srcFunc, srcFunc.getName(),
                       GetFunctionKind(srcFunc.getFuncType()), *hirReturnType,
-                      std::move(paramList));
+                      std::move(paramList), std::move(bodyExprs));
 }
 
 Optional<CompilationUnit>
