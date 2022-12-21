@@ -1,10 +1,9 @@
+#include <llvm/Support/Debug.h>
+#include <tmplang/Tree/Source/Expr.h>
 #include <tmplang/Tree/Source/RecursiveNodeVisitor.h>
 #include <tmplang/Tree/Source/RecursiveTypeVisitor.h>
 
-#include <llvm/Support/Debug.h>
-
 #include "../TreeFormatPrinter.h"
-#include "llvm/ADT/Optional.h"
 
 using namespace tmplang;
 using namespace tmplang::source;
@@ -97,6 +96,15 @@ public:
     }
     return true;
   }
+  bool visitExprStmt(const ExprStmt &exprStmt) {
+    printToken(exprStmt.getSemicolon());
+    return true;
+  }
+  bool visitExprIntegerNumber(const ExprIntegerNumber &exprIntegerNumber) {
+    printToken(exprIntegerNumber.getNumber());
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

@@ -5,6 +5,7 @@
 #include <tmplang/Lexer/Token.h>
 #include <tmplang/Tree/Source/CommonConstructs.h>
 #include <tmplang/Tree/Source/Decl.h>
+#include <tmplang/Tree/Source/Expr.h>
 #include <tmplang/Tree/Source/Types.h>
 
 namespace tmplang::source {
@@ -47,6 +48,12 @@ public:
     RAIIType RetType;
   };
 
+  struct Block {
+    Token LKeyBracket;
+    SmallVector<source::ExprStmt> Exprs;
+    Token RKeyBracket;
+  };
+
   const Type *getReturnType() const {
     return OptArrowAndType ? OptArrowAndType->RetType.get() : nullptr;
   }
@@ -58,14 +65,15 @@ public:
   Optional<Token> getArrow() const {
     return OptArrowAndType ? OptArrowAndType->Arrow : Optional<Token>{};
   }
-  Token getLKeyBracket() const { return LKeyBracket; }
-  Token getRKeyBracket() const { return RKeyBracket; }
+  Token getLKeyBracket() const { return B.LKeyBracket; }
+  Token getRKeyBracket() const { return B.RKeyBracket; }
+  const Block &getBlock() const { return B; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return FuncType.getSpan().Start;
   }
   tmplang::SourceLocation getEndLoc() const override {
-    return RKeyBracket.getSpan().End;
+    return B.RKeyBracket.getSpan().End;
   }
 
   static bool classof(const Node *node) {
@@ -76,14 +84,13 @@ public:
   /// fn foo: i32 a, f32 b {}
   /// fn foo -> i32 {}
   /// fn foo {}
-  FunctionDecl(Token funcType, Token identifier, Token lKeyBracket,
-               Token rKeyBracket, Optional<Token> colon = llvm::None,
+  FunctionDecl(Token funcType, Token identifier, Block block,
+               Optional<Token> colon = llvm::None,
                SmallVector<source::ParamDecl, 4> paramList = {},
                Optional<ArrowAndType> arrowAndType = llvm::None)
       : Decl(Kind::FunctionDecl), FuncType(funcType), Identifier(identifier),
         Colon(colon), ParamList(std::move(paramList)),
-        OptArrowAndType(std::move(arrowAndType)), LKeyBracket(lKeyBracket),
-        RKeyBracket(rKeyBracket) {}
+        OptArrowAndType(std::move(arrowAndType)), B(std::move(block)) {}
 
   FunctionDecl(FunctionDecl &&) = default;
   FunctionDecl &operator=(FunctionDecl &&) = default;
@@ -95,9 +102,7 @@ private:
   Optional<Token> Colon;
   SmallVector<source::ParamDecl, 4> ParamList;
   Optional<ArrowAndType> OptArrowAndType;
-  Token LKeyBracket;
-  /// TODO: Add body
-  Token RKeyBracket;
+  Block B;
 };
 
 } // namespace tmplang::source

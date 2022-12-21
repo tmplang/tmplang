@@ -1,8 +1,8 @@
 #ifndef TMPLANG_TREE_SOURCE_RECURSIVENODEVISITOR_H
 #define TMPLANG_TREE_SOURCE_RECURSIVENODEVISITOR_H
 
-#include <llvm/Support/Casting.h>
 #include <tmplang/Tree/Source/CompilationUnit.h>
+#include <tmplang/Tree/Source/Exprs.h>
 
 namespace tmplang::source {
 
@@ -60,10 +60,24 @@ protected:
     for (const ParamDecl &param : funcDecl.getParams()) {
       TRY_TO(traverseNode(param));
     }
+    for (const ExprStmt &exprStmt : funcDecl.getBlock().Exprs) {
+      TRY_TO(traverseNode(exprStmt));
+    }
     return true;
   }
   bool traverseParamDecl(const ParamDecl &paramDecl) {
     TRY_TO(visitNode(paramDecl));
+    return true;
+  }
+  bool traverseExprStmt(const ExprStmt &exprStmt) {
+    TRY_TO(visitNode(exprStmt));
+    if (auto *expr = exprStmt.getExpr()) {
+      TRY_TO(traverseNode(*expr));
+    }
+    return true;
+  }
+  bool traverseExprIntegerNumber(const ExprIntegerNumber &exprIntegerNumber) {
+    TRY_TO(visitNode(exprIntegerNumber));
     return true;
   }
   //=--------------------------------------------------------------------------=//

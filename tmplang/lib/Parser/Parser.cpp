@@ -4,6 +4,7 @@
 #include <tmplang/Diagnostics/Diagnostic.h>
 #include <tmplang/Diagnostics/Hint.h>
 #include <tmplang/Tree/Source/Decls.h>
+#include <tmplang/Tree/Source/Exprs.h>
 #include <tmplang/Tree/Source/Types.h>
 
 using namespace tmplang;
@@ -14,6 +15,8 @@ struct LexicalScope {
   Token LKeyBracket;
   Token RKeyBracket;
 };
+
+using RAIIExpr = std::unique_ptr<source::Expr>;
 
 class Parser {
 public:
@@ -41,11 +44,15 @@ private:
   Optional<source::ParamDecl> Param();
   Optional<Token> missingVariableOnParamRecovery();
 
-  Optional<LexicalScope> Block();
+  Optional<source::FunctionDecl::Block> Block();
   Optional<Token> missingLeftKeyBracketRecovery();
   Optional<Token> missingRightKeyBracketRecovery();
 
+  RAIIExpr Expr();
+  Optional<Token> missingSemicolonAfterExpressionRecovery();
+
   Optional<Token> Identifier();
+  Optional<Token> Number();
 
   // Types...
   source::RAIIType Type();
@@ -167,8 +174,7 @@ Optional<source::FunctionDecl> Parser::ArrowAndEndOfSubprogramFactored(
     }
 
     return source::FunctionDecl(
-        funcType, id, block->LKeyBracket, block->RKeyBracket, colon,
-        std::move(paramList),
+        funcType, id, std::move(*block), colon, std::move(paramList),
         source::FunctionDecl::ArrowAndType{*arrow, std::move(returnType)});
   }
 
@@ -179,8 +185,8 @@ Optional<source::FunctionDecl> Parser::ArrowAndEndOfSubprogramFactored(
     return None;
   }
 
-  return source::FunctionDecl(funcType, id, block->LKeyBracket,
-                              block->RKeyBracket, colon, std::move(paramList));
+  return source::FunctionDecl(funcType, id, std::move(*block), colon,
+                              std::move(paramList));
 }
 
 /// Function_type = "proc" | "fn";
@@ -348,13 +354,36 @@ Optional<Token> Parser::missingVariableOnParamRecovery() {
   return getRecoveryToken(paramId, TK_Identifier);
 }
 
-/// Block = "{" "}";
-Optional<LexicalScope> Parser::Block() {
+/// Block = "{" (Expr ";")* "}";
+Optional<source::FunctionDecl::Block> Parser::Block() {
   auto lKeyBracket =
       parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>,
                         &Parser::missingLeftKeyBracketRecovery>();
   if (!lKeyBracket) {
     return None;
+  }
+
+  SmallVector<source::ExprStmt> exprs;
+  while (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegralNumber, TK_Semicolon)) {
+    if (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegralNumber)) {
+      auto expr = Expr();
+      if (!expr) {
+        // Errors already reported
+        return None;
+      }
+
+      auto semicolon =
+          parseOrTryRecover<&Parser::ParseToken<TK_Semicolon>,
+                            &Parser::missingSemicolonAfterExpressionRecovery>();
+      if (!semicolon) {
+        return None;
+      }
+
+      exprs.push_back(source::ExprStmt(std::move(expr), *semicolon));
+    } else if (tk().is(TK_Semicolon)) {
+      // Consume dangling ';'s
+      exprs.push_back(source::ExprStmt(nullptr, consume()));
+    }
   }
 
   auto rKeyBracket =
@@ -364,7 +393,8 @@ Optional<LexicalScope> Parser::Block() {
     return None;
   }
 
-  return LexicalScope{*lKeyBracket, *rKeyBracket};
+  return source::FunctionDecl::Block{*lKeyBracket, std::move(exprs),
+                                     *rKeyBracket};
 }
 
 Optional<Token> Parser::missingLeftKeyBracketRecovery() {
@@ -497,9 +527,43 @@ Optional<Token> Parser::missingRightParenthesesOfTupleRecovery() {
   return getRecoveryToken(TK_RParentheses);
 }
 
+RAIIExpr Parser::Expr() {
+  if (auto num = Number()) {
+    return std::make_unique<source::ExprIntegerNumber>(*num);
+  }
+
+  return nullptr;
+}
+
+Optional<Token> Parser::missingSemicolonAfterExpressionRecovery() {
+  // 1:
+  //   5
+  // }  ^___ semicolon here
+
+  // 2:
+  //   5
+  //   <Start_of_expr>;
+  //    ^___ semicolon here
+  const bool missingSemicolon = tk().isOneOf(TK_RKeyBracket, TK_IntegralNumber);
+  if (!missingSemicolon) {
+    return None;
+  }
+
+  Diagnostic(
+      DiagId::err_missing_semicolon_after_expr, prevTk().getSpan(),
+      InsertTextAtHint(prevTk().getSpan().End + 1, ToString(TK_Semicolon)))
+      .print(Out, SM);
+
+  return getRecoveryToken(TK_Semicolon);
+}
+
 /// Identifier = [a-zA-Z][a-zA-Z0-9]*;
 Optional<Token> Parser::Identifier() {
   return tk().is(TK_Identifier) ? consume() : Optional<Token>{};
+}
+
+Optional<Token> Parser::Number() {
+  return tk().is(TK_IntegralNumber) ? consume() : Optional<Token>{};
 }
 
 const Token &Parser::prevTk() const { return ParserState.PrevToken; }
