@@ -75,6 +75,13 @@ protected:
     TRY_TO(visitNode(num));
     return true;
   }
+  bool traverseExprRet(const ExprRet &exprRet) {
+    TRY_TO(visitNode(exprRet));
+    if (auto *retExpr = exprRet.getReturnedExpr()) {
+      TRY_TO(traverseNode(*retExpr));
+    }
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//

@@ -50,6 +50,9 @@ private:
   Optional<ParamDecl> get(const source::ParamDecl &);
 
   std::unique_ptr<Expr> get(const source::Expr &);
+  std::unique_ptr<ExprIntegerNumber> get(const source::ExprIntegerNumber &);
+  std::unique_ptr<ExprRet> get(const source::ExprRet &);
+
   const Type *get(const source::Type &);
 
 private:
@@ -57,12 +60,10 @@ private:
   SymbolTable SymTable;
 };
 
-std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
-  // Current only possible type is ExprIntegerNumber
-  auto &exprNum = *cast<source::ExprIntegerNumber>(&expr);
-
+std::unique_ptr<ExprIntegerNumber>
+HIRBuilder::get(const source::ExprIntegerNumber &exprIntNum) {
   int32_t num = 0;
-  for (const char c : exprNum.getNumber().getLexeme()) {
+  for (const char c : exprIntNum.getNumber().getLexeme()) {
     if (c == '_') {
       continue;
     }
@@ -74,8 +75,29 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
 
   // FIXME: For now all numbers are signed 32 bits
   return std::make_unique<hir::ExprIntegerNumber>(
-      expr, hir::BuiltinType::get(Ctx, BuiltinType::K_i32),
+      exprIntNum, hir::BuiltinType::get(Ctx, BuiltinType::K_i32),
       llvm::APInt(32, num, /*isSigned=*/true));
+}
+
+std::unique_ptr<ExprRet> HIRBuilder::get(const source::ExprRet &exprRet) {
+  auto returnedExpr =
+      exprRet.getReturnedExpr() ? get(*exprRet.getReturnedExpr()) : nullptr;
+
+  return std::make_unique<hir::ExprRet>(
+      exprRet, returnedExpr ? returnedExpr->getType() : TupleType::getUnit(Ctx),
+      std::move(returnedExpr));
+}
+
+std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
+  switch (expr.getKind()) {
+  case source::Node::Kind::ExprIntegerNumber:
+    return get(*cast<source::ExprIntegerNumber>(&expr));
+  case source::Node::Kind::ExprRet:
+    return get(*cast<source::ExprRet>(&expr));
+  default:
+    break;
+  }
+  llvm_unreachable("This should not be reachable");
 }
 
 const hir::Type *HIRBuilder::get(const source::Type &type) {

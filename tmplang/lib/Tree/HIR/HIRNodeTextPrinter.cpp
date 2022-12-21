@@ -85,6 +85,12 @@ public:
     printLiteral(exprNum.getNumber());
     return true;
   }
+
+  bool visitExprRet(const ExprRet &exprRet) {
+    OS << ' ';
+    traverseType(exprRet.getType());
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

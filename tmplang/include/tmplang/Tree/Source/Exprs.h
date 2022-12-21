@@ -26,6 +26,30 @@ private:
   Token Number;
 };
 
+class ExprRet final : public Expr {
+public:
+  ExprRet(Token ret, std::unique_ptr<Expr> expr = nullptr)
+      : Expr(Kind::ExprRet), Ret(ret), ExprToRet(std::move(expr)) {}
+
+  const Token &getRetTk() const { return Ret; }
+  const Expr *getReturnedExpr() const { return ExprToRet.get(); }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Ret.getSpan().Start;
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return ExprToRet ? ExprToRet->getEndLoc() : Ret.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprRet;
+  }
+
+private:
+  Token Ret;
+  std::unique_ptr<Expr> ExprToRet;
+};
+
 } // namespace tmplang::source
 
 #endif // TMPLANG_TREE_SOURCE_EXPRS_H

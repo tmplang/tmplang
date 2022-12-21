@@ -31,6 +31,7 @@ enum TokenKind {
   // Keywords
   TK_FnType,
   TK_ProcType,
+  TK_Ret,
 };
 StringLiteral ToString(TokenKind tk);
 raw_ostream &operator<<(raw_ostream &out, TokenKind k);

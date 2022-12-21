@@ -18,6 +18,7 @@ BothNode(FunctionDecl)
 BothNode(ParamDecl)
 SourceNode(ExprStmt)
 BothNode(ExprIntegerNumber)
+BothNode(ExprRet)
 
 #undef BothNode 
 #undef HIRNode 

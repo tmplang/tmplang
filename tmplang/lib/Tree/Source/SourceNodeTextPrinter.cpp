@@ -104,7 +104,10 @@ public:
     printToken(exprIntegerNumber.getNumber());
     return true;
   }
-
+  bool visitExprRet(const ExprRet &exprRet) {
+    printToken(exprRet.getRetTk());
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

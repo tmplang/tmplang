@@ -133,7 +133,7 @@ Token Lexer::next() {
   // Identifier, ProcType and FnType case. Since all of them are a sequence of
   // alphabetic values we can handle them here together.
   // CAVEAT: This is currently correct because the pattern a identifier matches
-  // with, is compatible with "fn" and "proc:"
+  // with, is compatible with "fn", "proc" and "ret":
   StringRef potentialId = GetIdentifier(State.CurrentInput);
 
   if (potentialId.empty()) {
@@ -144,6 +144,7 @@ Token Lexer::next() {
   TokenKind tk = StringSwitch<TokenKind>(potentialId)
                      .Case(ToString(TK_ProcType), TK_ProcType)
                      .Case(ToString(TK_FnType), TK_FnType)
+                     .Case(ToString(TK_Ret), TK_Ret)
                      .Default(TK_Identifier);
 
   if (tk == TK_Identifier) {

@@ -22,6 +22,22 @@ private:
   llvm::APInt Num;
 };
 
+class ExprRet final : public Expr {
+public:
+  ExprRet(const source::Node &srcNode, const Type &ty,
+          std::unique_ptr<Expr> expr = nullptr)
+      : Expr(Kind::ExprRet, srcNode, ty), ExprToRet(std::move(expr)) {}
+
+  const Expr *getReturnedExpr() const { return ExprToRet.get(); }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprRet;
+  }
+
+private:
+  std::unique_ptr<Expr> ExprToRet;
+};
+
 } // namespace tmplang::hir
 
 #endif // TMPLANG_TREE_HIR_EXPRS_H

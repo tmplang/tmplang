@@ -1,4 +1,3 @@
-#include "tmplang/Lexer/Token.h"
 #include <tmplang/Parser/Parser.h>
 
 #include <tmplang/Diagnostics/Diagnostic.h>
@@ -47,6 +46,8 @@ private:
   Optional<source::FunctionDecl::Block> Block();
   Optional<Token> missingLeftKeyBracketRecovery();
   Optional<Token> missingRightKeyBracketRecovery();
+
+  Optional<std::vector<source::ExprStmt>> ExprList();
 
   RAIIExpr Expr();
   Optional<Token> missingSemicolonAfterExpressionRecovery();
@@ -354,7 +355,7 @@ Optional<Token> Parser::missingVariableOnParamRecovery() {
   return getRecoveryToken(paramId, TK_Identifier);
 }
 
-/// Block = "{" (Expr ";")* "}";
+/// Block = "{" ExprList "}";
 Optional<source::FunctionDecl::Block> Parser::Block() {
   auto lKeyBracket =
       parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>,
@@ -363,27 +364,10 @@ Optional<source::FunctionDecl::Block> Parser::Block() {
     return None;
   }
 
-  SmallVector<source::ExprStmt> exprs;
-  while (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegralNumber, TK_Semicolon)) {
-    if (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegralNumber)) {
-      auto expr = Expr();
-      if (!expr) {
-        // Errors already reported
-        return None;
-      }
-
-      auto semicolon =
-          parseOrTryRecover<&Parser::ParseToken<TK_Semicolon>,
-                            &Parser::missingSemicolonAfterExpressionRecovery>();
-      if (!semicolon) {
-        return None;
-      }
-
-      exprs.push_back(source::ExprStmt(std::move(expr), *semicolon));
-    } else if (tk().is(TK_Semicolon)) {
-      // Consume dangling ';'s
-      exprs.push_back(source::ExprStmt(nullptr, consume()));
-    }
+  Optional<std::vector<source::ExprStmt>> exprs = ExprList();
+  if (!exprs) {
+    // Errors already reported
+    return None;
   }
 
   auto rKeyBracket =
@@ -393,7 +377,7 @@ Optional<source::FunctionDecl::Block> Parser::Block() {
     return None;
   }
 
-  return source::FunctionDecl::Block{*lKeyBracket, std::move(exprs),
+  return source::FunctionDecl::Block{*lKeyBracket, std::move(*exprs),
                                      *rKeyBracket};
 }
 
@@ -527,9 +511,58 @@ Optional<Token> Parser::missingRightParenthesesOfTupleRecovery() {
   return getRecoveryToken(TK_RParentheses);
 }
 
+/// ExprStmt = Expr ";"
+/// ExprList = ExprStmt*
+Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
+  std::vector<source::ExprStmt> result;
+
+  while (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegralNumber, TK_Ret, TK_Semicolon)) {
+    if (tk().is(TK_Semicolon)) {
+      // Consume dangling ';'s
+      result.push_back(source::ExprStmt(nullptr, consume()));
+      continue;
+    }
+
+    auto expr = Expr();
+    if (!expr) {
+      // Errors already reported
+      return None;
+    }
+
+    auto semicolon =
+        parseOrTryRecover<&Parser::ParseToken<TK_Semicolon>,
+                          &Parser::missingSemicolonAfterExpressionRecovery>();
+    if (!semicolon) {
+      return None;
+    }
+
+    result.push_back(source::ExprStmt(std::move(expr), *semicolon));
+  }
+
+  return result;
+}
+
+/// Expr = ExprNumber | "ret" Expr
 RAIIExpr Parser::Expr() {
   if (auto num = Number()) {
     return std::make_unique<source::ExprIntegerNumber>(*num);
+  }
+
+  if (tk().is(TK_Ret)) {
+    Token ret = consume();
+
+    if (tk().is(tmplang::TK_Semicolon)) {
+      return std::make_unique<source::ExprRet>(ret);
+    }
+
+    auto retExpr = Expr();
+    if (!retExpr) {
+      Diagnostic(DiagId::err_missing_expression_after_ret_keyword,
+                 prevTk().getSpan(), NoHint{})
+          .print(Out, SM);
+      return nullptr;
+    }
+    return std::make_unique<source::ExprRet>(ret, std::move(retExpr));
   }
 
   return nullptr;

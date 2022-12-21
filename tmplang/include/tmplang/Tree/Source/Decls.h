@@ -50,7 +50,7 @@ public:
 
   struct Block {
     Token LKeyBracket;
-    SmallVector<source::ExprStmt> Exprs;
+    std::vector<source::ExprStmt> Exprs;
     Token RKeyBracket;
   };
 
