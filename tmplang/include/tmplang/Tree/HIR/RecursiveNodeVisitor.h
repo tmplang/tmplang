@@ -15,29 +15,22 @@ namespace tmplang::hir {
 
 template <typename Derived> class RecursiveASTVisitor {
 public:
-  // TODO: Define nodes on .def file to use macro magic
   bool traverseNode(const Node &node) {
     switch (node.getKind()) {
-    case Node::Kind::CompilationUnit:
-      return getDerived().traverseCompilationUnit(
-          *cast<CompilationUnit>(&node));
-    case Node::Kind::FuncDecl:
-      return getDerived().traverseFuncDecl(*cast<FunctionDecl>(&node));
-    case Node::Kind::ParamDecl:
-      return getDerived().traverseParamDecl(*cast<ParamDecl>(&node));
+#define HIRNode(K)                                                             \
+  case Node::Kind::K:                                                          \
+    return getDerived().traverse##K(*cast<K>(&node));
+#include "../Nodes.def"
     }
     llvm_unreachable("All cases are handled");
   }
 
-  // TODO: Define nodes on .def file to use macro magic
   bool visitNode(const Node &node) {
     switch (node.getKind()) {
-    case Node::Kind::CompilationUnit:
-      return getDerived().visitCompilationUnit(*cast<CompilationUnit>(&node));
-    case Node::Kind::FuncDecl:
-      return getDerived().visitFunctionDecl(*cast<FunctionDecl>(&node));
-    case Node::Kind::ParamDecl:
-      return getDerived().visitParamDecl(*cast<ParamDecl>(&node));
+#define HIRNode(K)                                                             \
+  case Node::Kind::K:                                                          \
+    return getDerived().visit##K(*cast<K>(&node));
+#include "../Nodes.def"
     }
     llvm_unreachable("All cases are handled");
   }
@@ -46,10 +39,9 @@ protected:
   //=--------------------------------------------------------------------------=//
   // Begin visit functions
   //=--------------------------------------------------------------------------=//
-  // TODO: Define nodes on .def file to use macro magic
-  bool visitCompilationUnit(const CompilationUnit &) { return true; }
-  bool visitFunctionDecl(const FunctionDecl &) { return true; }
-  bool visitParamDecl(const ParamDecl &) { return true; }
+#define HIRNode(K)                                                             \
+  bool visit##K(const K &) { return true; }
+#include "../Nodes.def"
   //=--------------------------------------------------------------------------=//
   // End visit functions
   //=--------------------------------------------------------------------------=//
@@ -64,7 +56,7 @@ protected:
     }
     return true;
   }
-  bool traverseFuncDecl(const FunctionDecl &funcDecl) {
+  bool traverseFunctionDecl(const FunctionDecl &funcDecl) {
     TRY_TO(visitNode(funcDecl));
     for (const auto &param : funcDecl.getParams()) {
       TRY_TO(traverseNode(param));

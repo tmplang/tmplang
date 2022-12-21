@@ -41,13 +41,13 @@ public:
   ArrayRef<ParamDecl> getParams() const { return Params; }
 
   static bool classof(const Node *node) {
-    return node->getKind() == Node::Kind::FuncDecl;
+    return node->getKind() == Node::Kind::FunctionDecl;
   }
 
   explicit FunctionDecl(const source::Node &srcNode, StringRef name,
                         FunctionKind kind, const Type &returnType,
                         std::vector<ParamDecl> params)
-      : Decl(Node::Kind::FuncDecl, srcNode, name), FuncKind(kind),
+      : Decl(Node::Kind::FunctionDecl, srcNode, name), FuncKind(kind),
         ReturnType(returnType), Params(std::move(params)) {}
   virtual ~FunctionDecl() = default;
 

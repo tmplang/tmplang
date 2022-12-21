@@ -49,11 +49,10 @@ private:
 
 inline StringLiteral ToString(Node::Kind kind) {
   switch (kind) {
-#define HIRNode(KIND)                                                          \
+#define SourceNode(KIND)                                                       \
   case Node::Kind::KIND:                                                       \
     return #KIND;
 #include "../Nodes.def"
-#undef HIRNode
   };
   llvm_unreachable("All cases covered");
 }

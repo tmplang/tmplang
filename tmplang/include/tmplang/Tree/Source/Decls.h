@@ -69,7 +69,7 @@ public:
   }
 
   static bool classof(const Node *node) {
-    return node->getKind() == Node::Kind::FuncDecl;
+    return node->getKind() == Node::Kind::FunctionDecl;
   }
 
   /// fn foo: i32 a, f32 b -> i32 {}
@@ -80,7 +80,7 @@ public:
                Token rKeyBracket, Optional<Token> colon = llvm::None,
                SmallVector<source::ParamDecl, 4> paramList = {},
                Optional<ArrowAndType> arrowAndType = llvm::None)
-      : Decl(Kind::FuncDecl), FuncType(funcType), Identifier(identifier),
+      : Decl(Kind::FunctionDecl), FuncType(funcType), Identifier(identifier),
         Colon(colon), ParamList(std::move(paramList)),
         OptArrowAndType(std::move(arrowAndType)), LKeyBracket(lKeyBracket),
         RKeyBracket(rKeyBracket) {}

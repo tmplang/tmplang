@@ -3,4 +3,4 @@
 fn foo -> i32 {}
 
 //      CHECK:CompilationUnit:
-// CHECK-NEXT:FuncDecl: fn foo -> i32
+// CHECK-NEXT:FunctionDecl: fn foo -> i32

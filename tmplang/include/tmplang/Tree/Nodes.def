@@ -14,7 +14,7 @@
 #endif
 
 BothNode(CompilationUnit)
-BothNode(FuncDecl)
+BothNode(FunctionDecl)
 BothNode(ParamDecl)
 
 #undef BothNode 

@@ -3,4 +3,4 @@
 fn foo {}
 
 //      CHECK:CompilationUnit:
-// CHECK-NEXT:FuncDecl: fn foo -> ()
+// CHECK-NEXT:FunctionDecl: fn foo -> ()
