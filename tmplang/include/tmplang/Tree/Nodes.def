@@ -16,6 +16,8 @@
 BothNode(CompilationUnit)
 BothNode(FunctionDecl)
 BothNode(ParamDecl)
+SourceNode(ExprStmt)
+BothNode(ExprIntegerNumber)
 
 #undef BothNode 
 #undef HIRNode 
