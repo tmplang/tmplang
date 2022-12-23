@@ -80,6 +80,18 @@ protected:
     TRY_TO(visitNode(exprIntegerNumber));
     return true;
   }
+  bool traverseExprTuple(const ExprTuple &exprTuple) {
+    TRY_TO(visitNode(exprTuple));
+    for (const auto &tupleVal : exprTuple.getVals()) {
+      TRY_TO(traverseNode(tupleVal));
+    }
+    return true;
+  }
+  bool traverseTupleElem(const TupleElem &tupleElem) {
+    TRY_TO(visitNode(tupleElem));
+    TRY_TO(traverseNode(tupleElem.getVal()));
+    return true;
+  }
   bool traverseExprRet(const ExprRet &exprRet) {
     TRY_TO(visitNode(exprRet));
     if (auto *retExpr = exprRet.getReturnedExpr()) {

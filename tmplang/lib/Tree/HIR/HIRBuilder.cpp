@@ -52,6 +52,7 @@ private:
   std::unique_ptr<Expr> get(const source::Expr &);
   std::unique_ptr<ExprIntegerNumber> get(const source::ExprIntegerNumber &);
   std::unique_ptr<ExprRet> get(const source::ExprRet &);
+  std::unique_ptr<ExprTuple> get(const source::ExprTuple &);
 
   const Type *get(const source::Type &);
 
@@ -88,8 +89,26 @@ std::unique_ptr<ExprRet> HIRBuilder::get(const source::ExprRet &exprRet) {
       std::move(returnedExpr));
 }
 
+std::unique_ptr<ExprTuple> HIRBuilder::get(const source::ExprTuple &exprTuple) {
+  SmallVector<std::unique_ptr<hir::Expr>, 4> values;
+  llvm::transform(
+      exprTuple.getVals(), std::back_inserter(values),
+      [&](const source::TupleElem &elem) { return get(elem.getVal()); });
+
+  SmallVector<const Type *> tupleTys;
+  tupleTys.reserve(values.size());
+  llvm::transform(
+      values, std::back_inserter(tupleTys),
+      [&](std::unique_ptr<hir::Expr> &expr) { return &expr->getType(); });
+
+  return std::make_unique<hir::ExprTuple>(
+      exprTuple, TupleType::get(Ctx, tupleTys), std::move(values));
+}
+
 std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
   switch (expr.getKind()) {
+  case source::Node::Kind::ExprTuple:
+    return get(*cast<source::ExprTuple>(&expr));
   case source::Node::Kind::ExprIntegerNumber:
     return get(*cast<source::ExprIntegerNumber>(&expr));
   case source::Node::Kind::ExprRet:

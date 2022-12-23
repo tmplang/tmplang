@@ -26,6 +26,58 @@ private:
   Token Number;
 };
 
+class TupleElem final : public Node {
+public:
+  TupleElem(std::unique_ptr<Expr> val)
+      : Node(Kind::TupleElem), Val(std::move(val)) {}
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Val->getBeginLoc();
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return Comma ? Comma->getSpan().End : Val->getEndLoc();
+  }
+
+  const Expr &getVal() const { return *Val; }
+  const Optional<Token> &getComma() const { return Comma; }
+  void setComma(Token comma) { Comma = comma; }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::TupleElem;
+  }
+
+private:
+  std::unique_ptr<Expr> Val;
+  Optional<Token> Comma;
+};
+
+class ExprTuple final : public Expr {
+public:
+  ExprTuple(Token lParen, SmallVector<TupleElem, 4> values, Token rParen)
+      : Expr(Kind::ExprTuple), LParen(lParen), Values(std::move(values)),
+        RParen(rParen) {}
+
+  const Token &getLParen() const { return LParen; }
+  const Token &getRParen() const { return RParen; }
+  ArrayRef<TupleElem> getVals() const { return Values; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return LParen.getSpan().Start;
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return RParen.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprTuple;
+  }
+
+private:
+  Token LParen;
+  SmallVector<TupleElem, 4> Values;
+  Token RParen;
+};
+
 class ExprRet final : public Expr {
 public:
   ExprRet(Token ret, std::unique_ptr<Expr> expr = nullptr)

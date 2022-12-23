@@ -4,6 +4,7 @@
 #include <tmplang/Tree/Source/RecursiveTypeVisitor.h>
 
 #include "../TreeFormatPrinter.h"
+#include "tmplang/Tree/Source/Exprs.h"
 
 using namespace tmplang;
 using namespace tmplang::source;
@@ -102,6 +103,17 @@ public:
   }
   bool visitExprIntegerNumber(const ExprIntegerNumber &exprIntegerNumber) {
     printToken(exprIntegerNumber.getNumber());
+    return true;
+  }
+  bool visitExprTuple(const ExprTuple &exprTuple) {
+    printToken(exprTuple.getLParen());
+    printToken(exprTuple.getRParen());
+    return true;
+  }
+  bool visitTupleElem(const TupleElem &tupleElem) {
+    if (auto &comma = tupleElem.getComma()) {
+      printToken(*comma);
+    }
     return true;
   }
   bool visitExprRet(const ExprRet &exprRet) {

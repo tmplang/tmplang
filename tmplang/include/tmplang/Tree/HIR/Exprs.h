@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/APInt.h>
 #include <tmplang/Tree/HIR/Expr.h>
+#include <tmplang/Tree/HIR/Types.h>
 
 namespace tmplang::hir {
 
@@ -20,6 +21,22 @@ public:
 
 private:
   llvm::APInt Num;
+};
+
+class ExprTuple final : public Expr {
+public:
+  ExprTuple(const source::Node &srcNode, const TupleType &ty,
+            SmallVector<std::unique_ptr<hir::Expr>, 4> values)
+      : Expr(Kind::ExprTuple, srcNode, ty), Values(std::move(values)) {}
+
+  ArrayRef<std::unique_ptr<Expr>> getVals() const { return Values; }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprTuple;
+  }
+
+private:
+  SmallVector<std::unique_ptr<Expr>, 4> Values;
 };
 
 class ExprRet final : public Expr {

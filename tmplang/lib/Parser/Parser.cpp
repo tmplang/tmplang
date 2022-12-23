@@ -54,6 +54,8 @@ private:
 
   Optional<Token> Identifier();
   Optional<Token> Number();
+  std::unique_ptr<source::ExprTuple> ExprTuple();
+  Optional<Token> missingCommaBetweenTupleElemsRecovery();
 
   // Types...
   source::RAIIType Type();
@@ -516,8 +518,8 @@ Optional<Token> Parser::missingRightParenthesesOfTupleRecovery() {
 Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   std::vector<source::ExprStmt> result;
 
-  while (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegerNumber, TK_Ret,
-                      TK_Semicolon)) {
+  while (tk().isOneOf(/*firstTokensOfExpr*/ TK_LParentheses, TK_IntegerNumber,
+                      TK_Ret, TK_Semicolon)) {
     if (tk().is(TK_Semicolon)) {
       // Consume dangling ';'s
       result.push_back(source::ExprStmt(nullptr, consume()));
@@ -543,7 +545,7 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   return result;
 }
 
-/// Expr = ExprNumber | "ret" Expr
+/// Expr = ExprNumber | "ret" Expr | ExprTuple
 RAIIExpr Parser::Expr() {
   if (auto num = Number()) {
     return std::make_unique<source::ExprIntegerNumber>(*num);
@@ -564,6 +566,10 @@ RAIIExpr Parser::Expr() {
       return nullptr;
     }
     return std::make_unique<source::ExprRet>(ret, std::move(retExpr));
+  }
+
+  if (tk().is(TK_LParentheses)) {
+    return ExprTuple();
   }
 
   return nullptr;
@@ -598,6 +604,71 @@ Optional<Token> Parser::Identifier() {
 
 Optional<Token> Parser::Number() {
   return tk().is(TK_IntegerNumber) ? consume() : Optional<Token>{};
+}
+
+std::unique_ptr<source::ExprTuple> Parser::ExprTuple() {
+  Token lparentheses = consume();
+  assert(lparentheses.is(TK_LParentheses) &&
+         "This is validated on the call-site");
+
+  SmallVector<source::TupleElem, 4> vals;
+
+  if (tk().isOneOf(/*firstTokensOfExpr*/ TK_LParentheses, TK_IntegerNumber)) {
+    auto firstExpr = Expr();
+    if (!firstExpr) {
+      // Nothing to report here, reported on Expr
+      return nullptr;
+    }
+
+    vals.push_back(std::move(firstExpr));
+
+    while (
+        auto comma =
+            parseOrTryRecover<&Parser::ParseToken<TK_Comma>,
+                              &Parser::missingCommaBetweenTupleElemsRecovery>(
+                /*emitUnexpectedTokenDiag*/ false)) {
+      auto followingVal = Expr();
+      if (!followingVal) {
+        // Nothing to do here, reported on Expr
+        return nullptr;
+      }
+
+      vals.back().setComma(std::move(*comma));
+      vals.push_back(std::move(followingVal));
+    }
+  }
+
+  auto rparentheses =
+      parseOrTryRecover<&Parser::ParseToken<TK_RParentheses>,
+                        &Parser::missingRightParenthesesOfTupleRecovery>();
+  assert(rparentheses && "This is unconditionally valid");
+
+  return std::make_unique<source::ExprTuple>(lparentheses, std::move(vals),
+                                             *rparentheses);
+}
+
+Optional<Token> Parser::missingCommaBetweenTupleElemsRecovery() {
+  // fn foo: (() 3);
+  // fn foo: (5  3);
+  // fn foo: (5  ());
+  // fn foo: (5  3);
+  //            ^___ comma here
+
+  // But not in the following cases:
+  //   fn foo: (i32  var {}
+  const bool missingComma =
+      prevTk().isOneOf(TK_IntegerNumber, TK_RParentheses) &&
+      tk().isOneOf(TK_IntegerNumber, TK_LParentheses) &&
+      (nextTk().isNot(TK_IntegerNumber) && nextTk().isNot(TK_LKeyBracket));
+  if (!missingComma) {
+    return None;
+  }
+
+  Diagnostic(DiagId::err_missing_comma_prior_tuple_param, tk().getSpan(),
+             InsertTextAtHint(getStartCurrToken(), ToString(TK_Comma)))
+      .print(Out, SM);
+
+  return getRecoveryToken(TK_Comma);
 }
 
 const Token &Parser::prevTk() const { return ParserState.PrevToken; }

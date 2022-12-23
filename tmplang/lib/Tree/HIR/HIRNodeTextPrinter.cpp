@@ -86,6 +86,12 @@ public:
     return true;
   }
 
+  bool visitExprTuple(const ExprTuple &exprTuple) {
+    OS << ' ';
+    traverseType(exprTuple.getType());
+    return true;
+  }
+
   bool visitExprRet(const ExprRet &exprRet) {
     OS << ' ';
     traverseType(exprRet.getType());

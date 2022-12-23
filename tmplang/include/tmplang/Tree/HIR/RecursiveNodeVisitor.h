@@ -75,6 +75,13 @@ protected:
     TRY_TO(visitNode(num));
     return true;
   }
+  bool traverseExprTuple(const ExprTuple &exprTuple) {
+    TRY_TO(visitNode(exprTuple));
+    for (const auto &tupleVal : exprTuple.getVals()) {
+      TRY_TO(traverseNode(*tupleVal));
+    }
+    return true;
+  }
   bool traverseExprRet(const ExprRet &exprRet) {
     TRY_TO(visitNode(exprRet));
     if (auto *retExpr = exprRet.getReturnedExpr()) {
