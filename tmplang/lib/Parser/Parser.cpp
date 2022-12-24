@@ -516,7 +516,8 @@ Optional<Token> Parser::missingRightParenthesesOfTupleRecovery() {
 Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   std::vector<source::ExprStmt> result;
 
-  while (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegralNumber, TK_Ret, TK_Semicolon)) {
+  while (tk().isOneOf(/*firstTokensOfExpr*/ TK_IntegerNumber, TK_Ret,
+                      TK_Semicolon)) {
     if (tk().is(TK_Semicolon)) {
       // Consume dangling ';'s
       result.push_back(source::ExprStmt(nullptr, consume()));
@@ -577,7 +578,7 @@ Optional<Token> Parser::missingSemicolonAfterExpressionRecovery() {
   //   5
   //   <Start_of_expr>;
   //    ^___ semicolon here
-  const bool missingSemicolon = tk().isOneOf(TK_RKeyBracket, TK_IntegralNumber);
+  const bool missingSemicolon = tk().isOneOf(TK_RKeyBracket, TK_IntegerNumber);
   if (!missingSemicolon) {
     return None;
   }
@@ -596,7 +597,7 @@ Optional<Token> Parser::Identifier() {
 }
 
 Optional<Token> Parser::Number() {
-  return tk().is(TK_IntegralNumber) ? consume() : Optional<Token>{};
+  return tk().is(TK_IntegerNumber) ? consume() : Optional<Token>{};
 }
 
 const Token &Parser::prevTk() const { return ParserState.PrevToken; }

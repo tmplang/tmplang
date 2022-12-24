@@ -202,19 +202,19 @@ TEST(BasicLexer, Parentheses) {
 
 TEST(BasicLexer, Numbers) {
   TestLexer("1", {
-                     {"1", TK_IntegralNumber, {1, 1}, {1, 1}},
+                     {"1", TK_IntegerNumber, {1, 1}, {1, 1}},
                      {TK_EOF, {1, 2}, {1, 2}},
                  });
   TestLexer("1000", {
-                        {"1000", TK_IntegralNumber, {1, 1}, {1, 4}},
+                        {"1000", TK_IntegerNumber, {1, 1}, {1, 4}},
                         {TK_EOF, {1, 5}, {1, 5}},
                     });
   TestLexer("1_000_000", {
-                             {"1_000_000", TK_IntegralNumber, {1, 1}, {1, 9}},
+                             {"1_000_000", TK_IntegerNumber, {1, 1}, {1, 9}},
                              {TK_EOF, {1, 10}, {1, 10}},
                          });
   TestLexer("1_____00", {
-                            {"1_____00", TK_IntegralNumber, {1, 1}, {1, 8}},
+                            {"1_____00", TK_IntegerNumber, {1, 1}, {1, 8}},
                             {TK_EOF, {1, 9}, {1, 9}},
                         });
 }

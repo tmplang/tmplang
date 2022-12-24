@@ -127,7 +127,7 @@ Token Lexer::next() {
   // Numbers
   if (is_contained(AllNumbers, State.CurrentInput.front())) {
     const StringRef number = GetNumber(State.CurrentInput);
-    return tkBuilder.buildFromLexeme<TK_IntegralNumber>(number);
+    return tkBuilder.buildFromLexeme<TK_IntegerNumber>(number);
   }
 
   // Identifier, ProcType and FnType case. Since all of them are a sequence of
