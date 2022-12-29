@@ -6,6 +6,7 @@ target_link_libraries(tmplangc
   PRIVATE
   TmplangCLI
   TmplangLexer
+  TmplangLowering
   TmplangParser
   TmplangSourceTree
   TmplangSema

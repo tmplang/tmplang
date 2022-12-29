@@ -4,7 +4,7 @@ set(LLVM_EXTERNAL_PROJECTS   "tmplang" CACHE STRING "" FORCE)
 set(LLVM_EXTERNAL_TMPLANG_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../tmplang"     CACHE STRING "" FORCE)
 
 # Minimal required LLVM projects to build tmplang compiler
-set(LLVM_ENABLE_PROJECTS     ""   CACHE STRING "" FORCE)
+set(LLVM_ENABLE_PROJECTS     "mlir"   CACHE STRING "" FORCE)
 
 # Use optimized tablegen
 set(LLVM_OPTIMIZED_TABLEGEN  ON   CACHE BOOL "" FORCE)

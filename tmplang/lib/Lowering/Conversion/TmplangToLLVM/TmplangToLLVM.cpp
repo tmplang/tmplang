@@ -1,0 +1,126 @@
+#include <tmplang/Lowering/Conversion/TmplangToLLVM/TmplangToLLVM.h>
+
+#include <mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h>
+#include <mlir/Conversion/LLVMCommon/ConversionTarget.h>
+#include <mlir/Conversion/LLVMCommon/LoweringOptions.h>
+#include <mlir/Conversion/LLVMCommon/Pattern.h>
+#include <mlir/Conversion/LLVMCommon/TypeConverter.h>
+#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/LLVMIR/LLVMTypes.h>
+#include <mlir/IR/BuiltinDialect.h>
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/TypeUtilities.h>
+#include <mlir/Support/LogicalResult.h>
+#include <tmplang/ADT/LLVM.h>
+#include <tmplang/Lowering/Dialect/IR/Dialect.h>
+#include <tmplang/Lowering/Dialect/IR/Ops.h>
+#include <tmplang/Lowering/Dialect/IR/Types.h>
+
+#include "../PassDetail.h"
+
+using namespace tmplang;
+
+namespace {
+
+//===----------------------------------------------------------------------===//
+// Op Lowering Patterns
+//===----------------------------------------------------------------------===//
+struct TupleOpLowering : public mlir::ConvertOpToLLVMPattern<TupleOp> {
+  using ConvertOpToLLVMPattern<TupleOp>::ConvertOpToLLVMPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(TupleOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    const mlir::Location location = op->getLoc();
+
+    mlir::Value one = rewriter.create<mlir::LLVM::ConstantOp>(
+        location, typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(
+            typeConverter->convertType(rewriter.getIndexType()), 1));
+
+    auto ptrToStructTy =
+        typeConverter->convertType(mlir::LLVM::LLVMPointerType::get(
+            typeConverter->convertType(op.getType())));
+
+    auto allocaVal =
+        rewriter.create<mlir::LLVM::AllocaOp>(location, ptrToStructTy, one);
+
+    storeOperandValuesOnAlloca(op, allocaVal, rewriter);
+
+    auto loadVal = rewriter.create<mlir::LLVM::LoadOp>(location, allocaVal);
+    op->replaceAllUsesWith(loadVal);
+    rewriter.replaceOp(op, mlir::ValueRange{loadVal});
+
+    return mlir::success();
+  }
+
+private:
+  void
+  storeOperandValuesOnAlloca(TupleOp op, mlir::LLVM::AllocaOp allocaVal,
+                             mlir::ConversionPatternRewriter &rewriter) const {
+    const mlir::Location location = op->getLoc();
+
+    for (auto &[idx, operand] : llvm::enumerate(op->getOperands())) {
+      auto idxVal = rewriter.create<mlir::LLVM::ConstantOp>(
+          location, typeConverter->convertType(rewriter.getIndexType()),
+          rewriter.getIntegerAttr(
+              typeConverter->convertType(rewriter.getIndexType()), idx));
+
+      auto gepVal = rewriter.create<mlir::LLVM::GEPOp>(
+          operand.getLoc(),
+          mlir::LLVM::LLVMPointerType::get(
+              typeConverter->convertType(operand.getType())),
+          allocaVal, mlir::ValueRange{idxVal});
+
+      rewriter.create<mlir::LLVM::StoreOp>(location, operand, gepVal);
+    }
+  }
+};
+
+} // namespace
+
+////===----------------------------------------------------------------------===//
+//// Pass Definition
+////===----------------------------------------------------------------------===//
+
+namespace {
+
+struct ConvertTmplangToLLVMPass
+    : public ConvertTmplangToLLVMBase<ConvertTmplangToLLVMPass> {
+  ConvertTmplangToLLVMPass() = default;
+
+  void runOnOperation() override {
+    mlir::LLVMConversionTarget target(getContext());
+    mlir::RewritePatternSet patterns(&getContext());
+    mlir::LLVMTypeConverter converter(&getContext());
+
+    converter.addConversion([&](mlir::TupleType tupleTy) {
+      SmallVector<mlir::Type, 4> tys;
+      for (auto ty : tupleTy) {
+        tys.push_back(converter.convertType(ty));
+      }
+      return mlir::LLVM::LLVMStructType::getLiteral(&getContext(), tys);
+    });
+
+    // Since we want to lower builtin tuple types, we need to lower func dialect
+    // to LLVM along this pass
+    mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
+    patterns.add<TupleOpLowering>(converter);
+
+    if (failed(applyPartialConversion(getOperation(), target,
+                                      std::move(patterns)))) {
+      signalPassFailure();
+    }
+  }
+};
+
+} // namespace
+
+//===----------------------------------------------------------------------===//
+// Pattern Population
+//===----------------------------------------------------------------------===//
+
+std::unique_ptr<mlir::Pass> tmplang::createConvertTmplangToLLVMPass() {
+  return std::make_unique<ConvertTmplangToLLVMPass>();
+}

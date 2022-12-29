@@ -16,6 +16,8 @@ def dump_src: CommaJoined<["--"], "dump-src=">, Group<Dump_Group>,
               HelpText<"multi options: color|addr|loc|all|simple">;
 def dump_hir: CommaJoined<["--"], "dump-hir=">, Group<Dump_Group>,
               HelpText<"multi options: color|addr|loc|all|simple">;
+def dump_mlir: CommaJoined<["--"], "dump-mlir=">, Group<Dump_Group>,
+              HelpText<"multi options: lower|opt|trans|llvm|all">;
 
 def Diagnostics_Group : OptionGroup<"<diagnostics group>">, HelpText<"Diagnostics options">;
 

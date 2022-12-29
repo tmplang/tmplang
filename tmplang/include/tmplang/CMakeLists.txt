@@ -4,3 +4,4 @@ configure_file(
 )
 
 add_subdirectory(CLI)
+add_subdirectory(Lowering)

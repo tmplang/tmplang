@@ -1,0 +1,33 @@
+add_subdirectory(Dialect)
+add_subdirectory(Conversion)
+
+llvm_add_library(TmplangLowering
+    Lowering.cpp
+
+    LINK_LIBS PUBLIC
+    # Tmplang libraries
+    TmplangHIRTree
+    TmplangMLIRDialect
+
+    # Tmplang Conversions
+    TmplangToArithmetic
+    TmplangToFunc
+    TmplangToLLVM
+
+    # Tmplang Transformations
+
+    # MLIR Conversions
+    MLIRLLVMCommonConversion
+    MLIRArithmeticToLLVM
+    MLIRLLVMToLLVMIRTranslation
+
+    # MLIR Transformations
+
+    # MLIR Support Libraries
+    MLIRIR
+    MLIRPass
+    MLIRSupport
+
+    LINK_COMPONENTS
+    Support
+)

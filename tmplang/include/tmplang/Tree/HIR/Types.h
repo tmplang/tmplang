@@ -35,6 +35,7 @@ StringLiteral ToString(BuiltinType::Kind);
 class TupleType final : public Type {
 public:
   ArrayRef<const Type *> getTypes() const { return Types; }
+  bool isUnit() const { return getTypes().empty(); }
 
   static const TupleType &get(HIRContext &, ArrayRef<const Type *> types);
   static const TupleType &getUnit(const HIRContext &);

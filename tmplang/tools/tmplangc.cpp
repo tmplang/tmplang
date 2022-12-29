@@ -1,15 +1,17 @@
-#include "tmplang/Tree/Source/Node.h"
 #include <llvm/Option/ArgList.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/VirtualFileSystem.h>
 #include <llvm/Support/raw_ostream.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <tmplang/ADT/LLVM.h>
 #include <tmplang/CLI/Arguments.h>
 #include <tmplang/CLI/CLPrinter.h>
 #include <tmplang/Diagnostics/Diagnostic.h>
 #include <tmplang/Lexer/Lexer.h>
+#include <tmplang/Lowering/Lowering.h>
 #include <tmplang/Parser/Parser.h>
 #include <tmplang/Sema/Sema.h>
 #include <tmplang/Support/FileManager.h>
@@ -21,12 +23,12 @@
 using namespace tmplang;
 
 template <typename PrintConfig_t>
-static Optional<PrintConfig_t> ParseDumpArg(llvm::opt::Arg &arg,
-                                            CLPrinter &out) {
+static Optional<PrintConfig_t> ParseTreeDumpArg(llvm::opt::Arg &arg,
+                                                CLPrinter &out) {
   if (arg.getNumValues() == 0) {
     out.errs() << "At least one value of the followings is required: "
                   "'color|addr|loc|all|simple'\n";
-    return None;
+    return llvm::None;
   }
 
   PrintConfig_t printCfg = PrintConfig_t::None;
@@ -38,12 +40,12 @@ static Optional<PrintConfig_t> ParseDumpArg(llvm::opt::Arg &arg,
             .Case("loc", PrintConfig_t::SourceLocation)
             .Case("simple", PrintConfig_t::None)
             .Case("all", PrintConfig_t::All)
-            .Default(None);
+            .Default(llvm::None);
 
     if (!parsedOption) {
       out.errs() << "Invalid value '" << option << "' for flag "
                  << arg.getSpelling() << "\n";
-      return None;
+      return llvm::None;
     }
 
     printCfg |= *parsedOption;
@@ -55,7 +57,7 @@ static Optional<PrintConfig_t> ParseDumpArg(llvm::opt::Arg &arg,
 static bool DumpSrc(llvm::opt::Arg &arg, CLPrinter &out,
                     const source::CompilationUnit &compUnit,
                     const SourceManager &sm) {
-  auto cfg = ParseDumpArg<source::Node::PrintConfig>(arg, out);
+  auto cfg = ParseTreeDumpArg<source::Node::PrintConfig>(arg, out);
   if (!cfg) {
     // Errors already reported
     return 1;
@@ -68,7 +70,7 @@ static bool DumpSrc(llvm::opt::Arg &arg, CLPrinter &out,
 static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
                     const hir::CompilationUnit &compUnit,
                     const SourceManager &sm) {
-  auto cfg = ParseDumpArg<hir::Node::PrintConfig>(arg, out);
+  auto cfg = ParseTreeDumpArg<hir::Node::PrintConfig>(arg, out);
   if (!cfg) {
     // Errors already reported
     return 1;
@@ -76,6 +78,47 @@ static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
 
   compUnit.dump(sm, *cfg);
   return 0;
+}
+
+static Optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
+                                                     CLPrinter &out) {
+  constexpr StringLiteral missingDumpOptionMsg =
+      "At least one value of the followings is required: "
+      "'lower|opt|trans|llvm'\n";
+
+  if (arg.getNumValues() == 0) {
+    out.errs() << missingDumpOptionMsg;
+    return llvm::None;
+  }
+
+  MLIRPrintingOpsCfg printCfg = MLIRPrintingOpsCfg::None;
+  for (StringRef option : arg.getValues()) {
+    Optional<MLIRPrintingOpsCfg> parsedOption =
+        StringSwitch<Optional<MLIRPrintingOpsCfg>>(option)
+            .Case("lower", MLIRPrintingOpsCfg::Lowering)
+            .Case("opt", MLIRPrintingOpsCfg::Optimization)
+            .Case("trans", MLIRPrintingOpsCfg::Translation)
+            .Case("llvm", MLIRPrintingOpsCfg::LLVM)
+            .Case("loc", MLIRPrintingOpsCfg::Location)
+            .Case("all", MLIRPrintingOpsCfg::All)
+            .Default(llvm::None);
+
+    if (!parsedOption) {
+      out.errs() << "Invalid value '" << option << "' for flag "
+                 << arg.getSpelling() << "\n";
+      return llvm::None;
+    }
+
+    printCfg |= *parsedOption;
+  }
+
+  // Location is a complemetary option, by itself it does not count
+  if (!static_cast<bool>((printCfg & ~MLIRPrintingOpsCfg::Location))) {
+    out.errs() << missingDumpOptionMsg;
+    return llvm::None;
+  }
+
+  return printCfg;
 }
 
 int main(int argc, const char *argv[]) {
@@ -152,5 +195,26 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  return srcCompilationUnit->didRecoverFromAnError();
+  // Stop here, if there was a recoverable error while parsing
+  if (srcCompilationUnit->didRecoverFromAnError()) {
+    return 1;
+  }
+
+  auto *arg = parsedCompilerArgs->getLastArg(OPT_dump_mlir);
+  Optional<MLIRPrintingOpsCfg> mlirDumpCfg =
+      arg ? ParseDumpMLIRArg(*arg, printer) : MLIRPrintingOpsCfg::None;
+  if (!mlirDumpCfg) {
+    // Errors already reported
+    return 1;
+  }
+
+  auto llvmCtx = std::make_unique<llvm::LLVMContext>();
+  std::unique_ptr<llvm::Module> mlirMod =
+      tmplang::Lower(*hirCompilationUnit, *llvmCtx, *sm, *mlirDumpCfg);
+  if (!mlirMod) {
+    printer.errs() << "MLIR lowering to LLVM failed!\n";
+    return 1;
+  }
+
+  return 0;
 }

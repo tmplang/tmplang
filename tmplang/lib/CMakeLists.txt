@@ -1,6 +1,7 @@
 add_subdirectory(CLI)
 add_subdirectory(Diagnostics)
 add_subdirectory(Lexer)
+add_subdirectory(Lowering)
 add_subdirectory(Parser)
 add_subdirectory(Sema)
 add_subdirectory(Tree)
