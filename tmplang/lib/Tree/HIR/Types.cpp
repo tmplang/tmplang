@@ -32,7 +32,17 @@ StringLiteral tmplang::hir::ToString(BuiltinType::Kind kind) {
 
 /*static*/ const TupleType &TupleType::get(HIRContext &ctx,
                                            ArrayRef<const Type *> types) {
-  return ctx.TupleTypes.emplace_back(TupleType(types));
+  // FIXME: This is very naive and unoptimal, we could accelerate this using,
+  //        for example, an index table by tuple size
+
+  // Search for it first in case already exists
+  auto it = llvm::find_if(ctx.TupleTypes, [&](const TupleType &tupleTy) {
+    return tupleTy.getTypes() == types;
+  });
+
+  return it != ctx.TupleTypes.end()
+             ? *it
+             : ctx.TupleTypes.emplace_back(TupleType(types));
 }
 
 /*static*/ const TupleType &TupleType::getUnit(const HIRContext &ctx) {

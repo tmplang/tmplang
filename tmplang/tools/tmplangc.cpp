@@ -163,7 +163,7 @@ int main(int argc, const char *argv[]) {
 
   auto sm = std::make_unique<SourceManager>(*targetFileEntry);
 
-  tmplang::diagnostic_ostream diagOuts(
+  diagnostic_ostream diagOuts(
       parsedCompilerArgs->hasArg(OPT_color_diagnostics));
 
   Lexer lexer(targetFileEntry->Content->getBuffer());
@@ -190,7 +190,7 @@ int main(int argc, const char *argv[]) {
     return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit, *sm);
   }
 
-  if (!tmplang::Sema(*hirCompilationUnit)) {
+  if (!Sema(*hirCompilationUnit, *sm, diagOuts)) {
     printer.errs() << "Sema failed!\n";
     return 1;
   }
@@ -210,7 +210,7 @@ int main(int argc, const char *argv[]) {
 
   auto llvmCtx = std::make_unique<llvm::LLVMContext>();
   std::unique_ptr<llvm::Module> mlirMod =
-      tmplang::Lower(*hirCompilationUnit, *llvmCtx, *sm, *mlirDumpCfg);
+      Lower(*hirCompilationUnit, *llvmCtx, *sm, *mlirDumpCfg);
   if (!mlirMod) {
     printer.errs() << "MLIR lowering to LLVM failed!\n";
     return 1;
