@@ -17,6 +17,12 @@ struct LineAndColumn {
   bool operator==(const LineAndColumn &) const = default;
 };
 
+/// Contains the target being compiled, and builds a table of offsets based
+/// in the newlines of the source code. This table is usefull to reduce the
+/// needed quantity of information that must be stored in each node to
+/// recover its source location.
+/// This class also provides functionality to recover line, columns, filenames,
+/// from the encoded source location.
 class SourceManager {
 public:
   SourceManager(const TargetFileEntry &tfe);

@@ -36,6 +36,8 @@ enum TokenKind {
 StringLiteral ToString(TokenKind tk);
 raw_ostream &operator<<(raw_ostream &out, TokenKind k);
 
+/// Basic unit of processed information from the source code. Each call to
+/// the lexer produces one Token.
 struct Token {
   Token(TokenKind kind, SourceLocation start, SourceLocation end,
         bool isRecovery = false)

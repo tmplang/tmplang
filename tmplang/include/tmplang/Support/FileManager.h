@@ -7,6 +7,7 @@
 
 namespace tmplang {
 
+/// Common data to all file that may be opened by the compiler for any reason.
 class FileEntry {
 public:
   enum Kind {
@@ -38,6 +39,7 @@ public:
   time_t ModTime;
 };
 
+/// Represents the "target" file the compiler is compiling.
 class TargetFileEntry : public FileEntry {
 public:
   TargetFileEntry(llvm::sys::fs::UniqueID uniqueId,
@@ -55,6 +57,8 @@ public:
   std::string RealPathName;
 };
 
+/// Handles the filesystem in use and right now, the target file being
+/// processed, no other file is kept tracked.
 class FileManager {
 public:
   FileManager(std::unique_ptr<llvm::vfs::FileSystem> fs)

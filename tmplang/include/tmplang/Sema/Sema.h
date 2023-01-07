@@ -13,10 +13,10 @@ namespace hir {
 class CompilationUnit;
 } // namespace hir
 
-/// Semantic analysis. Right now it just does some restrictive verifications
-/// before lowering to MLIR. Does not report anything.
-bool Sema(tmplang::hir::CompilationUnit &compUnit, const SourceManager &,
-          llvm::raw_ostream &out);
+/// Semantic analysis. Verifies the semantic correctness of the code. If it
+/// contains irregularties, they are reported though diagnostics.
+bool Sema(tmplang::hir::CompilationUnit &, const SourceManager &,
+          llvm::raw_ostream &);
 
 } // namespace tmplang
 

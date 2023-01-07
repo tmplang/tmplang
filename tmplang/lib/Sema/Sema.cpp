@@ -12,6 +12,9 @@ using namespace tmplang::hir;
 
 namespace {
 
+/// Base class that all Sema analysis passes should inherit from. Contains the
+/// factored logic to mark a pass as failed, and the required fields to report
+/// diagnostics.
 class SemaAnalysisPass {
 public:
   SemaAnalysisPass(const SourceManager &sm, raw_ostream &out)
@@ -28,7 +31,20 @@ private:
   const SourceManager &SM;
   raw_ostream &Out;
 };
+} // namespace
 
+namespace {
+
+//=-------------------------------------------------------------------------=//
+//=                      Begin Semantic Analysis Passes                     =//
+//=-------------------------------------------------------------------------=//
+
+//=-------------------------------------------------------------------------=//
+//=                 AssertReturnMatchesTypeOfSubprogram                     =//
+//=-------------------------------------------------------------------------=//
+/// Make sure all returned values type match the fuction result type where
+/// they dwell in.
+//=-------------------------------------------------------------------------=//
 class AssertReturnMatchesTypeOfSubprogram
     : public SemaAnalysisPass,
       public RecursiveASTVisitor<AssertReturnMatchesTypeOfSubprogram> {
@@ -54,6 +70,12 @@ private:
   const Type *CurrentFuncRetTy = nullptr;
 };
 
+//=-------------------------------------------------------------------------=//
+//=                       AssertReturnsInAllCFPaths                         =//
+//=-------------------------------------------------------------------------=//
+/// Make sure that for a subprogram that its return type is diferent from unit
+/// there is a ret expression in all possible paths. So no path is without ret
+//=-------------------------------------------------------------------------=//
 class AssertReturnsInAllCFPaths
     : public SemaAnalysisPass,
       public RecursiveASTVisitor<AssertReturnsInAllCFPaths> {
@@ -84,6 +106,10 @@ public:
     return true;
   }
 };
+
+//=-------------------------------------------------------------------------=//
+//=                       End Semantic Analysis Passes                      =//
+//=-------------------------------------------------------------------------=//
 
 } // namespace
 

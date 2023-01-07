@@ -22,7 +22,10 @@ enum class MLIRPrintingOpsCfg {
 
 LLVM_ENABLE_BITMASK_ENUMS_IN_NAMESPACE();
 
-/// Lower the compilation unit to MLIR
+/// Lowers the hir::CompilationUnit node to a llvm::Module. It requires the
+/// SourceManager to be able to generate debug locations. Also, in order to
+/// control what we can dump for debugging pourposes, we pass a printing
+/// configuration param.
 std::unique_ptr<llvm::Module>
 Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx, const SourceManager &sm,
       const MLIRPrintingOpsCfg printingCfg = MLIRPrintingOpsCfg::None);

@@ -5,6 +5,7 @@
 
 namespace tmplang {
 
+/// Consumes token by token the source code.
 class Lexer {
 public:
   Lexer(StringRef input);
