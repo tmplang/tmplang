@@ -2,4 +2,4 @@
 
 fn foo i32 {}
 
-// CHECK:FunctionDecl: fn foo Err![->] i32 { }
+// CHECK:SubprogramDecl: fn foo Err![->] i32 { }

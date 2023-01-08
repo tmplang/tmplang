@@ -62,28 +62,28 @@ public:
   //=--------------------------------------------------------------------------=//
   bool visitCompilationUnit(const CompilationUnit &compUnit) { return true; }
 
-  bool visitFunctionDecl(const FunctionDecl &funcDecl) {
-    printToken(funcDecl.getFuncType());
+  bool visitSubprogramDecl(const SubprogramDecl &subprogramDecl) {
+    printToken(subprogramDecl.getFuncType());
     OS << ' ';
-    printToken(funcDecl.getIdentifier());
-    if (auto &colon = funcDecl.getColon()) {
+    printToken(subprogramDecl.getIdentifier());
+    if (auto &colon = subprogramDecl.getColon()) {
       OS << ' ';
       printToken(*colon);
     }
-    if (auto arrow = funcDecl.getArrow()) {
+    if (auto arrow = subprogramDecl.getArrow()) {
       OS << ' ';
       printToken(*arrow);
     }
-    if (auto *retType = funcDecl.getReturnType()) {
+    if (auto *retType = subprogramDecl.getReturnType()) {
       OS << ' ';
       traverseType(*retType);
     }
     OS << ' ';
-    printToken(funcDecl.getLKeyBracket());
+    printToken(subprogramDecl.getLKeyBracket());
     // FIXME: Find a proper location for the right key bracket once we have a
     // body
     OS << ' ';
-    printToken(funcDecl.getRKeyBracket());
+    printToken(subprogramDecl.getRKeyBracket());
     return true;
   }
 

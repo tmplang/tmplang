@@ -3,7 +3,7 @@
 // RUN: not tmplangc %s --dump-src=simple 2>&1 | FileCheck %s
 
 //      CHECK:CompilationUnit:
-// CHECK-NEXT:FunctionDecl: fn Err![<subprogram_identifier>] : -> i32 Err![{] Err![}]
+// CHECK-NEXT:SubprogramDecl: fn Err![<subprogram_identifier>] : -> i32 Err![{] Err![}]
 // CHECK-NEXT:ParamDecl: i32 Err![<parameter_id>] ,
 // CHECK-NEXT:ParamDecl: i32 var Err![,]
 // CHECK-NEXT:ParamDecl: i32 var2

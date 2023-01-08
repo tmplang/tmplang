@@ -2,4 +2,4 @@
 
 proc foo: i32 a () {}
 
-// CHECK:FunctionDecl: proc foo : Err![->] () { }
+// CHECK:SubprogramDecl: proc foo : Err![->] () { }

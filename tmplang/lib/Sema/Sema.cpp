@@ -51,8 +51,8 @@ class AssertReturnMatchesTypeOfSubprogram
 public:
   using SemaAnalysisPass::SemaAnalysisPass;
 
-  bool visitFunctionDecl(const FunctionDecl &funcDecl) {
-    CurrentFuncRetTy = &funcDecl.getReturnType();
+  bool visitSubprogramDecl(const SubprogramDecl &subprogramDecl) {
+    CurrentFuncRetTy = &subprogramDecl.getReturnType();
     return true;
   }
 
@@ -82,15 +82,15 @@ class AssertReturnsInAllCFPaths
 public:
   using SemaAnalysisPass::SemaAnalysisPass;
 
-  bool traverseFunctionDecl(const FunctionDecl &funcDecl) {
+  bool traverseSubprogramDecl(const SubprogramDecl &subprogramDecl) {
     // If the result type is unit type, there is no need to return in all paths
-    auto *retTy = dyn_cast<hir::TupleType>(&funcDecl.getReturnType());
+    auto *retTy = dyn_cast<hir::TupleType>(&subprogramDecl.getReturnType());
     if (retTy && retTy->isUnit()) {
       return true;
     }
 
     const bool returnsInAllPaths =
-        any_of(funcDecl.getBody(), [](const std::unique_ptr<Expr> &expr) {
+        any_of(subprogramDecl.getBody(), [](const std::unique_ptr<Expr> &expr) {
           // Right now, since there are no if-else or any other kind of
           // expresion that may modify the control flow, this is enough
           return expr->getKind() == Node::Kind::ExprRet;
@@ -98,7 +98,8 @@ public:
 
     if (!returnsInAllPaths) {
       Diagnostic(DiagId::err_subprogram_does_not_return_in_all_paths,
-                 {funcDecl.getBeginLoc(), funcDecl.getEndLoc()}, NoHint())
+                 {subprogramDecl.getBeginLoc(), subprogramDecl.getEndLoc()},
+                 NoHint())
           .print(outs(), getSourceManager());
       markAsFailure();
     }

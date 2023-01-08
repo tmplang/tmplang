@@ -30,7 +30,7 @@ private:
   const Type &ParamType;
 };
 
-class FunctionDecl final : public Decl {
+class SubprogramDecl final : public Decl {
 public:
   enum FunctionKind {
     proc = 0, // Pure function, does not modify any state
@@ -43,19 +43,19 @@ public:
   ArrayRef<std::unique_ptr<Expr>> getBody() const { return Expressions; }
 
   static bool classof(const Node *node) {
-    return node->getKind() == Node::Kind::FunctionDecl;
+    return node->getKind() == Node::Kind::SubprogramDecl;
   }
 
-  explicit FunctionDecl(const source::Node &srcNode, StringRef name,
-                        FunctionKind kind, const Type &returnType,
-                        std::vector<ParamDecl> params,
-                        std::vector<std::unique_ptr<Expr>> exprs)
-      : Decl(Node::Kind::FunctionDecl, srcNode, name), FuncKind(kind),
+  explicit SubprogramDecl(const source::Node &srcNode, StringRef name,
+                          FunctionKind kind, const Type &returnType,
+                          std::vector<ParamDecl> params,
+                          std::vector<std::unique_ptr<Expr>> exprs)
+      : Decl(Node::Kind::SubprogramDecl, srcNode, name), FuncKind(kind),
         ReturnType(&returnType), Params(std::move(params)),
         Expressions(std::move(exprs)) {}
-  virtual ~FunctionDecl() = default;
+  virtual ~SubprogramDecl() = default;
 
-  FunctionDecl(FunctionDecl &&funcDecl) = default;
+  SubprogramDecl(SubprogramDecl &&subprogramDecl) = default;
 
 private:
   FunctionKind FuncKind;
@@ -64,7 +64,7 @@ private:
   std::vector<std::unique_ptr<Expr>> Expressions;
 };
 
-StringLiteral ToString(FunctionDecl::FunctionKind kind);
+StringLiteral ToString(SubprogramDecl::FunctionKind kind);
 
 } // namespace tmplang::hir
 

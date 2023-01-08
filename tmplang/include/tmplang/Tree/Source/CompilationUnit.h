@@ -15,11 +15,11 @@ class Type;
 
 class CompilationUnit : public Node {
 public:
-  CompilationUnit(std::vector<FunctionDecl> functions,
+  CompilationUnit(std::vector<SubprogramDecl> functions,
                   bool didRecoverFromAnError)
       : Node(Node::Kind::CompilationUnit),
         ContainsErrorRecoveryTokens(didRecoverFromAnError),
-        FunctionDeclarations(std::move(functions)) {}
+        SubprogramDeclarations(std::move(functions)) {}
 
   tmplang::SourceLocation getBeginLoc() const override { return InvalidLoc; }
   tmplang::SourceLocation getEndLoc() const override { return InvalidLoc; }
@@ -28,15 +28,15 @@ public:
     return node->getKind() == Node::Kind::CompilationUnit;
   }
 
-  ArrayRef<FunctionDecl> getFunctionDecls() const {
-    return FunctionDeclarations;
+  ArrayRef<SubprogramDecl> getSubprogramDecls() const {
+    return SubprogramDeclarations;
   }
 
   bool didRecoverFromAnError() const { return ContainsErrorRecoveryTokens; }
 
 private:
   bool ContainsErrorRecoveryTokens;
-  std::vector<FunctionDecl> FunctionDeclarations;
+  std::vector<SubprogramDecl> SubprogramDeclarations;
 };
 
 } // namespace tmplang::source

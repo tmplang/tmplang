@@ -3,6 +3,6 @@
 fn foo: i32 a, i32 b -> i32 {}
 
 //      CHECK:CompilationUnit:
-// CHECK-NEXT:FunctionDecl: fn foo -> i32
+// CHECK-NEXT:SubprogramDecl: fn foo -> i32
 // CHECK-NEXT:ParamDecl: i32 a
 // CHECK-NEXT:ParamDecl: i32 b

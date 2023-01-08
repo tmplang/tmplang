@@ -52,17 +52,17 @@ protected:
   //=--------------------------------------------------------------------------=//
   bool traverseCompilationUnit(const CompilationUnit &compilationUnit) {
     TRY_TO(visitNode(compilationUnit));
-    for (const auto &function : compilationUnit.getFunctions()) {
-      TRY_TO(traverseNode(function));
+    for (const auto &subprog : compilationUnit.getSubprograms()) {
+      TRY_TO(traverseNode(subprog));
     }
     return true;
   }
-  bool traverseFunctionDecl(const FunctionDecl &funcDecl) {
-    TRY_TO(visitNode(funcDecl));
-    for (const auto &param : funcDecl.getParams()) {
+  bool traverseSubprogramDecl(const SubprogramDecl &subprogramDecl) {
+    TRY_TO(visitNode(subprogramDecl));
+    for (const auto &param : subprogramDecl.getParams()) {
       TRY_TO(traverseNode(param));
     }
-    for (const auto &expr : funcDecl.getBody()) {
+    for (const auto &expr : subprogramDecl.getBody()) {
       TRY_TO(traverseNode(*expr));
     }
     return true;

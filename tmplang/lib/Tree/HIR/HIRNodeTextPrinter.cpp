@@ -61,13 +61,13 @@ public:
   //=--------------------------------------------------------------------------=//
   bool visitCompilationUnit(const CompilationUnit &compUnit) { return true; }
 
-  bool visitFunctionDecl(const FunctionDecl &funcDecl) {
-    printAttribute(ToString(funcDecl.getFunctionKind()));
-    printIdentifier(funcDecl.getName());
+  bool visitSubprogramDecl(const SubprogramDecl &subprogramDecl) {
+    printAttribute(ToString(subprogramDecl.getFunctionKind()));
+    printIdentifier(subprogramDecl.getName());
 
     OS << " -> ";
 
-    traverseType(funcDecl.getReturnType());
+    traverseType(subprogramDecl.getReturnType());
     return true;
   }
 

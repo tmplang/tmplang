@@ -40,37 +40,37 @@ public:
 
   mlir::ModuleOp build(const hir::CompilationUnit &compUnit) {
     auto mod = B.create<mlir::ModuleOp>(B.getUnknownLoc(), SM.getFileName());
-    for (const hir::FunctionDecl &func : compUnit.getFunctions()) {
+    for (const hir::SubprogramDecl &subprog : compUnit.getSubprograms()) {
       B.setInsertionPointToEnd(mod.getBody());
-      build(func);
+      build(subprog);
     }
     return mod;
   }
 
 private:
-  void build(const hir::FunctionDecl &func) {
+  void build(const hir::SubprogramDecl &subprog) {
     DoesThisFuncReturnInAllPaths = false;
 
     std::vector<mlir::Type> inputTypes;
-    for (const auto &param : func.getParams()) {
+    for (const auto &param : subprog.getParams()) {
       inputTypes.push_back(get(param));
     }
 
-    auto retValTy = get(func.getReturnType());
+    auto retValTy = get(subprog.getReturnType());
     mlir::FunctionType functionType = B.getFunctionType(inputTypes, retValTy);
 
-    auto subprogramOp =
-        B.create<SubprogramOp>(getLocation(func), func.getName(), functionType,
-                               mlir::SymbolTable::Visibility::Private);
+    auto subprogramOp = B.create<SubprogramOp>(
+        getLocation(subprog), subprog.getName(), functionType,
+        mlir::SymbolTable::Visibility::Private);
 
     B.setInsertionPointToEnd(&subprogramOp.getBody().getBlocks().front());
 
-    for (auto &expr : func.getBody()) {
+    for (auto &expr : subprog.getBody()) {
       get(*expr);
     }
 
     if (!DoesThisFuncReturnInAllPaths) {
-      auto *tuple = dyn_cast<hir::TupleType>(&func.getReturnType());
+      auto *tuple = dyn_cast<hir::TupleType>(&subprog.getReturnType());
       if (tuple && tuple->isUnit()) {
         auto unkLoc = mlir::UnknownLoc::get(&Ctx);
         auto tupleOp = B.create<TupleOp>(

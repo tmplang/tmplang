@@ -17,10 +17,10 @@ public:
   explicit CompilationUnit(const source::Node &srcNode)
       : Node(Node::Kind::CompilationUnit, srcNode) {}
 
-  ArrayRef<FunctionDecl> getFunctions() const { return FunctionDecls; }
+  ArrayRef<SubprogramDecl> getSubprograms() const { return SubprogramDecls; }
 
-  void addFunctionDecl(FunctionDecl funcDecl) {
-    FunctionDecls.push_back(std::move(funcDecl));
+  void addSubprogramDecl(SubprogramDecl subprogramDecl) {
+    SubprogramDecls.push_back(std::move(subprogramDecl));
   }
 
   static bool classof(const Node *node) {
@@ -28,7 +28,7 @@ public:
   }
 
 private:
-  std::vector<FunctionDecl> FunctionDecls;
+  std::vector<SubprogramDecl> SubprogramDecls;
 };
 
 } // namespace tmplang::hir

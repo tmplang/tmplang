@@ -46,7 +46,7 @@ public:
   Optional<CompilationUnit> build(const source::CompilationUnit &);
 
 private:
-  Optional<FunctionDecl> get(const source::FunctionDecl &);
+  Optional<SubprogramDecl> get(const source::SubprogramDecl &);
   Optional<ParamDecl> get(const source::ParamDecl &);
 
   std::unique_ptr<Expr> get(const source::Expr &);
@@ -150,15 +150,16 @@ Optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
   return ParamDecl(srcParamDecl, srcParamDecl.getName(), *type);
 }
 
-static FunctionDecl::FunctionKind GetFunctionKind(Token tk) {
+static SubprogramDecl::FunctionKind GetFunctionKind(Token tk) {
   assert(tk.isOneOf(TK_ProcType, TK_FnType));
   if (tk.is(TK_ProcType)) {
-    return FunctionDecl::proc;
+    return SubprogramDecl::proc;
   }
-  return FunctionDecl::fn;
+  return SubprogramDecl::fn;
 }
 
-Optional<FunctionDecl> HIRBuilder::get(const source::FunctionDecl &srcFunc) {
+Optional<SubprogramDecl>
+HIRBuilder::get(const source::SubprogramDecl &srcFunc) {
   if (!SymTable.insertIdentifier(srcFunc.getName())) {
     return None;
   }
@@ -207,9 +208,9 @@ Optional<FunctionDecl> HIRBuilder::get(const source::FunctionDecl &srcFunc) {
   }
   SymTable.popScope();
 
-  return FunctionDecl(srcFunc, srcFunc.getName(),
-                      GetFunctionKind(srcFunc.getFuncType()), *hirReturnType,
-                      std::move(paramList), std::move(bodyExprs));
+  return SubprogramDecl(srcFunc, srcFunc.getName(),
+                        GetFunctionKind(srcFunc.getFuncType()), *hirReturnType,
+                        std::move(paramList), std::move(bodyExprs));
 }
 
 Optional<CompilationUnit>
@@ -219,13 +220,13 @@ HIRBuilder::build(const source::CompilationUnit &compUnit) {
   // Push the global scope
   SymTable.pushScope();
 
-  for (const source::FunctionDecl &srcFunc : compUnit.getFunctionDecls()) {
+  for (const source::SubprogramDecl &srcFunc : compUnit.getSubprogramDecls()) {
     auto hirFunc = get(srcFunc);
     if (!hirFunc) {
       return None;
     }
 
-    result.addFunctionDecl(std::move(*hirFunc));
+    result.addSubprogramDecl(std::move(*hirFunc));
   }
 
   return result;

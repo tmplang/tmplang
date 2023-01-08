@@ -16,7 +16,7 @@ public:
   StringRef getName() const { return Name; }
 
   static bool classof(const Node *node) {
-    return node->getKind() == Node::Kind::FunctionDecl ||
+    return node->getKind() == Node::Kind::SubprogramDecl ||
            node->getKind() == Node::Kind::ParamDecl;
   }
 

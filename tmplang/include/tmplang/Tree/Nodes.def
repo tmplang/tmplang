@@ -14,7 +14,7 @@
 #endif
 
 BothNode(CompilationUnit)
-BothNode(FunctionDecl)
+BothNode(SubprogramDecl)
 BothNode(ParamDecl)
 SourceNode(ExprStmt)
 BothNode(ExprIntegerNumber)

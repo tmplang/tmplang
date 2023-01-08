@@ -3,4 +3,4 @@
 proc foo {}
 
 //      CHECK:CompilationUnit:
-// CHECK-NEXT:FunctionDecl: proc foo -> ()
+// CHECK-NEXT:SubprogramDecl: proc foo -> ()

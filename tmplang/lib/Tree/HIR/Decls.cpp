@@ -2,11 +2,11 @@
 
 using namespace tmplang::hir;
 
-StringLiteral tmplang::hir::ToString(FunctionDecl::FunctionKind kind) {
+StringLiteral tmplang::hir::ToString(SubprogramDecl::FunctionKind kind) {
   switch (kind) {
-  case FunctionDecl::proc:
+  case SubprogramDecl::proc:
     return "proc";
-  case FunctionDecl::fn:
+  case SubprogramDecl::fn:
     return "fn";
   }
   llvm_unreachable("All cases covered");

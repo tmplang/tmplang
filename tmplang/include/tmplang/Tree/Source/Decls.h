@@ -41,7 +41,7 @@ private:
   Optional<Token> Comma;
 };
 
-class FunctionDecl final : public Decl {
+class SubprogramDecl final : public Decl {
 public:
   struct ArrowAndType {
     Token Arrow;
@@ -77,24 +77,24 @@ public:
   }
 
   static bool classof(const Node *node) {
-    return node->getKind() == Node::Kind::FunctionDecl;
+    return node->getKind() == Node::Kind::SubprogramDecl;
   }
 
   /// fn foo: i32 a, f32 b -> i32 {}
   /// fn foo: i32 a, f32 b {}
   /// fn foo -> i32 {}
   /// fn foo {}
-  FunctionDecl(Token funcType, Token identifier, Block block,
-               Optional<Token> colon = llvm::None,
-               SmallVector<source::ParamDecl, 4> paramList = {},
-               Optional<ArrowAndType> arrowAndType = llvm::None)
-      : Decl(Kind::FunctionDecl), FuncType(funcType), Identifier(identifier),
+  SubprogramDecl(Token funcType, Token identifier, Block block,
+                 Optional<Token> colon = llvm::None,
+                 SmallVector<source::ParamDecl, 4> paramList = {},
+                 Optional<ArrowAndType> arrowAndType = llvm::None)
+      : Decl(Kind::SubprogramDecl), FuncType(funcType), Identifier(identifier),
         Colon(colon), ParamList(std::move(paramList)),
         OptArrowAndType(std::move(arrowAndType)), B(std::move(block)) {}
 
-  FunctionDecl(FunctionDecl &&) = default;
-  FunctionDecl &operator=(FunctionDecl &&) = default;
-  virtual ~FunctionDecl() = default;
+  SubprogramDecl(SubprogramDecl &&) = default;
+  SubprogramDecl &operator=(SubprogramDecl &&) = default;
+  virtual ~SubprogramDecl() = default;
 
 private:
   Token FuncType;

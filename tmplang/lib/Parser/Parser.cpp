@@ -29,8 +29,8 @@ public:
   Optional<source::CompilationUnit> Start();
 
 private:
-  Optional<source::FunctionDecl> FunctionDefinition();
-  Optional<source::FunctionDecl> ArrowAndEndOfSubprogramFactored(
+  Optional<source::SubprogramDecl> SubprogramDecl();
+  Optional<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
       Token funcType, Token id, Optional<Token> colon = None,
       SmallVector<source::ParamDecl, 4> paramList = {});
   Optional<Token> missingSubprogramTypeRecovery();
@@ -43,7 +43,7 @@ private:
   Optional<source::ParamDecl> Param();
   Optional<Token> missingVariableOnParamRecovery();
 
-  Optional<source::FunctionDecl::Block> Block();
+  Optional<source::SubprogramDecl::Block> Block();
   Optional<Token> missingLeftKeyBracketRecovery();
   Optional<Token> missingRightKeyBracketRecovery();
 
@@ -137,27 +137,27 @@ private:
 /// Start = Function_Definition*;
 ///       | EOF;
 Optional<source::CompilationUnit> Parser::Start() {
-  std::vector<source::FunctionDecl> functionDeclarations;
+  std::vector<source::SubprogramDecl> SubprogramDeclarations;
   while (true) {
     if (tk().is(TokenKind::TK_EOF)) {
-      return source::CompilationUnit(std::move(functionDeclarations),
+      return source::CompilationUnit(std::move(SubprogramDeclarations),
                                      ParserState.NumberOfRecoveriesPerformed);
     }
 
-    auto func = FunctionDefinition();
-    if (!func) {
+    auto subprogram = SubprogramDecl();
+    if (!subprogram) {
       // Nothing to do, already reported
       return None;
     }
 
-    functionDeclarations.push_back(std::move(*func));
+    SubprogramDeclarations.push_back(std::move(*subprogram));
   }
 
-  return source::CompilationUnit(std::move(functionDeclarations),
+  return source::CompilationUnit(std::move(SubprogramDeclarations),
                                  ParserState.NumberOfRecoveriesPerformed);
 }
 
-Optional<source::FunctionDecl> Parser::ArrowAndEndOfSubprogramFactored(
+Optional<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
     Token funcType, Token id, Optional<Token> colon,
     SmallVector<source::ParamDecl, 4> paramList) {
   if (auto arrow = parseOrTryRecover<&Parser::ParseToken<TK_RArrow>,
@@ -176,9 +176,9 @@ Optional<source::FunctionDecl> Parser::ArrowAndEndOfSubprogramFactored(
       return None;
     }
 
-    return source::FunctionDecl(
+    return source::SubprogramDecl(
         funcType, id, std::move(*block), colon, std::move(paramList),
-        source::FunctionDecl::ArrowAndType{*arrow, std::move(returnType)});
+        source::SubprogramDecl::ArrowAndType{*arrow, std::move(returnType)});
   }
 
   // [2]
@@ -188,8 +188,8 @@ Optional<source::FunctionDecl> Parser::ArrowAndEndOfSubprogramFactored(
     return None;
   }
 
-  return source::FunctionDecl(funcType, id, std::move(*block), colon,
-                              std::move(paramList));
+  return source::SubprogramDecl(funcType, id, std::move(*block), colon,
+                                std::move(paramList));
 }
 
 /// Function_type = "proc" | "fn";
@@ -199,7 +199,7 @@ Optional<source::FunctionDecl> Parser::ArrowAndEndOfSubprogramFactored(
 ///  [2] | Function_Type, Identifier, ":", Param_List, Block
 ///  [3] | Function_Type, Identifier, "->", Type, Block
 ///  [4] | Function_Type, Identifier, Block;
-Optional<source::FunctionDecl> Parser::FunctionDefinition() {
+Optional<source::SubprogramDecl> Parser::SubprogramDecl() {
   auto funcType = parseOrTryRecover<&Parser::ParseToken<TK_FnType, TK_ProcType>,
                                     &Parser::missingSubprogramTypeRecovery>();
   if (!funcType) {
@@ -207,7 +207,7 @@ Optional<source::FunctionDecl> Parser::FunctionDefinition() {
     // unknowns until we find something we understand
     if (tk().is(tmplang::TK_Unknown)) {
       consume();
-      return FunctionDefinition();
+      return SubprogramDecl();
     }
     return None;
   }
@@ -358,7 +358,7 @@ Optional<Token> Parser::missingVariableOnParamRecovery() {
 }
 
 /// Block = "{" ExprList "}";
-Optional<source::FunctionDecl::Block> Parser::Block() {
+Optional<source::SubprogramDecl::Block> Parser::Block() {
   auto lKeyBracket =
       parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>,
                         &Parser::missingLeftKeyBracketRecovery>();
@@ -379,8 +379,8 @@ Optional<source::FunctionDecl::Block> Parser::Block() {
     return None;
   }
 
-  return source::FunctionDecl::Block{*lKeyBracket, std::move(*exprs),
-                                     *rKeyBracket};
+  return source::SubprogramDecl::Block{*lKeyBracket, std::move(*exprs),
+                                       *rKeyBracket};
 }
 
 Optional<Token> Parser::missingLeftKeyBracketRecovery() {
