@@ -3,4 +3,4 @@
 fn foo -> i32 {}
 
 //      CHECK:CompilationUnit:
-// CHECK-NEXT:SubprogramDecl: fn foo -> i32
+// CHECK-NEXT:SubprogramDecl: fn foo <> -> i32

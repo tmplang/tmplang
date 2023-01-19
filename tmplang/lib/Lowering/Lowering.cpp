@@ -51,16 +51,10 @@ private:
   void build(const hir::SubprogramDecl &subprog) {
     DoesThisFuncReturnInAllPaths = false;
 
-    std::vector<mlir::Type> inputTypes;
-    for (const auto &param : subprog.getParams()) {
-      inputTypes.push_back(get(param));
-    }
-
-    auto retValTy = get(subprog.getReturnType());
-    mlir::FunctionType functionType = B.getFunctionType(inputTypes, retValTy);
+    mlir::FunctionType subprogramTy = get(subprog.getSubprogramType());
 
     auto subprogramOp = B.create<SubprogramOp>(
-        getLocation(subprog), subprog.getName(), functionType,
+        getLocation(subprog), subprog.getName(), subprogramTy,
         mlir::SymbolTable::Visibility::Private);
 
     B.setInsertionPointToEnd(&subprogramOp.getBody().getBlocks().front());
@@ -70,7 +64,8 @@ private:
     }
 
     if (!DoesThisFuncReturnInAllPaths) {
-      auto *tuple = dyn_cast<hir::TupleType>(&subprog.getReturnType());
+      auto *tuple = dyn_cast<hir::TupleType>(
+          &subprog.getSubprogramType().getReturnType());
       if (tuple && tuple->isUnit()) {
         auto unkLoc = mlir::UnknownLoc::get(&Ctx);
         auto tupleOp = B.create<TupleOp>(
@@ -142,7 +137,8 @@ private:
       return get(*cast<hir::BuiltinType>(&type));
     case hir::Type::K_Tuple:
       return get(*cast<hir::TupleType>(&type));
-      break;
+    case hir::Type::K_Subprogram:
+      return get(*cast<hir::SubprogramType>(&type));
     }
     llvm_unreachable("All cases covered");
   }
@@ -163,6 +159,17 @@ private:
               [&](const hir::Type *type) { return get(*type); });
 
     return B.getTupleType(types);
+  }
+
+  mlir::FunctionType get(const hir::SubprogramType &subprogramTy) {
+    std::vector<mlir::Type> inputTypes;
+    inputTypes.reserve(subprogramTy.getParamTypes().size());
+
+    transform(subprogramTy.getParamTypes(), std::back_inserter(inputTypes),
+              [&](const hir::Type *type) { return get(*type); });
+
+    auto retValTy = get(subprogramTy.getReturnType());
+    return B.getFunctionType(inputTypes, retValTy);
   }
 
   mlir::FileLineColLoc getLocation(const hir::Node &node) {

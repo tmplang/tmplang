@@ -33,7 +33,7 @@ StringLiteral tmplang::hir::ToString(BuiltinType::Kind kind) {
 /*static*/ const TupleType &TupleType::get(HIRContext &ctx,
                                            ArrayRef<const Type *> types) {
   // FIXME: This is very naive and unoptimal, we could accelerate this using,
-  //        for example, an index table by tuple size
+  //        for example, an index table by num of params
 
   // Search for it first in case already exists
   auto it = llvm::find_if(ctx.TupleTypes, [&](const TupleType &tupleTy) {
@@ -47,4 +47,22 @@ StringLiteral tmplang::hir::ToString(BuiltinType::Kind kind) {
 
 /*static*/ const TupleType &TupleType::getUnit(const HIRContext &ctx) {
   return ctx.UnitType;
+}
+
+/*static*/ const SubprogramType &
+SubprogramType::get(HIRContext &ctx, const Type &retTy,
+                    ArrayRef<const Type *> paramTys) {
+  // FIXME: This is very naive and unoptimal, we could accelerate this using,
+  //        for example, an index table by tuple size
+
+  // Search for it first in case already exists
+  auto it = llvm::find_if(ctx.SubprogramTypes,
+                          [&](const SubprogramType &subprogramTy) {
+                            return subprogramTy.getParamTypes() == paramTys &&
+                                   &subprogramTy.getReturnType() == &retTy;
+                          });
+
+  return it != ctx.SubprogramTypes.end() ? *it
+                                         : ctx.SubprogramTypes.emplace_back(
+                                               SubprogramType(retTy, paramTys));
 }

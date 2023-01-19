@@ -208,8 +208,14 @@ HIRBuilder::get(const source::SubprogramDecl &srcFunc) {
   }
   SymTable.popScope();
 
+  SmallVector<const Type *> paramTys;
+  llvm::transform(
+      paramList, std::back_inserter(paramTys),
+      [](const ParamDecl &paramDecl) { return &paramDecl.getType(); });
+
   return SubprogramDecl(srcFunc, srcFunc.getName(),
-                        GetFunctionKind(srcFunc.getFuncType()), *hirReturnType,
+                        GetFunctionKind(srcFunc.getFuncType()),
+                        SubprogramType::get(Ctx, *hirReturnType, paramTys),
                         std::move(paramList), std::move(bodyExprs));
 }
 

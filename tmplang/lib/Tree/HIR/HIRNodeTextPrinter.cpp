@@ -65,9 +65,9 @@ public:
     printAttribute(ToString(subprogramDecl.getFunctionKind()));
     printIdentifier(subprogramDecl.getName());
 
-    OS << " -> ";
+    OS << " ";
 
-    traverseType(subprogramDecl.getReturnType());
+    traverseType(subprogramDecl.getSubprogramType());
     return true;
   }
 
@@ -121,6 +121,23 @@ public:
       TypeBase::traverseType(*type);
     });
     OS << ")";
+    return true;
+  }
+
+  bool traverseSubprogramType(const SubprogramType &subprogramTy) {
+    {
+      ColorScope color(OS, Cfg & Node::Color, AddressColor);
+      OS << "<";
+    }
+    llvm::interleaveComma(
+        subprogramTy.getParamTypes(), OS,
+        [&](const Type *type) { TypeBase::traverseType(*type); });
+    {
+      ColorScope color(OS, Cfg & Node::Color, AddressColor);
+      OS << ">";
+    }
+    OS << " -> ";
+    TypeBase::traverseType(subprogramTy.getReturnType());
     return true;
   }
   //=--------------------------------------------------------------------------=//

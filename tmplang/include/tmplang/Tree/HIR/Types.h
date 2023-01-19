@@ -52,6 +52,28 @@ private:
   SmallVector<const Type *> Types;
 };
 
+class SubprogramType final : public Type {
+public:
+  const Type &getReturnType() const { return ReturnType; }
+  ArrayRef<const Type *> getParamTypes() const { return ParamTypes; }
+
+  static const SubprogramType &get(HIRContext &, const Type &retTy,
+                                   ArrayRef<const Type *> paramTys);
+
+  static bool classof(const Type *T) {
+    return T->getKind() == Type::Kind::K_Subprogram;
+  }
+
+private:
+  friend class HIRContext;
+  explicit SubprogramType(const Type &retTy, ArrayRef<const Type *> paramTys)
+      : Type(Type::Kind::K_Subprogram), ReturnType(retTy),
+        ParamTypes(paramTys) {}
+
+  const Type &ReturnType;
+  SmallVector<const Type *> ParamTypes;
+};
+
 } // namespace tmplang::hir
 
 #endif // TMPLANG_TREE_HIR_TYPES_H

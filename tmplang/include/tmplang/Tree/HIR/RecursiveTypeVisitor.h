@@ -21,7 +21,8 @@ public:
       return getDerived().traverseBuiltinType(*cast<BuiltinType>(&type));
     case Type::K_Tuple:
       return getDerived().traverseTupleType(*cast<TupleType>(&type));
-      break;
+    case Type::K_Subprogram:
+      return getDerived().traverseSubprogramType(*cast<SubprogramType>(&type));
     }
     llvm_unreachable("All cases are handled");
   }
@@ -33,7 +34,8 @@ public:
       return getDerived().visitBuiltinType(*cast<BuiltinType>(&type));
     case Type::K_Tuple:
       return getDerived().visitTupleType(*cast<TupleType>(&type));
-      break;
+    case Type::K_Subprogram:
+      return getDerived().visitSubprogramType(*cast<SubprogramType>(&type));
     }
     llvm_unreachable("All cases are handled");
   }
@@ -45,6 +47,7 @@ protected:
   // TODO: Move all of these to .def file to use macro magic
   bool visitBuiltinType(const BuiltinType &) { return true; }
   bool visitTupleType(const TupleType &) { return true; }
+  bool visitSubprogramType(const SubprogramType &) { return true; }
   //=--------------------------------------------------------------------------=//
   // End visit functions
   //=--------------------------------------------------------------------------=//
@@ -63,6 +66,15 @@ protected:
     }
     return true;
   }
+  bool traverseSubprogramType(const SubprogramType &subprogramTy) {
+    TRY_TO(visitType(subprogramTy));
+    for (const Type *type : subprogramTy.getParamTypes()) {
+      TRY_TO(traverseType(*type));
+    }
+    TRY_TO(traverseType(subprogramTy.getReturnType()));
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//

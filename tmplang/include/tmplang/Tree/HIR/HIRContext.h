@@ -16,6 +16,7 @@ public:
 private:
   friend class BuiltinType;
   friend class TupleType;
+  friend class SubprogramType;
 
   /// NOTE: Once this grows, it can be a good idea to move it to  the heap
   ///       through PImpl idiom
@@ -23,6 +24,7 @@ private:
   TupleType UnitType;
 
   std::deque<TupleType> TupleTypes;
+  std::deque<SubprogramType> SubprogramTypes;
 };
 
 } // namespace tmplang::hir

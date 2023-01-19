@@ -38,7 +38,7 @@ public:
   };
 
   FunctionKind getFunctionKind() const { return FuncKind; }
-  const Type &getReturnType() const { return *ReturnType; }
+  const SubprogramType &getSubprogramType() const { return SubprogramType; }
   ArrayRef<ParamDecl> getParams() const { return Params; }
   ArrayRef<std::unique_ptr<Expr>> getBody() const { return Expressions; }
 
@@ -47,11 +47,11 @@ public:
   }
 
   explicit SubprogramDecl(const source::Node &srcNode, StringRef name,
-                          FunctionKind kind, const Type &returnType,
+                          FunctionKind kind, const SubprogramType &subprogramTy,
                           std::vector<ParamDecl> params,
                           std::vector<std::unique_ptr<Expr>> exprs)
       : Decl(Node::Kind::SubprogramDecl, srcNode, name), FuncKind(kind),
-        ReturnType(&returnType), Params(std::move(params)),
+        SubprogramType(subprogramTy), Params(std::move(params)),
         Expressions(std::move(exprs)) {}
   virtual ~SubprogramDecl() = default;
 
@@ -59,7 +59,7 @@ public:
 
 private:
   FunctionKind FuncKind;
-  const Type *ReturnType;
+  const SubprogramType &SubprogramType;
   std::vector<ParamDecl> Params;
   std::vector<std::unique_ptr<Expr>> Expressions;
 };
