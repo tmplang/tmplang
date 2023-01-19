@@ -91,15 +91,13 @@ std::unique_ptr<ExprRet> HIRBuilder::get(const source::ExprRet &exprRet) {
 
 std::unique_ptr<ExprTuple> HIRBuilder::get(const source::ExprTuple &exprTuple) {
   SmallVector<std::unique_ptr<hir::Expr>, 4> values;
-  llvm::transform(
-      exprTuple.getVals(), std::back_inserter(values),
-      [&](const source::TupleElem &elem) { return get(elem.getVal()); });
+  transform(exprTuple.getVals(), std::back_inserter(values),
+            [&](const source::TupleElem &elem) { return get(elem.getVal()); });
 
   SmallVector<const Type *> tupleTys;
   tupleTys.reserve(values.size());
-  llvm::transform(
-      values, std::back_inserter(tupleTys),
-      [&](std::unique_ptr<hir::Expr> &expr) { return &expr->getType(); });
+  transform(values, std::back_inserter(tupleTys),
+            [&](std::unique_ptr<hir::Expr> &expr) { return &expr->getType(); });
 
   return std::make_unique<hir::ExprTuple>(
       exprTuple, TupleType::get(Ctx, tupleTys), std::move(values));
@@ -126,10 +124,10 @@ const hir::Type *HIRBuilder::get(const source::Type &type) {
   case source::Type::TupleType:
     const auto &tupleType = *cast<source::TupleType>(&type);
     SmallVector<const hir::Type *> types;
-    llvm::transform(tupleType.getTypes(), std::back_inserter(types),
-                    [&](const source::RAIIType &type) { return get(*type); });
+    transform(tupleType.getTypes(), std::back_inserter(types),
+              [&](const source::RAIIType &type) { return get(*type); });
 
-    if (llvm::any_of(types, [](const Type *type) { return type == nullptr; })) {
+    if (any_of(types, [](const Type *type) { return type == nullptr; })) {
       return nullptr;
     }
     return &TupleType::get(Ctx, types);
@@ -209,9 +207,8 @@ HIRBuilder::get(const source::SubprogramDecl &srcFunc) {
   SymTable.popScope();
 
   SmallVector<const Type *> paramTys;
-  llvm::transform(
-      paramList, std::back_inserter(paramTys),
-      [](const ParamDecl &paramDecl) { return &paramDecl.getType(); });
+  transform(paramList, std::back_inserter(paramTys),
+            [](const ParamDecl &paramDecl) { return &paramDecl.getType(); });
 
   return SubprogramDecl(srcFunc, srcFunc.getName(),
                         GetFunctionKind(srcFunc.getFuncType()),
