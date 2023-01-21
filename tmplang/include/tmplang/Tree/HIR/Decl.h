@@ -11,9 +11,15 @@ class Node;
 
 namespace tmplang::hir {
 
+// Forward declarations
+class Symbol;
+class Type;
+
 class Decl : public Node {
 public:
-  StringRef getName() const { return Name; }
+  StringRef getName() const;
+  const Symbol &getSymbol() const { return Sym; }
+  virtual const Type &getType() const;
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::SubprogramDecl ||
@@ -23,12 +29,11 @@ public:
   virtual ~Decl() = default;
 
 protected:
-  explicit Decl(Node::Kind k, const source::Node &srcNode, StringRef name)
-      : Node(k, srcNode), Name(name) {}
+  explicit Decl(Node::Kind k, const source::Node &srcNode, const Symbol &sym)
+      : Node(k, srcNode), Sym(sym) {}
 
 private:
-  /// All Decls have a name
-  SmallString<32> Name;
+  const Symbol &Sym;
 };
 
 } // namespace tmplang::hir

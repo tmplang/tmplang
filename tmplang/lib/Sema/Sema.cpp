@@ -52,7 +52,7 @@ public:
   using SemaAnalysisPass::SemaAnalysisPass;
 
   bool visitSubprogramDecl(const SubprogramDecl &subprogramDecl) {
-    CurrentFuncRetTy = &subprogramDecl.getSubprogramType().getReturnType();
+    CurrentFuncRetTy = &subprogramDecl.getType().getReturnType();
     return true;
   }
 
@@ -84,8 +84,8 @@ public:
 
   bool traverseSubprogramDecl(const SubprogramDecl &subprogramDecl) {
     // If the result type is unit type, there is no need to return in all paths
-    auto *retTy = dyn_cast<hir::TupleType>(
-        &subprogramDecl.getSubprogramType().getReturnType());
+    auto *retTy =
+        dyn_cast<hir::TupleType>(&subprogramDecl.getType().getReturnType());
     if (retTy && retTy->isUnit()) {
       return true;
     }

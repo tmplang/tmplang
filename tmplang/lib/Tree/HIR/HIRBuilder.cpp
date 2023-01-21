@@ -1,6 +1,5 @@
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 
-#include <llvm/ADT/DenseSet.h>
 #include <llvm/Support/Casting.h>
 #include <tmplang/Tree/HIR/Exprs.h>
 #include <tmplang/Tree/Source/CompilationUnit.h>
@@ -11,37 +10,11 @@ using namespace tmplang::hir;
 
 namespace {
 
-class SymbolTable {
-  struct Scope {
-    llvm::DenseSet<StringRef> Identifiers;
-  };
-
-public:
-  SymbolTable() {}
-
-  bool insertIdentifier(StringRef id) {
-    // FIXME: This is very restrictive, this is not discriminating between
-    // functions, variables, macros, types, ...; just identifiers :facepalm:
-    //
-    // Also, in case we want to support more advance shadowings systems like
-    // a name binding approach (like Rust does), this is completly wrong.
-    //
-    // When a decisison is taken, adapt the symbol table to reflect that. For
-    // now, just check that no param repeats within the same function, and that
-    // no function repeats the same name
-    return ScopeStack.back().Identifiers.insert(id).second;
-  }
-
-  void pushScope() { ScopeStack.emplace_back(); }
-  void popScope() { ScopeStack.pop_back(); }
-
-private:
-  SmallVector<Scope> ScopeStack;
-};
-
 class HIRBuilder {
 public:
-  HIRBuilder(HIRContext &ctx) : Ctx(ctx) {}
+  HIRBuilder(HIRContext &ctx)
+      : Ctx(ctx), SymMan(ctx.getSymbolManager()),
+        ScopeStack(1, &SymMan.getGlobalScope()) {}
 
   Optional<CompilationUnit> build(const source::CompilationUnit &);
 
@@ -56,9 +29,28 @@ private:
 
   const Type *get(const source::Type &);
 
+  Symbol &addSymbolToCurrentScope(const SymbolKind kind, llvm::StringRef id,
+                                  const Type &ty) {
+    auto &sym = SymMan.createSymbol(kind, id, ty);
+    ScopeStack.back()->addSymbol(sym);
+    return sym;
+  }
+
+  SymbolicScope &pushSymbolicScope() {
+    SymbolicScope &newScope = SymMan.createSymbolicScope(*ScopeStack.back());
+    return *ScopeStack.emplace_back(&newScope);
+  }
+
+  void popSymbolScope() { ScopeStack.pop_back(); }
+
+  SymbolicScope &currentSymScope() { return *ScopeStack.back(); }
+
 private:
   HIRContext &Ctx;
-  SymbolTable SymTable;
+  SymbolManager &SymMan;
+  /// Stack of scopes we are currently in. SymbolicScopes live in the
+  /// SymbolicManager. TODO: Profile to know what size to give initialy
+  SmallVector<SymbolicScope *, 6> ScopeStack;
 };
 
 std::unique_ptr<ExprIntegerNumber>
@@ -136,16 +128,20 @@ const hir::Type *HIRBuilder::get(const source::Type &type) {
 }
 
 Optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
-  if (!SymTable.insertIdentifier(srcParamDecl.getName())) {
-    return None;
-  }
-
   const Type *type = get(srcParamDecl.getType());
   if (!type) {
     return None;
   }
 
-  return ParamDecl(srcParamDecl, srcParamDecl.getName(), *type);
+  if (currentSymScope().containsSymbol(SymbolKind::ParamOrVarDecl,
+                                       srcParamDecl.getName())) {
+    // FIXME: Report error
+    return None;
+  }
+  Symbol &sym = addSymbolToCurrentScope(SymbolKind::ParamOrVarDecl,
+                                        srcParamDecl.getName(), *type);
+
+  return ParamDecl(srcParamDecl, sym);
 }
 
 static SubprogramDecl::FunctionKind GetFunctionKind(Token tk) {
@@ -158,22 +154,6 @@ static SubprogramDecl::FunctionKind GetFunctionKind(Token tk) {
 
 Optional<SubprogramDecl>
 HIRBuilder::get(const source::SubprogramDecl &srcFunc) {
-  if (!SymTable.insertIdentifier(srcFunc.getName())) {
-    return None;
-  }
-
-  std::vector<ParamDecl> paramList;
-
-  SymTable.pushScope();
-  for (const source::ParamDecl &param : srcFunc.getParams()) {
-    auto hirParamDecl = get(param);
-    if (!hirParamDecl) {
-      return None;
-    }
-    paramList.push_back(std::move(*hirParamDecl));
-  }
-  SymTable.popScope();
-
   const Type *hirReturnType = nullptr;
   if (const source::Type *srcType = srcFunc.getReturnType()) {
     // FIXME: Right now we only have builtin types, so this is complete. Once
@@ -183,14 +163,23 @@ HIRBuilder::get(const source::SubprogramDecl &srcFunc) {
   } else {
     hirReturnType = &TupleType::getUnit(Ctx);
   }
-
   if (!hirReturnType) {
     return None;
   }
 
-  std::vector<std::unique_ptr<Expr>> bodyExprs;
+  // Add new scope for params and body
+  pushSymbolicScope();
 
-  SymTable.pushScope();
+  std::vector<ParamDecl> paramList;
+  for (const source::ParamDecl &param : srcFunc.getParams()) {
+    auto hirParamDecl = get(param);
+    if (!hirParamDecl) {
+      return None;
+    }
+    paramList.push_back(std::move(*hirParamDecl));
+  }
+
+  std::vector<std::unique_ptr<Expr>> bodyExprs;
   for (const source::ExprStmt &expr : srcFunc.getBlock().Exprs) {
     auto *srcExpr = expr.getExpr();
     if (!srcExpr) {
@@ -204,24 +193,31 @@ HIRBuilder::get(const source::SubprogramDecl &srcFunc) {
 
     bodyExprs.push_back(std::move(hirExpr));
   }
-  SymTable.popScope();
+
+  // Pop params and body scope, so we are back previous scope for next
+  // declarations
+  popSymbolScope();
 
   SmallVector<const Type *> paramTys;
   transform(paramList, std::back_inserter(paramTys),
             [](const ParamDecl &paramDecl) { return &paramDecl.getType(); });
+  if (currentSymScope().containsSymbol(SymbolKind::Subprogram,
+                                       srcFunc.getName())) {
+    // FIXME: Report error
+    return None;
+  }
+  Symbol &funcSym = addSymbolToCurrentScope(
+      SymbolKind::Subprogram, srcFunc.getName(),
+      SubprogramType::get(Ctx, *hirReturnType, paramTys));
 
-  return SubprogramDecl(srcFunc, srcFunc.getName(),
+  return SubprogramDecl(srcFunc, funcSym,
                         GetFunctionKind(srcFunc.getFuncType()),
-                        SubprogramType::get(Ctx, *hirReturnType, paramTys),
                         std::move(paramList), std::move(bodyExprs));
 }
 
 Optional<CompilationUnit>
 HIRBuilder::build(const source::CompilationUnit &compUnit) {
   CompilationUnit result(compUnit);
-
-  // Push the global scope
-  SymTable.pushScope();
 
   for (const source::SubprogramDecl &srcFunc : compUnit.getSubprogramDecls()) {
     auto hirFunc = get(srcFunc);

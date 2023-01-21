@@ -51,10 +51,10 @@ private:
   void build(const hir::SubprogramDecl &subprog) {
     DoesThisFuncReturnInAllPaths = false;
 
-    mlir::FunctionType subprogramTy = get(subprog.getSubprogramType());
+    mlir::FunctionType functionTy = get(subprog.getType());
 
     auto subprogramOp = B.create<SubprogramOp>(
-        getLocation(subprog), subprog.getName(), subprogramTy,
+        getLocation(subprog), subprog.getName(), functionTy,
         mlir::SymbolTable::Visibility::Private);
 
     B.setInsertionPointToEnd(&subprogramOp.getBody().getBlocks().front());
@@ -64,8 +64,8 @@ private:
     }
 
     if (!DoesThisFuncReturnInAllPaths) {
-      auto *tuple = dyn_cast<hir::TupleType>(
-          &subprog.getSubprogramType().getReturnType());
+      auto *tuple =
+          dyn_cast<hir::TupleType>(&subprog.getType().getReturnType());
       if (tuple && tuple->isUnit()) {
         auto unkLoc = mlir::UnknownLoc::get(&Ctx);
         auto tupleOp = B.create<TupleOp>(

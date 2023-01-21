@@ -15,19 +15,13 @@ class Type;
 
 class ParamDecl final : public Decl {
 public:
-  const Type &getType() const { return ParamType; }
-
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::ParamDecl;
   }
 
-  explicit ParamDecl(const source::Node &srcNode, StringRef name,
-                     const Type &paramType)
-      : Decl(Node::Kind::ParamDecl, srcNode, name), ParamType(paramType) {}
+  explicit ParamDecl(const source::Node &srcNode, const Symbol &sym)
+      : Decl(Node::Kind::ParamDecl, srcNode, sym) {}
   virtual ~ParamDecl() = default;
-
-private:
-  const Type &ParamType;
 };
 
 class SubprogramDecl final : public Decl {
@@ -37,8 +31,8 @@ public:
     fn        // non-pure function
   };
 
+  const SubprogramType &getType() const override;
   FunctionKind getFunctionKind() const { return FuncKind; }
-  const SubprogramType &getSubprogramType() const { return SubprogramType; }
   ArrayRef<ParamDecl> getParams() const { return Params; }
   ArrayRef<std::unique_ptr<Expr>> getBody() const { return Expressions; }
 
@@ -46,20 +40,17 @@ public:
     return node->getKind() == Node::Kind::SubprogramDecl;
   }
 
-  explicit SubprogramDecl(const source::Node &srcNode, StringRef name,
-                          FunctionKind kind, const SubprogramType &subprogramTy,
-                          std::vector<ParamDecl> params,
+  explicit SubprogramDecl(const source::Node &srcNode, const Symbol &sym,
+                          FunctionKind kind, std::vector<ParamDecl> params,
                           std::vector<std::unique_ptr<Expr>> exprs)
-      : Decl(Node::Kind::SubprogramDecl, srcNode, name), FuncKind(kind),
-        SubprogramType(subprogramTy), Params(std::move(params)),
-        Expressions(std::move(exprs)) {}
+      : Decl(Node::Kind::SubprogramDecl, srcNode, sym), FuncKind(kind),
+        Params(std::move(params)), Expressions(std::move(exprs)) {}
   virtual ~SubprogramDecl() = default;
 
   SubprogramDecl(SubprogramDecl &&subprogramDecl) = default;
 
 private:
   FunctionKind FuncKind;
-  const SubprogramType &SubprogramType;
   std::vector<ParamDecl> Params;
   std::vector<std::unique_ptr<Expr>> Expressions;
 };

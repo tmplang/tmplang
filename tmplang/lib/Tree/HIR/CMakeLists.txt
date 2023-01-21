@@ -4,6 +4,7 @@ llvm_add_library(TmplangHIRTree
     HIRContext.cpp
     HIRNodeTextPrinter.cpp
     Node.cpp
+    Symbol.cpp
     Types.cpp
 
     LINK_LIBS PUBLIC

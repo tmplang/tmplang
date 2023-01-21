@@ -2,6 +2,7 @@
 #define TMPLANG_TREE_HIR_HIRCONTEXT_H
 
 #include <llvm/ADT/IntrusiveRefCntPtr.h>
+#include <tmplang/Tree/HIR/Symbol.h>
 #include <tmplang/Tree/HIR/Types.h>
 
 #include <deque>
@@ -12,6 +13,8 @@ class HIRContext : llvm::RefCountedBase<HIRContext> {
 public:
   explicit HIRContext();
   ~HIRContext() = default;
+
+  SymbolManager &getSymbolManager() { return SymM; }
 
 private:
   friend class BuiltinType;
@@ -25,6 +28,8 @@ private:
 
   std::deque<TupleType> TupleTypes;
   std::deque<SubprogramType> SubprogramTypes;
+
+  SymbolManager SymM;
 };
 
 } // namespace tmplang::hir

@@ -163,5 +163,4 @@ def ReturnOp : Tmplang_Op<"return", [NoSideEffect, HasParent<"SubprogramOp">,
   let hasVerifier = 1;
 }
 
-
 #endif // TMPLANG_OPS

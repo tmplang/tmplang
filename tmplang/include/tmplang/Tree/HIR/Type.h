@@ -1,6 +1,10 @@
 #ifndef TMPLANG_TREE_HIR_TYPE_H
 #define TMPLANG_TREE_HIR_TYPE_H
 
+namespace llvm {
+class raw_ostream;
+} // namespace llvm
+
 namespace tmplang::hir {
 
 class Type {
@@ -8,6 +12,9 @@ public:
   enum Kind { K_Builtin, K_Tuple, K_Subprogram };
 
   Kind getKind() const { return TKind; }
+
+  void print(llvm::raw_ostream &) const;
+  void dump() const;
 
 protected:
   explicit Type(Kind kind) : TKind(kind) {}

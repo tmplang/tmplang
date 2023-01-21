@@ -3,4 +3,4 @@
 using namespace tmplang::hir;
 
 HIRContext::HIRContext()
-    : i32Type(BuiltinType::Kind::K_i32), UnitType(/*types=*/{}) {}
+    : i32Type(BuiltinType::Kind::K_i32), UnitType(/*types=*/{}), SymM(*this) {}

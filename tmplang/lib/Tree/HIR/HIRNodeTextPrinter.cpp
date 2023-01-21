@@ -18,17 +18,77 @@ static constexpr TerminalColor SourceLocationColor = {raw_ostream::CYAN, true};
 static constexpr TerminalColor NodeColor = {raw_ostream::GREEN, true};
 static constexpr TerminalColor TypeColor = {raw_ostream::BLUE, true};
 
+class RecursiveHIRTypePrinterBase
+    : public RecursiveTypeVisitor<RecursiveHIRTypePrinterBase> {
+  using TypeBase = RecursiveTypeVisitor<RecursiveHIRTypePrinterBase>;
+
+public:
+  RecursiveHIRTypePrinterBase(raw_ostream &os) : OS(os) {}
+  //=--------------------------------------------------------------------------=//
+  // Begin type printing functions
+  //=--------------------------------------------------------------------------=//
+  bool visitType(const Type &type) {
+    ColorScope color(OS, /*showColors=*/false, TypeColor);
+    TypeBase::visitType(type);
+    return true;
+  }
+
+  bool visitBuiltinType(const BuiltinType &builtinType) {
+    OS << ToString(builtinType.getBuiltinKind());
+    return true;
+  }
+
+  bool traverseTupleType(const TupleType &tupleType) {
+    OS << "(";
+    llvm::interleaveComma(tupleType.getTypes(), OS, [&](const Type *type) {
+      TypeBase::traverseType(*type);
+    });
+    OS << ")";
+    return true;
+  }
+
+  bool traverseSubprogramType(const SubprogramType &subprogramTy) {
+    {
+      ColorScope color(OS, /*showColors=*/false, AddressColor);
+      OS << "<";
+    }
+    llvm::interleaveComma(
+        subprogramTy.getParamTypes(), OS,
+        [&](const Type *type) { TypeBase::traverseType(*type); });
+    {
+      ColorScope color(OS, /*showColors=*/false, AddressColor);
+      OS << ">";
+    }
+    OS << " -> ";
+    TypeBase::traverseType(subprogramTy.getReturnType());
+    return true;
+  }
+  //=--------------------------------------------------------------------------=//
+  // End type printing functions
+  //=--------------------------------------------------------------------------=//
+
+private:
+  raw_ostream &OS;
+};
+
+class StandaloneRecursiveHIRTypePrinter : protected TextTreeStructure,
+                                          public RecursiveHIRTypePrinterBase {
+public:
+  StandaloneRecursiveHIRTypePrinter(raw_ostream &os)
+      : TextTreeStructure(os, /*showColors=*/false),
+        RecursiveHIRTypePrinterBase(os) {}
+};
+
 class RecursiveHIRPrinter : protected TextTreeStructure,
                             public RecursiveASTVisitor<RecursiveHIRPrinter>,
-                            public RecursiveTypeVisitor<RecursiveHIRPrinter> {
-public:
+                            public RecursiveHIRTypePrinterBase {
   using HIRBase = RecursiveASTVisitor<RecursiveHIRPrinter>;
-  using TypeBase = RecursiveTypeVisitor<RecursiveHIRPrinter>;
 
+public:
   RecursiveHIRPrinter(raw_ostream &os, const SourceManager &sm,
                       Node::PrintConfig cfg)
-      : TextTreeStructure(os, cfg & Node::PrintConfig::Color), OS(os), SM(sm),
-        Cfg(cfg) {}
+      : TextTreeStructure(os, cfg & Node::PrintConfig::Color),
+        RecursiveHIRTypePrinterBase(os), OS(os), SM(sm), Cfg(cfg) {}
 
   bool visitNode(const Node &node) {
     {
@@ -67,7 +127,7 @@ public:
 
     OS << " ";
 
-    traverseType(subprogramDecl.getSubprogramType());
+    traverseType(subprogramDecl.getType());
     return true;
   }
 
@@ -99,49 +159,6 @@ public:
   }
   //=--------------------------------------------------------------------------=//
   // End node printing functions
-  //=--------------------------------------------------------------------------=//
-
-  //=--------------------------------------------------------------------------=//
-  // Begin type printing functions
-  //=--------------------------------------------------------------------------=//
-  bool visitType(const Type &type) {
-    ColorScope color(OS, Cfg & Node::Color, TypeColor);
-    TypeBase::visitType(type);
-    return true;
-  }
-
-  bool visitBuiltinType(const BuiltinType &builtinType) {
-    OS << ToString(builtinType.getBuiltinKind());
-    return true;
-  }
-
-  bool traverseTupleType(const TupleType &tupleType) {
-    OS << "(";
-    llvm::interleaveComma(tupleType.getTypes(), OS, [&](const Type *type) {
-      TypeBase::traverseType(*type);
-    });
-    OS << ")";
-    return true;
-  }
-
-  bool traverseSubprogramType(const SubprogramType &subprogramTy) {
-    {
-      ColorScope color(OS, Cfg & Node::Color, AddressColor);
-      OS << "<";
-    }
-    llvm::interleaveComma(
-        subprogramTy.getParamTypes(), OS,
-        [&](const Type *type) { TypeBase::traverseType(*type); });
-    {
-      ColorScope color(OS, Cfg & Node::Color, AddressColor);
-      OS << ">";
-    }
-    OS << " -> ";
-    TypeBase::traverseType(subprogramTy.getReturnType());
-    return true;
-  }
-  //=--------------------------------------------------------------------------=//
-  // End type printing functions
   //=--------------------------------------------------------------------------=//
 
 private:
@@ -183,4 +200,14 @@ void tmplang::hir::Node::dump(const SourceManager &sm,
   print(llvm::dbgs(), sm, cfg);
 
   llvm::dbgs().enable_colors(false);
+}
+
+void tmplang::hir::Type::print(llvm::raw_ostream &out) const {
+  // TODO: Add colors
+  StandaloneRecursiveHIRTypePrinter(out).traverseType(*this);
+}
+
+void tmplang::hir::Type::dump() const {
+  // FIXME: Set our own debug streams
+  print(llvm::dbgs());
 }
