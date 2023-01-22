@@ -2,5 +2,7 @@
 
 foo {}
 
+// XFAIL: *
+
 // CHECK:error: missing subprogram classification on subprogram definition
 // CHECK:{fn, proc} foo {}

@@ -14,9 +14,14 @@
 ERROR(found_unknown_token,                     "found unexpected token")
 ERROR(missing_arrow,                           "missing type arrow")
 ERROR(missing_comma,                           "missing needed comma between parameters")
+ERROR(missing_comma_between_data_fields,       "missing needed comma data fields")
 ERROR(missing_comma_prior_tuple_param,         "missing comma before next tuple parameter")
 ERROR(missing_colon,                           "missing needed colon before start of parameter list")
+ERROR(missing_colon_on_data_field,             "missing colon between identifier and type on data field")
 ERROR(missing_expression_after_ret_keyword,    "missing expression after ret keyword")
+ERROR(missing_eq_of_data_decl,                 "missing mandatory '=' on data declaration")
+ERROR(missing_id_of_data_decl,                 "missing identifier on data declaration")
+ERROR(missing_id_of_data_field,                "missing identifier on data field")
 ERROR(missing_left_key_brace,                  "missing left key brace")
 ERROR(missing_left_parenthesis_opening_tuple,  "missing left parenthesis opening tuple")
 ERROR(missing_right_key_brace,                 "missing right key brace")
@@ -26,6 +31,7 @@ ERROR(missing_subprogram_class,                "missing subprogram classificatio
 ERROR(missing_subprogram_id,                   "missing subprogram identifier")
 ERROR(missing_type,                            "missing type")
 ERROR(missing_type_pior_variable,              "missing type of variable")
+ERROR(missing_type_on_data_field,              "missing type on data field")
 ERROR(missing_variable_identifier_after_type,  "missing variable identifier after type")
 
 //=----------------------------- Sema Diags --------------------------------=//

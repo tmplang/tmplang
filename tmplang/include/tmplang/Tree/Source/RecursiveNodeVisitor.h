@@ -70,6 +70,17 @@ protected:
     TRY_TO(visitNode(paramDecl));
     return true;
   }
+  bool traverseDataFieldDecl(const DataFieldDecl &dataFieldDecl) {
+    TRY_TO(visitNode(dataFieldDecl));
+    return true;
+  }
+  bool traverseDataDecl(const DataDecl &dataDecl) {
+    TRY_TO(visitNode(dataDecl));
+    for (const DataFieldDecl &dataFieldDecl : dataDecl.getFields()) {
+      TRY_TO(traverseNode(dataFieldDecl));
+    }
+    return true;
+  }
   bool traverseExprStmt(const ExprStmt &exprStmt) {
     TRY_TO(visitNode(exprStmt));
     if (auto *expr = exprStmt.getExpr()) {

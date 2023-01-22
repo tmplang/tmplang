@@ -105,6 +105,82 @@ private:
   Block B;
 };
 
+class DataFieldDecl final : public Decl {
+public:
+  StringRef getName() const override { return Identifier.getLexeme(); }
+  Token getIdentifier() const { return Identifier; }
+  Token getColon() const { return Colon; }
+  const Type &getType() const { return *Ty; }
+  const Optional<Token> &getComma() const { return Comma; }
+
+  void setComma(Token comma) {
+    assert(comma.is(TokenKind::TK_Comma));
+    Comma = comma;
+  }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Identifier.getSpan().Start;
+  }
+
+  tmplang::SourceLocation getEndLoc() const override {
+    return Comma ? Comma->getSpan().End : Ty->getEndLoc();
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::DataFieldDecl;
+  }
+
+  DataFieldDecl(Token id, Token colon, RAIIType ty)
+      : Decl(Node::Kind::DataFieldDecl), Identifier(id), Colon(colon),
+        Ty(std::move(ty)) {
+    assert(Ty);
+  }
+
+private:
+  Token Identifier;
+  Token Colon;
+  RAIIType Ty;
+  Optional<Token> Comma;
+};
+
+class DataDecl final : public Decl {
+public:
+  Token getDataKeyword() const { return DataKeyword; }
+  StringRef getName() const override { return Identifier.getLexeme(); }
+  Token getIdentifier() const { return Identifier; }
+  llvm::ArrayRef<DataFieldDecl> getFields() const { return Fields; }
+  Token getStartingEq() const { return StartingEq; }
+  Token getEndingSemicolon() const { return EndingSemicolon; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return DataKeyword.getSpan().Start;
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return EndingSemicolon.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::DataDecl;
+  }
+
+  DataDecl(Token dataKeyword, Token id, Token startingEq,
+           SmallVector<DataFieldDecl, 4> fields, Token endingSemicolon)
+      : Decl(Kind::DataDecl), DataKeyword(dataKeyword), Identifier(id),
+        StartingEq(startingEq), Fields(std::move(fields)),
+        EndingSemicolon(endingSemicolon) {
+    assert(!Fields.empty());
+  }
+
+  virtual ~DataDecl() = default;
+
+private:
+  Token DataKeyword;
+  Token Identifier;
+  Token StartingEq;
+  llvm::SmallVector<DataFieldDecl, 4> Fields;
+  Token EndingSemicolon;
+};
+
 } // namespace tmplang::source
 
 #endif // TMPLANG_TREE_SOURCE_DECLS_H

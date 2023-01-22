@@ -96,6 +96,32 @@ public:
     }
     return true;
   }
+
+  bool visitDataFieldDecl(const DataFieldDecl &dataFieldDecl) {
+    printToken(dataFieldDecl.getIdentifier());
+    OS << ' ';
+    printToken(dataFieldDecl.getColon());
+    OS << ' ';
+    traverseType(dataFieldDecl.getType());
+    if (auto &comma = dataFieldDecl.getComma()) {
+      OS << ' ';
+      printToken(*comma);
+    }
+    return true;
+  }
+
+  bool visitDataDecl(const DataDecl &dataDecl) {
+    printToken(dataDecl.getDataKeyword());
+    OS << ' ';
+    printToken(dataDecl.getIdentifier());
+    OS << ' ';
+    printToken(dataDecl.getStartingEq());
+    OS << ' ';
+    printToken(dataDecl.getEndingSemicolon());
+
+    return true;
+  }
+
   bool visitExprStmt(const ExprStmt &exprStmt) {
     printToken(exprStmt.getSemicolon());
     return true;

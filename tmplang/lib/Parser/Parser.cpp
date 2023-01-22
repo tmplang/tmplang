@@ -29,6 +29,18 @@ public:
   Optional<source::CompilationUnit> Start();
 
 private:
+  std::unique_ptr<source::DataDecl> DataDecl();
+  Optional<Token> missingDataDeclId();
+  Optional<Token> missingDataDeclStartingEq();
+
+  Optional<SmallVector<source::DataFieldDecl, 4>> DataFieldDeclList();
+  Optional<Token> missingCommaDataFieldSepRecovery();
+
+  Optional<source::DataFieldDecl> DataFieldDecl();
+  Optional<Token> missingDataFieldId();
+  Optional<Token> missingDataFieldColonSep();
+  Optional<Token> missingDataFieldType();
+
   std::unique_ptr<source::SubprogramDecl> SubprogramDecl();
   std::unique_ptr<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
       Token funcType, Token id, Optional<Token> colon = None,
@@ -144,13 +156,30 @@ Optional<source::CompilationUnit> Parser::Start() {
                                      ParserState.NumberOfRecoveriesPerformed);
     }
 
-    auto subprogram = SubprogramDecl();
-    if (!subprogram) {
-      // Nothing to do, already reported
-      return None;
+    if (tk().is(TK_Data)) {
+      auto fieldDecl = DataDecl();
+      if (!fieldDecl) {
+        // Nothing to do, already reported
+        return None;
+      }
+      decls.push_back(std::move(fieldDecl));
+      continue;
     }
 
-    decls.push_back(std::move(subprogram));
+    if (tk().isOneOf(TK_FnType, TK_ProcType)) {
+      auto subprogram = SubprogramDecl();
+      if (!subprogram) {
+        // Nothing to do, already reported
+        return None;
+      }
+      decls.push_back(std::move(subprogram));
+      continue;
+    }
+
+    // FIXME: This should be: found X when Y was expected
+    Diagnostic(DiagId::err_found_unknown_token, tk().getSpan(), NoHint())
+        .print(Out, SM);
+    return None;
   }
 
   return source::CompilationUnit(std::move(decls),
@@ -190,6 +219,204 @@ std::unique_ptr<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
 
   return std::make_unique<source::SubprogramDecl>(
       funcType, id, std::move(*block), colon, std::move(paramList));
+}
+
+std::unique_ptr<source::DataDecl> Parser::DataDecl() {
+  auto data = ParseToken<TK_Data>();
+  if (!data) {
+    return nullptr;
+  }
+
+  auto id = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>,
+                              &Parser::missingDataDeclId>();
+  if (!id) {
+    return nullptr;
+  }
+
+  auto eq = parseOrTryRecover<&Parser::ParseToken<TK_Eq>,
+                              &Parser::missingDataDeclStartingEq>();
+  if (!eq) {
+    return nullptr;
+  }
+
+  auto fields = DataFieldDeclList();
+  if (!fields) {
+    return nullptr;
+  }
+
+  auto semicolon = ParseToken<TK_Semicolon>();
+  if (!semicolon) {
+    // TODO:
+    return nullptr;
+  }
+
+  return std::make_unique<source::DataDecl>(*data, *id, *eq, std::move(*fields),
+                                            *semicolon);
+}
+
+Optional<Token> Parser::missingDataDeclId() {
+  // data   =
+  //      ^___ id here
+
+  const bool missingId = prevTk().is(TK_Data) && tk().is(TK_Eq);
+  if (!missingId) {
+    return None;
+  }
+
+  constexpr StringLiteral placeHolder = "<data_decl_identifier>";
+  Diagnostic(DiagId::err_missing_id_of_data_decl, tk().getSpan(),
+             InsertTextAtHint(getStartCurrToken(), placeHolder))
+      .print(Out, SM);
+
+  return getRecoveryToken(placeHolder, TK_Identifier);
+}
+
+Optional<Token> Parser::missingDataDeclStartingEq() {
+  // data Dummy
+  //            ^___ '=' id here
+  //   a : i32;
+
+  const bool missingId = prevTk().is(TK_Identifier) && tk().is(TK_Identifier);
+  if (!missingId) {
+    return None;
+  }
+
+  Diagnostic(DiagId::err_missing_eq_of_data_decl, prevTk().getSpan(),
+             InsertTextAtHint(prevTk().getSpan().End + 1, ToString(TK_Eq)))
+      .print(Out, SM);
+
+  return getRecoveryToken(TK_Eq);
+}
+
+Optional<source::DataFieldDecl> Parser::DataFieldDecl() {
+  Optional<Token> id = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>,
+                                         &Parser::missingDataFieldId>();
+  if (!id) {
+    return None;
+  }
+
+  Optional<Token> colon =
+      parseOrTryRecover<&Parser::ParseToken<TK_Colon>,
+                        &Parser::missingDataFieldColonSep>();
+  if (!colon) {
+    return None;
+  }
+
+  auto ty = Type();
+  if (!ty) {
+    // Nothing to report here, reported on Type
+    return None;
+  }
+
+  return source::DataFieldDecl(*id, *colon, std::move(ty));
+}
+
+Optional<Token> Parser::missingDataFieldId() {
+  // data Foo =
+  //    : i32;
+  //  ^___ id here
+
+  const bool missingId = prevTk().is(TK_Eq) && tk().is(TK_Colon);
+  if (!missingId) {
+    return None;
+  }
+
+  constexpr StringLiteral placeHolder = "<data_field_identifier>";
+
+  Diagnostic(DiagId::err_missing_id_of_data_field, tk().getSpan(),
+             InsertTextAtHint(getStartCurrToken(), placeHolder))
+      .print(Out, SM);
+
+  return getRecoveryToken(placeHolder, TK_Identifier);
+}
+
+Optional<Token> Parser::missingDataFieldColonSep() {
+  // data Foo =
+  //   a  i32;
+  //     ^___ colon here
+
+  const bool missingColon =
+      prevTk().is(tmplang::TK_Identifier) &&
+      tk().isOneOf(tmplang::TK_Identifier, tmplang::TK_LParentheses);
+  if (!missingColon) {
+    return None;
+  }
+
+  Diagnostic(DiagId::err_missing_colon_on_data_field, prevTk().getSpan(),
+             InsertTextAtHint(getStartCurrToken(), ToString(TK_Colon)))
+      .print(Out, SM);
+
+  return getRecoveryToken(TK_Colon);
+}
+
+Optional<Token> Parser::missingDataFieldType() {
+  // data Foo =
+  //   a  i32;
+  //     ^___ colon here
+
+  const bool missingDataType =
+      prevTk().is(tmplang::TK_Colon) &&
+      tk().isOneOf(tmplang::TK_Comma, tmplang::TK_Semicolon);
+  if (!missingDataType) {
+    return None;
+  }
+
+  Diagnostic(DiagId::err_missing_type_on_data_field, tk().getSpan(),
+             InsertTextAtHint(getStartCurrToken(), ToString(TK_Comma)))
+      .print(Out, SM);
+
+  // FIXME: Is this correct? A types is expected, TK_Identifier can work
+  // to represent an identifier
+  return getRecoveryToken(TK_Identifier);
+}
+
+/// DataFieldDeclList = DataFieldDecl (",", DataFieldDecl)*;
+Optional<SmallVector<source::DataFieldDecl, 4>> Parser::DataFieldDeclList() {
+  SmallVector<source::DataFieldDecl, 4> dataFieldDecls;
+
+  auto firstParam = DataFieldDecl();
+  if (!firstParam) {
+    // Nothing to report here, reported on Param
+    return None;
+  }
+  dataFieldDecls.push_back(std::move(*firstParam));
+
+  while (auto comma =
+             parseOrTryRecover<&Parser::ParseToken<TK_Comma>,
+                               &Parser::missingCommaDataFieldSepRecovery>(
+                 /*emitUnexpectedTokenDiag*/ false)) {
+    dataFieldDecls.back().setComma(*comma);
+
+    auto dataField = DataFieldDecl();
+    if (!dataField) {
+      // Nothing to report here, reported on Param
+      return None;
+    }
+
+    dataFieldDecls.push_back(std::move(*dataField));
+  }
+
+  return dataFieldDecls;
+}
+
+Optional<Token> Parser::missingCommaDataFieldSepRecovery() {
+  // data Foo =
+  //   a : i32
+  //          ^___ comma here
+  //   b : i32,;
+
+  const bool missingComma = tk().isOneOf(TK_Identifier) &&
+                            // TokenKinds corresponding to end of Type
+                            prevTk().isOneOf(TK_Identifier, TK_RParentheses);
+  if (!missingComma) {
+    return None;
+  }
+
+  Diagnostic(DiagId::err_missing_comma_between_data_fields, tk().getSpan(),
+             InsertTextAtHint(getStartCurrToken(), ToString(TK_Comma)))
+      .print(Out, SM);
+
+  return getRecoveryToken(TK_Comma);
 }
 
 /// Function_type = "proc" | "fn";
