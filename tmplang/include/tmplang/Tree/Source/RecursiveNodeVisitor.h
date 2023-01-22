@@ -50,8 +50,9 @@ protected:
   //=--------------------------------------------------------------------------=//
   bool traverseCompilationUnit(const CompilationUnit &compilationUnit) {
     TRY_TO(visitNode(compilationUnit));
-    for (const SubprogramDecl &subprog : compilationUnit.getSubprogramDecls()) {
-      TRY_TO(traverseNode(subprog));
+    for (const std::unique_ptr<Decl> &decl :
+         compilationUnit.getTopLevelDecls()) {
+      TRY_TO(traverseNode(*decl));
     }
     return true;
   }

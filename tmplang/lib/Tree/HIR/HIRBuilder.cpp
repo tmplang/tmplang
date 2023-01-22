@@ -219,8 +219,15 @@ Optional<CompilationUnit>
 HIRBuilder::build(const source::CompilationUnit &compUnit) {
   CompilationUnit result(compUnit);
 
-  for (const source::SubprogramDecl &srcFunc : compUnit.getSubprogramDecls()) {
-    auto hirFunc = get(srcFunc);
+  for (const std::unique_ptr<tmplang::source::Decl> &srcFunc :
+       compUnit.getTopLevelDecls()) {
+    auto *subprog = dyn_cast<source::SubprogramDecl>(srcFunc.get());
+    if (!subprog) {
+      // TODO: Build more things than just SubprogramDecl
+      continue;
+    }
+
+    auto hirFunc = get(*subprog);
     if (!hirFunc) {
       return None;
     }

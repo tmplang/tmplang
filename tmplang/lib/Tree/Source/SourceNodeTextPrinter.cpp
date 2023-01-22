@@ -4,7 +4,6 @@
 #include <tmplang/Tree/Source/RecursiveTypeVisitor.h>
 
 #include "../TreeFormatPrinter.h"
-#include "tmplang/Tree/Source/Exprs.h"
 
 using namespace tmplang;
 using namespace tmplang::source;

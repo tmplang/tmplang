@@ -29,8 +29,8 @@ public:
   Optional<source::CompilationUnit> Start();
 
 private:
-  Optional<source::SubprogramDecl> SubprogramDecl();
-  Optional<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
+  std::unique_ptr<source::SubprogramDecl> SubprogramDecl();
+  std::unique_ptr<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
       Token funcType, Token id, Optional<Token> colon = None,
       SmallVector<source::ParamDecl, 4> paramList = {});
   Optional<Token> missingSubprogramTypeRecovery();
@@ -137,10 +137,10 @@ private:
 /// Start = Function_Definition*;
 ///       | EOF;
 Optional<source::CompilationUnit> Parser::Start() {
-  std::vector<source::SubprogramDecl> SubprogramDeclarations;
+  std::vector<std::unique_ptr<source::Decl>> decls;
   while (true) {
     if (tk().is(TokenKind::TK_EOF)) {
-      return source::CompilationUnit(std::move(SubprogramDeclarations),
+      return source::CompilationUnit(std::move(decls),
                                      ParserState.NumberOfRecoveriesPerformed);
     }
 
@@ -150,14 +150,14 @@ Optional<source::CompilationUnit> Parser::Start() {
       return None;
     }
 
-    SubprogramDeclarations.push_back(std::move(*subprogram));
+    decls.push_back(std::move(subprogram));
   }
 
-  return source::CompilationUnit(std::move(SubprogramDeclarations),
+  return source::CompilationUnit(std::move(decls),
                                  ParserState.NumberOfRecoveriesPerformed);
 }
 
-Optional<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
+std::unique_ptr<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
     Token funcType, Token id, Optional<Token> colon,
     SmallVector<source::ParamDecl, 4> paramList) {
   if (auto arrow = parseOrTryRecover<&Parser::ParseToken<TK_RArrow>,
@@ -167,16 +167,16 @@ Optional<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
     auto returnType = Type();
     if (!returnType) {
       // Nothing to report here, reported on Type
-      return None;
+      return nullptr;
     }
 
     auto block = Block();
     if (!block) {
       // Nothing to report here, reported on Block
-      return None;
+      return nullptr;
     }
 
-    return source::SubprogramDecl(
+    return std::make_unique<source::SubprogramDecl>(
         funcType, id, std::move(*block), colon, std::move(paramList),
         source::SubprogramDecl::ArrowAndType{*arrow, std::move(returnType)});
   }
@@ -185,11 +185,11 @@ Optional<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
   auto block = Block();
   if (!block) {
     // Nothing to report here, reported on Block
-    return None;
+    return nullptr;
   }
 
-  return source::SubprogramDecl(funcType, id, std::move(*block), colon,
-                                std::move(paramList));
+  return std::make_unique<source::SubprogramDecl>(
+      funcType, id, std::move(*block), colon, std::move(paramList));
 }
 
 /// Function_type = "proc" | "fn";
@@ -199,9 +199,8 @@ Optional<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
 ///  [2] | Function_Type, Identifier, ":", Param_List, Block
 ///  [3] | Function_Type, Identifier, "->", Type, Block
 ///  [4] | Function_Type, Identifier, Block;
-Optional<source::SubprogramDecl> Parser::SubprogramDecl() {
-  auto funcType = parseOrTryRecover<&Parser::ParseToken<TK_FnType, TK_ProcType>,
-                                    &Parser::missingSubprogramTypeRecovery>();
+std::unique_ptr<source::SubprogramDecl> Parser::SubprogramDecl() {
+  auto funcType = Parser::ParseToken<TK_FnType, TK_ProcType>();
   if (!funcType) {
     // Since this is the start of top level declaration, lets consume the
     // unknowns until we find something we understand
@@ -209,13 +208,13 @@ Optional<source::SubprogramDecl> Parser::SubprogramDecl() {
       consume();
       return SubprogramDecl();
     }
-    return None;
+    return nullptr;
   }
 
   auto id = parseOrTryRecover<&Parser::Identifier,
                               &Parser::missingSubprogramIdRecovery>();
   if (!id) {
-    return None;
+    return nullptr;
   }
 
   // [1] && [2]
@@ -225,7 +224,7 @@ Optional<source::SubprogramDecl> Parser::SubprogramDecl() {
     auto paramList = ParamList();
     if (!paramList) {
       // Nothing to report here, reported on ParamList
-      return None;
+      return nullptr;
     }
 
     return ArrowAndEndOfSubprogramFactored(*funcType, *id, colon,
