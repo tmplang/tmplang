@@ -17,6 +17,8 @@ StringLiteral tmplang::ToString(TokenKind tk) {
     return "Ident";
   case TK_IntegerNumber:
     return "IntegralNumber";
+  case TK_Eq:
+    return "=";
   case TK_Ret:
     return "ret";
   case TK_LParentheses:
@@ -31,6 +33,8 @@ StringLiteral tmplang::ToString(TokenKind tk) {
     return ",";
   case TK_Semicolon:
     return ";";
+  case TK_Data:
+    return "data";
   case TK_FnType:
     return "fn";
   case TK_ProcType:

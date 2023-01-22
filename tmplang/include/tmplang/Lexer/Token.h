@@ -18,6 +18,9 @@ enum TokenKind {
   TK_IntegerNumber,
   TK_Identifier,
 
+  // Operators
+  TK_Eq,
+
   // Delimiters
   TK_LParentheses,
   TK_RParentheses,
@@ -29,6 +32,7 @@ enum TokenKind {
   TK_RArrow,
 
   // Keywords
+  TK_Data,
   TK_FnType,
   TK_ProcType,
   TK_Ret,

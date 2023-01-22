@@ -95,6 +95,9 @@ Token Lexer::next() {
   case ',':
     simpleTokenMatched = TK_Comma;
     break;
+  case '=':
+    simpleTokenMatched = TK_Eq;
+    break;
   case '}':
     simpleTokenMatched = TK_RKeyBracket;
     break;
@@ -141,10 +144,14 @@ Token Lexer::next() {
     return tkBuilder.buildToken(TK_Unknown);
   }
 
+  // FIXME: This switch does not allow using these "identifiers" as valid
+  // variable names. Eg: proc ret {} is not valid because ret is not a
+  // Identifier token
   TokenKind tk = StringSwitch<TokenKind>(potentialId)
                      .Case(ToString(TK_ProcType), TK_ProcType)
                      .Case(ToString(TK_FnType), TK_FnType)
                      .Case(ToString(TK_Ret), TK_Ret)
+                     .Case(ToString(TK_Data), TK_Data)
                      .Default(TK_Identifier);
 
   if (tk == TK_Identifier) {

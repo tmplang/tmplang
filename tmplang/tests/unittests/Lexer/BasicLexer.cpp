@@ -222,3 +222,11 @@ TEST(BasicLexer, Numbers) {
 TEST(BasicLexer, InvalidNumber) {
   TestLexer("_1", {{TK_Unknown, {1, 1}, {1, 1}}});
 }
+
+TEST(BasicLexer, StartOfData) {
+  TestLexer("data =", {
+                          {TK_Data, {1, 1}, {1, 4}},
+                          {TK_Eq, {1, 6}, {1, 6}},
+                          {TK_EOF, {1, 7}, {1, 7}},
+                      });
+}
