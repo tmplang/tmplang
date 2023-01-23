@@ -23,12 +23,14 @@ class RecursiveHIRTypePrinterBase
   using TypeBase = RecursiveTypeVisitor<RecursiveHIRTypePrinterBase>;
 
 public:
-  RecursiveHIRTypePrinterBase(raw_ostream &os) : OS(os) {}
+  RecursiveHIRTypePrinterBase(raw_ostream &os,
+                              Node::PrintConfig cfg = Node::PrintConfig::None)
+      : OS(os), Cfg(cfg) {}
   //=--------------------------------------------------------------------------=//
   // Begin type printing functions
   //=--------------------------------------------------------------------------=//
   bool visitType(const Type &type) {
-    ColorScope color(OS, /*showColors=*/false, TypeColor);
+    ColorScope color(OS, Cfg & Node::PrintConfig::Color, TypeColor);
     TypeBase::visitType(type);
     return true;
   }
@@ -49,14 +51,14 @@ public:
 
   bool traverseSubprogramType(const SubprogramType &subprogramTy) {
     {
-      ColorScope color(OS, /*showColors=*/false, AddressColor);
+      ColorScope color(OS, Cfg & Node::PrintConfig::Color, AddressColor);
       OS << "<";
     }
     llvm::interleaveComma(
         subprogramTy.getParamTypes(), OS,
         [&](const Type *type) { TypeBase::traverseType(*type); });
     {
-      ColorScope color(OS, /*showColors=*/false, AddressColor);
+      ColorScope color(OS, Cfg & Node::PrintConfig::Color, AddressColor);
       OS << ">";
     }
     OS << " -> ";
@@ -69,6 +71,7 @@ public:
 
 private:
   raw_ostream &OS;
+  Node::PrintConfig Cfg;
 };
 
 class StandaloneRecursiveHIRTypePrinter : protected TextTreeStructure,
@@ -88,7 +91,7 @@ public:
   RecursiveHIRPrinter(raw_ostream &os, const SourceManager &sm,
                       Node::PrintConfig cfg)
       : TextTreeStructure(os, cfg & Node::PrintConfig::Color),
-        RecursiveHIRTypePrinterBase(os), OS(os), SM(sm), Cfg(cfg) {}
+        RecursiveHIRTypePrinterBase(os, cfg), OS(os), SM(sm), Cfg(cfg) {}
 
   bool visitNode(const Node &node) {
     {
