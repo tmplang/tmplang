@@ -103,6 +103,15 @@ struct ConvertTmplangToLLVMPass
       return mlir::LLVM::LLVMStructType::getLiteral(&getContext(), tys);
     });
 
+    converter.addConversion([&](tmplang::DataType dataType) {
+      SmallVector<mlir::Type, 4> tys;
+      for (auto ty : dataType.getTys()) {
+        tys.push_back(converter.convertType(ty));
+      }
+      return mlir::LLVM::LLVMStructType::getNewIdentified(
+          &getContext(), dataType.getName(), tys);
+    });
+
     // Since we want to lower builtin tuple types, we need to lower func dialect
     // to LLVM along this pass
     mlir::populateFuncToLLVMConversionPatterns(converter, patterns);

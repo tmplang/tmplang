@@ -23,6 +23,8 @@ public:
       return getDerived().traverseTupleType(*cast<TupleType>(&type));
     case Type::K_Subprogram:
       return getDerived().traverseSubprogramType(*cast<SubprogramType>(&type));
+    case Type::K_Data:
+      return getDerived().traverseDataType(*cast<DataType>(&type));
     }
     llvm_unreachable("All cases are handled");
   }
@@ -36,6 +38,8 @@ public:
       return getDerived().visitTupleType(*cast<TupleType>(&type));
     case Type::K_Subprogram:
       return getDerived().visitSubprogramType(*cast<SubprogramType>(&type));
+    case Type::K_Data:
+      return getDerived().visitDataType(*cast<DataType>(&type));
     }
     llvm_unreachable("All cases are handled");
   }
@@ -48,6 +52,7 @@ protected:
   bool visitBuiltinType(const BuiltinType &) { return true; }
   bool visitTupleType(const TupleType &) { return true; }
   bool visitSubprogramType(const SubprogramType &) { return true; }
+  bool visitDataType(const DataType &) { return true; }
   //=--------------------------------------------------------------------------=//
   // End visit functions
   //=--------------------------------------------------------------------------=//
@@ -72,6 +77,13 @@ protected:
       TRY_TO(traverseType(*type));
     }
     TRY_TO(traverseType(subprogramTy.getReturnType()));
+    return true;
+  }
+  bool traverseDataType(const DataType &dataTy) {
+    TRY_TO(visitType(dataTy));
+    for (const Type *type : dataTy.getFieldsTypes()) {
+      TRY_TO(traverseType(*type));
+    }
     return true;
   }
 

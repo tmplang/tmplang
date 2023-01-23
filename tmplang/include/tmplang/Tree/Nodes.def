@@ -15,8 +15,8 @@
 
 BothNode(CompilationUnit)
 BothNode(SubprogramDecl)
-SourceNode(DataFieldDecl)
-SourceNode(DataDecl)
+BothNode(DataFieldDecl)
+BothNode(DataDecl)
 BothNode(ParamDecl)
 SourceNode(ExprStmt)
 BothNode(ExprIntegerNumber)

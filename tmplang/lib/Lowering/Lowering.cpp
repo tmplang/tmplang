@@ -40,9 +40,12 @@ public:
 
   mlir::ModuleOp build(const hir::CompilationUnit &compUnit) {
     auto mod = B.create<mlir::ModuleOp>(B.getUnknownLoc(), SM.getFileName());
-    for (const hir::SubprogramDecl &subprog : compUnit.getSubprograms()) {
-      B.setInsertionPointToEnd(mod.getBody());
-      build(subprog);
+    for (const std::unique_ptr<hir::Decl> &decl : compUnit.getTopLevelDecls()) {
+      if (auto *subprog = dyn_cast<hir::SubprogramDecl>(&*decl)) {
+        // SubprogramDecl is the only declaration that can generate code
+        B.setInsertionPointToEnd(mod.getBody());
+        build(*subprog);
+      }
     }
     return mod;
   }
@@ -139,6 +142,8 @@ private:
       return get(*cast<hir::TupleType>(&type));
     case hir::Type::K_Subprogram:
       return get(*cast<hir::SubprogramType>(&type));
+    case hir::Type::K_Data:
+      return get(*cast<hir::DataType>(&type));
     }
     llvm_unreachable("All cases covered");
   }
@@ -170,6 +175,14 @@ private:
 
     auto retValTy = get(subprogramTy.getReturnType());
     return B.getFunctionType(inputTypes, retValTy);
+  }
+
+  tmplang::DataType get(const hir::DataType &dataTy) {
+    SmallVector<mlir::Type, 4> tys;
+    transform(dataTy.getFieldsTypes(), std::back_inserter(tys),
+              [&](const hir::Type *ty) { return get(*ty); });
+
+    return tmplang::DataType::get(&Ctx, dataTy.getName(), tys);
   }
 
   mlir::FileLineColLoc getLocation(const hir::Node &node) {

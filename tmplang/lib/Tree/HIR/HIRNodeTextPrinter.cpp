@@ -49,6 +49,12 @@ public:
     return true;
   }
 
+  bool traverseDataType(const DataType &dataType) {
+    ColorScope color(OS, Cfg & Node::PrintConfig::Color, TypeColor);
+    OS << dataType.getName() << "{...}";
+    return true;
+  }
+
   bool traverseSubprogramType(const SubprogramType &subprogramTy) {
     {
       ColorScope color(OS, Cfg & Node::PrintConfig::Color, AddressColor);
@@ -138,6 +144,20 @@ public:
     OS << " ";
     traverseType(paramDecl.getType());
     printIdentifier(paramDecl.getName());
+    return true;
+  }
+
+  bool visitDataDecl(const DataDecl &dataDecl) {
+    OS << " ";
+    printIdentifier(dataDecl.getName());
+    return true;
+  }
+
+  bool visitDataFieldDecl(const DataFieldDecl &dataFieldDecl) {
+    OS << " ";
+    traverseType(dataFieldDecl.getType());
+    OS << " ";
+    printIdentifier(dataFieldDecl.getName());
     return true;
   }
 

@@ -47,8 +47,6 @@ public:
         Params(std::move(params)), Expressions(std::move(exprs)) {}
   virtual ~SubprogramDecl() = default;
 
-  SubprogramDecl(SubprogramDecl &&subprogramDecl) = default;
-
 private:
   FunctionKind FuncKind;
   std::vector<ParamDecl> Params;
@@ -56,6 +54,34 @@ private:
 };
 
 StringLiteral ToString(SubprogramDecl::FunctionKind kind);
+
+class DataFieldDecl final : public Decl {
+public:
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::DataFieldDecl;
+  }
+
+  explicit DataFieldDecl(const source::Node &srcNode, const Symbol &sym)
+      : Decl(Kind::DataFieldDecl, srcNode, sym) {}
+  virtual ~DataFieldDecl() = default;
+};
+
+class DataDecl final : public Decl {
+public:
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::DataDecl;
+  }
+
+  explicit DataDecl(const source::Node &srcNode, const Symbol &sym,
+                    std::vector<DataFieldDecl> fields)
+      : Decl(Kind::DataDecl, srcNode, sym), Fields(std::move(fields)) {}
+  virtual ~DataDecl() = default;
+
+  ArrayRef<DataFieldDecl> getFields() const { return Fields; }
+
+private:
+  std::vector<DataFieldDecl> Fields;
+};
 
 } // namespace tmplang::hir
 

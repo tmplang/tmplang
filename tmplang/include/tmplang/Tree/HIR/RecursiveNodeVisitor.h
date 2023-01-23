@@ -52,8 +52,8 @@ protected:
   //=--------------------------------------------------------------------------=//
   bool traverseCompilationUnit(const CompilationUnit &compilationUnit) {
     TRY_TO(visitNode(compilationUnit));
-    for (const auto &subprog : compilationUnit.getSubprograms()) {
-      TRY_TO(traverseNode(subprog));
+    for (const auto &decl : compilationUnit.getTopLevelDecls()) {
+      TRY_TO(traverseNode(*decl));
     }
     return true;
   }
@@ -65,6 +65,17 @@ protected:
     for (const auto &expr : subprogramDecl.getBody()) {
       TRY_TO(traverseNode(*expr));
     }
+    return true;
+  }
+  bool traverseDataDecl(const DataDecl &dataDecl) {
+    TRY_TO(visitNode(dataDecl));
+    for (const auto &field : dataDecl.getFields()) {
+      TRY_TO(traverseNode(field));
+    }
+    return true;
+  }
+  bool traverseDataFieldDecl(const DataFieldDecl &dataFieldDecl) {
+    TRY_TO(visitNode(dataFieldDecl));
     return true;
   }
   bool traverseParamDecl(const ParamDecl &paramDecl) {

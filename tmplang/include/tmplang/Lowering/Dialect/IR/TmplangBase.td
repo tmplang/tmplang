@@ -18,6 +18,8 @@ def Tmplang_Dialect : Dialect {
     void registerOps();
     void registerTypes();
   }];
+
+  let useDefaultTypePrinterParser = 1;
 }
 
 #endif // TMPLANG_BASE

@@ -14,6 +14,6 @@ public:
 } // namespace tmplang
 
 #define GET_TYPEDEF_CLASSES
-#include <tmplang/Lowering/Dialect/TmplangOpsTypes.h.inc>
+#include <tmplang/Lowering/Dialect/IR/TmplangOpsTypes.h.inc>
 
 #endif // TMPLANG_LOWERING_DIALECT_IR_TYPES_H

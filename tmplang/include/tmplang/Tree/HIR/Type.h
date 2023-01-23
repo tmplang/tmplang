@@ -9,7 +9,7 @@ namespace tmplang::hir {
 
 class Type {
 public:
-  enum Kind { K_Builtin, K_Tuple, K_Subprogram };
+  enum Kind { K_Builtin, K_Tuple, K_Subprogram, K_Data };
 
   Kind getKind() const { return TKind; }
 

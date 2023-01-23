@@ -66,3 +66,18 @@ SubprogramType::get(HIRContext &ctx, const Type &retTy,
                                          : ctx.SubprogramTypes.emplace_back(
                                                SubprogramType(retTy, paramTys));
 }
+
+/*static*/ const DataType &DataType::get(HIRContext &ctx, llvm::StringRef name,
+                                         ArrayRef<const Type *> fieldsTys) {
+  // FIXME: This is very naive and unoptimal, we could accelerate this using,
+  //        for example, an index table by data size
+
+  // Search for it first in case already exists
+  auto it = llvm::find_if(ctx.DataTypes, [&](const DataType &dataType) {
+    return dataType.getFieldsTypes() == fieldsTys && dataType.Name == name;
+  });
+
+  return it != ctx.DataTypes.end()
+             ? *it
+             : ctx.DataTypes.emplace_back(DataType(name, fieldsTys));
+}

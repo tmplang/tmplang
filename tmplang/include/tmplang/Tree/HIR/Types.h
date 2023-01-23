@@ -2,6 +2,7 @@
 #define TMPLANG_TREE_HIR_TYPES_H
 
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/StringRef.h>
 #include <tmplang/ADT/LLVM.h>
 #include <tmplang/Tree/HIR/Type.h>
@@ -72,6 +73,25 @@ private:
 
   const Type &ReturnType;
   SmallVector<const Type *> ParamTypes;
+};
+
+class DataType final : public Type {
+public:
+  ArrayRef<const Type *> getFieldsTypes() const { return ParamTypes; }
+  llvm::StringRef getName() const { return Name; }
+
+  static const DataType &get(HIRContext &, llvm::StringRef name,
+                             ArrayRef<const Type *> paramTys);
+
+  static bool classof(const Type *T) { return T->getKind() == K_Data; }
+
+private:
+  friend class HIRContext;
+  explicit DataType(llvm::StringRef name, ArrayRef<const Type *> fieldsTys)
+      : Type(K_Data), ParamTypes(fieldsTys), Name(name) {}
+
+  SmallVector<const Type *> ParamTypes;
+  SmallString<16> Name;
 };
 
 } // namespace tmplang::hir

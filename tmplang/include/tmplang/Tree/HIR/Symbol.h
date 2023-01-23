@@ -17,8 +17,10 @@ enum class SymbolKind {
   /// Initial state of symbols that are unknown when queried. It is considered
   /// and error if after the resolving symbols pass any of these remains.
   Unresolved = 0,
-  Subprogram,
-  ParamOrVarDecl
+  /// There are also two kinds of symbols. Those that are queryable from an
+  /// expression or a type.
+  Expr,
+  Type
 };
 llvm::StringLiteral ToString(SymbolKind);
 
@@ -29,9 +31,7 @@ public:
   const SymbolicScope &getContainingScope() const;
   bool isGlobalScope() const;
 
-  bool containsSymbol(const Symbol &sym) const;
   bool containsSymbol(SymbolKind kind, llvm::StringRef id) const;
-
   [[maybe_unused]] Symbol &addSymbol(Symbol &);
 
   void dump(bool recursively = false) const;
@@ -44,15 +44,9 @@ private:
   /// Only the SymbolManager can build Scopes
   friend class SymbolManager;
 
-  /// Non-global scope constructor
-  SymbolicScope(const SymbolicScope &parentScope) : ParentScope(&parentScope) {}
-
-  /// Global scope constructor
-  SymbolicScope() : ParentScope(nullptr) {}
+  SymbolicScope() {}
 
 private:
-  /// All scopes except the GlobalScope have a parent scope
-  const SymbolicScope *ParentScope;
   /// TODO: Profile about a nice initial size for the array
   llvm::SmallVector<std::reference_wrapper<Symbol>> Symbols;
 };
@@ -99,8 +93,8 @@ public:
     return *new (SymbolArena.Allocate()) Symbol(kind, id, ty);
   }
 
-  SymbolicScope &createSymbolicScope(const SymbolicScope &parentScope) {
-    return *new (SymbolicScopeArena.Allocate()) SymbolicScope(parentScope);
+  SymbolicScope &createSymbolicScope() {
+    return *new (SymbolicScopeArena.Allocate()) SymbolicScope();
   }
 
 private:
