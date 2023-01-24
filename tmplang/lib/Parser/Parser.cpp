@@ -673,7 +673,8 @@ source::RAIIType Parser::TupleType() {
   SmallVector<source::RAIIType, 4> types;
   SmallVector<Token, 3> commas;
 
-  if (tk().isOneOf(/*firstTokensOfType*/ TK_LParentheses, TK_Identifier)) {
+  if (tk().isOneOf(/*firstTokensOfTypeExceptRet*/ TK_LParentheses,
+                   TK_IntegerNumber, TK_Identifier)) {
     auto firstType = Type();
     if (!firstType) {
       // Nothing to report here, reported on Type
@@ -745,7 +746,7 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   std::vector<source::ExprStmt> result;
 
   while (tk().isOneOf(/*firstTokensOfExpr*/ TK_LParentheses, TK_IntegerNumber,
-                      TK_Ret, TK_Semicolon)) {
+                      TK_Ret, TK_Identifier)) {
     if (tk().is(TK_Semicolon)) {
       // Consume dangling ';'s
       result.push_back(source::ExprStmt(nullptr, consume()));
@@ -771,8 +772,12 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   return result;
 }
 
-/// Expr = ExprNumber | "ret" Expr | ExprTuple
+/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef
 RAIIExpr Parser::Expr() {
+  if (auto id = Identifier()) {
+    return std::make_unique<source::ExprVarRef>(*id);
+  }
+
   if (auto num = Number()) {
     return std::make_unique<source::ExprIntegerNumber>(*num);
   }
@@ -839,7 +844,8 @@ std::unique_ptr<source::ExprTuple> Parser::ExprTuple() {
 
   SmallVector<source::TupleElem, 4> vals;
 
-  if (tk().isOneOf(/*firstTokensOfExpr*/ TK_LParentheses, TK_IntegerNumber)) {
+  if (tk().isOneOf(/*firstTokensOfExpr*/ TK_LParentheses, TK_IntegerNumber,
+                   TK_Identifier)) {
     auto firstExpr = Expr();
     if (!firstExpr) {
       // Nothing to report here, reported on Expr

@@ -111,6 +111,10 @@ protected:
     }
     return true;
   }
+  bool traverseExprVarRef(const ExprVarRef &exprVarRef) {
+    TRY_TO(visitNode(exprVarRef));
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//

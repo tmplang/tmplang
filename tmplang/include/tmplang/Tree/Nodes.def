@@ -21,6 +21,7 @@ BothNode(ParamDecl)
 SourceNode(ExprStmt)
 BothNode(ExprIntegerNumber)
 BothNode(ExprRet)
+SourceNode(ExprVarRef)
 BothNode(ExprTuple)
 SourceNode(TupleElem)
 

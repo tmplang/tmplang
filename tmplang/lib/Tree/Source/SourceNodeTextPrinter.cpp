@@ -145,6 +145,10 @@ public:
     printToken(exprRet.getRetTk());
     return true;
   }
+  bool visitExprVarRef(const ExprVarRef &exprVarRef) {
+    printToken(exprVarRef.getIdentifier());
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

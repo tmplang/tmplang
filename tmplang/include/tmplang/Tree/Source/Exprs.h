@@ -102,6 +102,27 @@ private:
   std::unique_ptr<Expr> ExprToRet;
 };
 
+class ExprVarRef final : public Expr {
+public:
+  ExprVarRef(Token id) : Expr(Kind::ExprVarRef), Identifier(id) {}
+
+  const Token &getIdentifier() const { return Identifier; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Identifier.getSpan().Start;
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return Identifier.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprVarRef;
+  }
+
+private:
+  Token Identifier;
+};
+
 } // namespace tmplang::source
 
 #endif // TMPLANG_TREE_SOURCE_EXPRS_H
