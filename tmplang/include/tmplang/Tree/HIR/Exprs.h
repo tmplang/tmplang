@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/APInt.h>
 #include <tmplang/Tree/HIR/Expr.h>
+#include <tmplang/Tree/HIR/Symbol.h>
 #include <tmplang/Tree/HIR/Types.h>
 
 namespace tmplang::hir {
@@ -53,6 +54,21 @@ public:
 
 private:
   std::unique_ptr<Expr> ExprToRet;
+};
+
+class ExprVarRef final : public Expr {
+public:
+  ExprVarRef(const source::Node &srcNode, const Symbol &sym)
+      : Expr(Kind::ExprVarRef, srcNode, sym.getType()), ReferencedSym(sym) {}
+
+  llvm::StringRef getName() const { return ReferencedSym.getId(); }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprVarRef;
+  }
+
+private:
+  const Symbol &ReferencedSym;
 };
 
 } // namespace tmplang::hir

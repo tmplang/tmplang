@@ -107,6 +107,7 @@ public:
   ExprVarRef(Token id) : Expr(Kind::ExprVarRef), Identifier(id) {}
 
   const Token &getIdentifier() const { return Identifier; }
+  llvm::StringRef getName() const { return Identifier.getLexeme(); }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return Identifier.getSpan().Start;

@@ -30,6 +30,7 @@ private:
   std::unique_ptr<ExprIntegerNumber> get(const source::ExprIntegerNumber &);
   std::unique_ptr<ExprRet> get(const source::ExprRet &);
   std::unique_ptr<ExprTuple> get(const source::ExprTuple &);
+  std::unique_ptr<ExprVarRef> get(const source::ExprVarRef &);
 
   const Type *get(const source::Type &);
 
@@ -95,6 +96,17 @@ std::unique_ptr<ExprTuple> HIRBuilder::get(const source::ExprTuple &exprTuple) {
       exprTuple, TupleType::get(Ctx, tupleTys), std::move(values));
 }
 
+std::unique_ptr<ExprVarRef>
+HIRBuilder::get(const source::ExprVarRef &exprVarRef) {
+  auto *sym = fetchSymbolRecursively(SymbolKind::Expr, exprVarRef.getName());
+  if (!sym) {
+    // TODO: Emit error about var not defined
+    return nullptr;
+  }
+
+  return std::make_unique<ExprVarRef>(exprVarRef, *sym);
+}
+
 std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
   switch (expr.getKind()) {
   case source::Node::Kind::ExprTuple:
@@ -103,6 +115,8 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
     return get(*cast<source::ExprIntegerNumber>(&expr));
   case source::Node::Kind::ExprRet:
     return get(*cast<source::ExprRet>(&expr));
+  case source::Node::Kind::ExprVarRef:
+    return get(*cast<source::ExprVarRef>(&expr));
   default:
     break;
   }
@@ -200,6 +214,7 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::ExprIntegerNumber:
   case source::Node::Kind::ExprRet:
   case source::Node::Kind::ExprTuple:
+  case source::Node::Kind::ExprVarRef:
   case source::Node::Kind::TupleElem:
     // All these nodes cannot be top level decls
     break;

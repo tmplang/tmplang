@@ -180,6 +180,12 @@ public:
     traverseType(exprRet.getType());
     return true;
   }
+
+  bool visitExprVarRef(const ExprVarRef &exprVarRef) {
+    OS << ' ' << exprVarRef.getName() << ' ';
+    traverseType(exprVarRef.getType());
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//
