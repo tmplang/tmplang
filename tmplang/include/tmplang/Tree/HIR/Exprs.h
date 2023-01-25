@@ -62,6 +62,7 @@ public:
       : Expr(Kind::ExprVarRef, srcNode, sym.getType()), ReferencedSym(sym) {}
 
   llvm::StringRef getName() const { return ReferencedSym.getId(); }
+  const Symbol &getSymbol() const { return ReferencedSym; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Kind::ExprVarRef;

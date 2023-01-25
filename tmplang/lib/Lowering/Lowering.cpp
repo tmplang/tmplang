@@ -60,6 +60,14 @@ private:
         getLocation(subprog), subprog.getName(), functionTy,
         mlir::SymbolTable::Visibility::Private);
 
+    // For each param, store for their hir::Symbol, its corresponding
+    // mlir::Value
+    for (auto hirParamAndMLIRParam : llvm::zip(
+             subprog.getParams(), subprogramOp.getBody().getArguments())) {
+      auto &[hirParam, mlirParam] = hirParamAndMLIRParam;
+      SymbolToValueMap[&hirParam.getSymbol()] = mlirParam;
+    }
+
     B.setInsertionPointToEnd(&subprogramOp.getBody().getBlocks().front());
 
     for (auto &expr : subprog.getBody()) {
@@ -114,12 +122,20 @@ private:
     return B.create<TupleOp>(getLocation(expr), get(expr.getType()), vals);
   }
 
+  mlir::Value get(const hir::ExprVarRef &expr) {
+    assert(SymbolToValueMap.count(&expr.getSymbol()) &&
+           "Symbol must exists on map");
+    return SymbolToValueMap[&expr.getSymbol()];
+  }
+
   mlir::Value get(const hir::Expr &expr) {
     switch (expr.getKind()) {
     case hir::Node::Kind::ExprIntegerNumber:
       return get(*cast<hir::ExprIntegerNumber>(&expr));
     case hir::Node::Kind::ExprTuple:
       return get(*cast<hir::ExprTuple>(&expr));
+    case hir::Node::Kind::ExprVarRef:
+      return get(*cast<hir::ExprVarRef>(&expr));
     case hir::Node::Kind::ExprRet:
       build(*cast<hir::ExprRet>(&expr));
       // Ret is a terminator expresion
@@ -193,6 +209,7 @@ private:
 
 private:
   bool DoesThisFuncReturnInAllPaths;
+  llvm::DenseMap<const hir::Symbol *, mlir::Value> SymbolToValueMap;
 
 private:
   mlir::MLIRContext &Ctx;
