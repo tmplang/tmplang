@@ -48,11 +48,15 @@ void SymbolicScope::dump(bool recursively) const {
 llvm::StringLiteral tmplang::hir::ToString(SymbolKind kind) {
   switch (kind) {
   case SymbolKind::Unresolved:
-    return "Unknown";
-  case SymbolKind::Expr:
-    return "Expr";
-  case SymbolKind::Type:
-    return "Type";
+    return "Unresolved";
+  case SymbolKind::UnreferenciableDataFieldDecl:
+    return "UnreferenciableDataFieldDecl";
+  case SymbolKind::ReferenciableFromExprVarRef:
+    return "ReferenciableFromExprVarRef";
+  case SymbolKind::ReferenciableFromExprCall:
+    return "ReferenciableFromExprCall";
+  case SymbolKind::ReferenciableFromType:
+    return "ReferenciableFromType";
   }
   llvm_unreachable("All cases are covered");
 }

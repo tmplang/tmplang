@@ -17,10 +17,15 @@ enum class SymbolKind {
   /// Initial state of symbols that are unknown when queried. It is considered
   /// and error if after the resolving symbols pass any of these remains.
   Unresolved = 0,
-  /// There are also two kinds of symbols. Those that are queryable from an
+  /// Symbols that can not be referenced. Declaring them in this enum is useful
+  /// when we want to reuse the SymbolicScope mechanism to make sure certain
+  /// symbols do not repeat in the same scope.
+  UnreferenciableDataFieldDecl,
+  /// Referenciable symbols by certain contexts
   /// expression or a type.
-  Expr,
-  Type
+  ReferenciableFromExprVarRef,
+  ReferenciableFromExprCall,
+  ReferenciableFromType
 };
 llvm::StringLiteral ToString(SymbolKind);
 

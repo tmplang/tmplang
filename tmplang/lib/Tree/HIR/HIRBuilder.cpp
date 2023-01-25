@@ -35,7 +35,7 @@ private:
   const Type *get(const source::Type &);
 
   Symbol *fetchSymbolRecursively(SymbolKind kind, llvm::StringRef id) const;
-  bool containsSymbol(SymbolKind kind, llvm::StringRef id) const;
+  bool isSymbolInCurrentScope(SymbolKind kind, llvm::StringRef id) const;
   Symbol &addSymbolToCurrentScope(SymbolKind kind, llvm::StringRef id,
                                   const Type &ty);
 
@@ -98,7 +98,8 @@ std::unique_ptr<ExprTuple> HIRBuilder::get(const source::ExprTuple &exprTuple) {
 
 std::unique_ptr<ExprVarRef>
 HIRBuilder::get(const source::ExprVarRef &exprVarRef) {
-  auto *sym = fetchSymbolRecursively(SymbolKind::Expr, exprVarRef.getName());
+  auto *sym = fetchSymbolRecursively(SymbolKind::ReferenciableFromExprVarRef,
+                                     exprVarRef.getName());
   if (!sym) {
     // TODO: Emit error about var not defined
     return nullptr;
@@ -126,8 +127,9 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
 const hir::Type *HIRBuilder::get(const source::Type &type) {
   switch (type.getKind()) {
   case source::Type::NamedType: {
-    auto *sym = fetchSymbolRecursively(
-        SymbolKind::Type, llvm::cast<source::NamedType>(&type)->getName());
+    auto *sym =
+        fetchSymbolRecursively(SymbolKind::ReferenciableFromType,
+                               llvm::cast<source::NamedType>(&type)->getName());
     if (!sym) {
       // TODO: Emit error (type undefined)
       return nullptr;
@@ -164,13 +166,14 @@ Symbol *HIRBuilder::fetchSymbolRecursively(SymbolKind kind,
   return nullptr;
 }
 
-bool HIRBuilder::containsSymbol(SymbolKind kind, llvm::StringRef id) const {
+bool HIRBuilder::isSymbolInCurrentScope(SymbolKind kind,
+                                        llvm::StringRef id) const {
   return ScopeStack.back()->containsSymbol(kind, id);
 }
 
 Symbol &HIRBuilder::addSymbolToCurrentScope(SymbolKind kind, llvm::StringRef id,
                                             const Type &ty) {
-  assert(!containsSymbol(kind, id));
+  assert(!isSymbolInCurrentScope(kind, id));
 
   auto &sym = SymMan.createSymbol(kind, id, ty);
   ScopeStack.back()->addSymbol(sym);
@@ -183,12 +186,13 @@ Optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
     return None;
   }
 
-  if (containsSymbol(SymbolKind::Expr, srcParamDecl.getName())) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                             srcParamDecl.getName())) {
     // FIXME: Report error
     return None;
   }
-  Symbol &sym =
-      addSymbolToCurrentScope(SymbolKind::Expr, srcParamDecl.getName(), *type);
+  Symbol &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                                        srcParamDecl.getName(), *type);
 
   return ParamDecl(srcParamDecl, sym);
 }
@@ -267,12 +271,13 @@ std::unique_ptr<Decl> HIRBuilder::get(const source::SubprogramDecl &srcFunc) {
   SmallVector<const Type *> paramTys;
   transform(paramList, std::back_inserter(paramTys),
             [](const ParamDecl &paramDecl) { return &paramDecl.getType(); });
-  if (containsSymbol(SymbolKind::Expr, srcFunc.getName())) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromExprCall,
+                             srcFunc.getName())) {
     // FIXME: Report error
     return nullptr;
   }
   Symbol &funcSym = addSymbolToCurrentScope(
-      SymbolKind::Expr, srcFunc.getName(),
+      SymbolKind::ReferenciableFromExprCall, srcFunc.getName(),
       SubprogramType::get(Ctx, *hirReturnType, paramTys));
 
   return std::make_unique<SubprogramDecl>(
@@ -300,13 +305,14 @@ std::unique_ptr<Decl> HIRBuilder::get(const source::DataDecl &dataDecl) {
 
   popSymbolScope();
 
-  if (containsSymbol(SymbolKind::Type, dataDecl.getName())) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromType,
+                             dataDecl.getName())) {
     // FIXME: Report error
     return nullptr;
   }
-  Symbol &dataDeclSym =
-      addSymbolToCurrentScope(SymbolKind::Type, dataDecl.getName(),
-                              DataType::get(Ctx, dataDecl.getName(), fieldTys));
+  Symbol &dataDeclSym = addSymbolToCurrentScope(
+      SymbolKind::ReferenciableFromType, dataDecl.getName(),
+      DataType::get(Ctx, dataDecl.getName(), fieldTys));
   return std::make_unique<DataDecl>(dataDecl, dataDeclSym, std::move(fields));
 }
 
@@ -320,12 +326,13 @@ HIRBuilder::get(const source::DataFieldDecl &dataFieldDecl) {
   // FIXME: In reality these should not be stored since they are no Types
   // and do not provide much value. We are resuing the simbolic scopes
   // to block redefinitions of the same data file decl
-  if (containsSymbol(SymbolKind::Type, dataFieldDecl.getName())) {
+  if (isSymbolInCurrentScope(SymbolKind::UnreferenciableDataFieldDecl,
+                             dataFieldDecl.getName())) {
     // FIXME: Report error
     return None;
   }
-  Symbol &dataFieldSym =
-      addSymbolToCurrentScope(SymbolKind::Type, dataFieldDecl.getName(), *ty);
+  Symbol &dataFieldSym = addSymbolToCurrentScope(
+      SymbolKind::UnreferenciableDataFieldDecl, dataFieldDecl.getName(), *ty);
 
   return DataFieldDecl(dataFieldDecl, dataFieldSym);
 }
@@ -335,8 +342,8 @@ static void AddNamedBuiltinTypes(SymbolManager &sm, HIRContext &ctx) {
 
   constexpr BuiltinType::Kind builtinTypes[] = {BuiltinType::Kind::K_i32};
   for (BuiltinType::Kind kind : builtinTypes) {
-    auto &sym = sm.createSymbol(SymbolKind::Type, ToString(kind),
-                                BuiltinType::get(ctx, kind));
+    auto &sym = sm.createSymbol(SymbolKind::ReferenciableFromType,
+                                ToString(kind), BuiltinType::get(ctx, kind));
     symScope.addSymbol(sym);
   }
 }
