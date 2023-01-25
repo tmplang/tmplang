@@ -71,9 +71,7 @@ def SubprogramOp : Tmplang_Op<"subprogram",
     mlir::ArrayRef<mlir::Type> getResultTypes();
   }];
 
-  let assemblyFormat = [{
-    $sym_name attr-dict $sym_visibility `:` $function_type $body
-  }];
+  let hasCustomAssemblyFormat = 1;
 }
 
 def ConstantOp : Tmplang_Op<"constant", [NoSideEffect]> {

@@ -2,7 +2,7 @@
 
 fn foo -> () {}
 
-//      CHECK:tmplang.subprogram @foo "private" : () -> tuple<> {
+//      CHECK:tmplang.subprogram private @foo() -> tuple<> {
 // CHECK-NEXT:  %0 = tmplang.tuple() : () -> tuple<>
 // CHECK-NEXT:  tmplang.return(%0) -> tuple<>
 // CHECK-NEXT:}

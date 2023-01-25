@@ -5,4 +5,4 @@ data Dummy =
 
 fn foo: Dummy a {}
 
-// CHECK: tmplang.subprogram @foo "private" : (!tmplang<data "Dummy"{i32}>) -> tuple<>
+// CHECK:tmplang.subprogram private @foo(%arg0: !tmplang<data "Dummy"{i32}>) -> tuple<> {
