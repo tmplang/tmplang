@@ -101,6 +101,9 @@ Token Lexer::next() {
   case '}':
     simpleTokenMatched = TK_RKeyBracket;
     break;
+  case '.':
+    simpleTokenMatched = TK_Dot;
+    break;
   case '-':
     if (State.CurrentInput.startswith("->")) {
       simpleTokenMatched = TK_RArrow;

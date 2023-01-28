@@ -30,6 +30,7 @@ enum TokenKind {
   TK_Colon,
   TK_Semicolon,
   TK_RArrow,
+  TK_Dot,
 
   // Keywords
   TK_Data,

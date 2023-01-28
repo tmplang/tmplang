@@ -33,6 +33,8 @@ StringLiteral tmplang::ToString(TokenKind tk) {
     return ",";
   case TK_Semicolon:
     return ";";
+  case TK_Dot:
+    return ".";
   case TK_Data:
     return "data";
   case TK_FnType:
