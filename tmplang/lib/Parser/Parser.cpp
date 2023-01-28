@@ -772,10 +772,31 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   return result;
 }
 
-/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef
+/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef | ExprDataFieldAccess
 RAIIExpr Parser::Expr() {
   if (auto id = Identifier()) {
-    return std::make_unique<source::ExprVarRef>(*id);
+    if (tk().isNot(TK_Dot)) {
+      return std::make_unique<source::ExprVarRef>(*id);
+    }
+
+    source::ExprDataFieldAccess::BaseType baseExpr = source::ExprVarRef(*id);
+    while (tk().is(TK_Dot)) {
+      auto dot = consume();
+      auto id = Identifier();
+      if (!id) {
+        // FIXME: Add token recovery and diags error
+        return nullptr;
+      }
+      auto e = std::make_unique<source::ExprDataFieldAccess>(
+          std::move(baseExpr), dot, *id);
+      e->getBase().getKind();
+      baseExpr = std::move(e);
+    }
+    assert(std::holds_alternative<std::unique_ptr<source::ExprDataFieldAccess>>(
+        baseExpr));
+
+    return std::move(
+        std::get<std::unique_ptr<source::ExprDataFieldAccess>>(baseExpr));
   }
 
   if (auto num = Number()) {

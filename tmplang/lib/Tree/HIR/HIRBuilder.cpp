@@ -217,6 +217,7 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::ExprStmt:
   case source::Node::Kind::ExprIntegerNumber:
   case source::Node::Kind::ExprRet:
+  case source::Node::Kind::ExprDataFieldAccess:
   case source::Node::Kind::ExprTuple:
   case source::Node::Kind::ExprVarRef:
   case source::Node::Kind::TupleElem:

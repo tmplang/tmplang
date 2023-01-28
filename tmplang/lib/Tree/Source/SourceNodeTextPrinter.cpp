@@ -149,6 +149,11 @@ public:
     printToken(exprVarRef.getIdentifier());
     return true;
   }
+  bool visitExprDataFieldAccess(const ExprDataFieldAccess &exprDataField) {
+    printToken(exprDataField.getDot());
+    printToken(exprDataField.getAccessedField());
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

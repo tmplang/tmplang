@@ -3,6 +3,8 @@
 
 #include <tmplang/Tree/Source/Expr.h>
 
+#include <variant>
+
 namespace tmplang::source {
 
 class ExprIntegerNumber final : public Expr {
@@ -122,6 +124,50 @@ public:
 
 private:
   Token Identifier;
+};
+
+class ExprDataFieldAccess final : public Expr {
+public:
+  using BaseType =
+      std::variant<std::unique_ptr<ExprDataFieldAccess>, ExprVarRef>;
+
+  ExprDataFieldAccess(BaseType base, Token dot, Token field)
+      : Expr(Kind::ExprDataFieldAccess), Base(std::move(base)), Dot(dot),
+        Field(field) {}
+
+  const Expr &getBase() const {
+    if (auto *varRef = std::get_if<ExprVarRef>(&Base)) {
+      return *varRef;
+    }
+    return *std::get<std::unique_ptr<ExprDataFieldAccess>>(Base);
+  }
+
+  llvm::StringRef getBaseName() const {
+    if (auto *varRef = std::get_if<ExprVarRef>(&Base)) {
+      return varRef->getName();
+    }
+    return std::get<std::unique_ptr<ExprDataFieldAccess>>(Base)->getBaseName();
+  }
+
+  Token getDot() const { return Dot; }
+  Token getAccessedField() const { return Field; }
+  llvm::StringRef getFieldName() const { return Field.getLexeme(); }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return getBase().getBeginLoc();
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return Field.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprDataFieldAccess;
+  }
+
+private:
+  BaseType Base;
+  Token Dot;
+  Token Field;
 };
 
 } // namespace tmplang::source
