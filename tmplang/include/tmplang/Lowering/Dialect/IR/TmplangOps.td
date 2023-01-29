@@ -161,4 +161,24 @@ def ReturnOp : Tmplang_Op<"return", [NoSideEffect, HasParent<"SubprogramOp">,
   let hasVerifier = 1;
 }
 
+//===----------------------------------------------------------------------===//
+// AggregateDataAccess
+//===----------------------------------------------------------------------===//
+def AggregateDataAccessOp : Tmplang_Op<"aggregateDataAccess", [NoSideEffect]> {
+  let summary = "aggregate data access operation";
+
+  let description = [{
+    The "aggregateDataAccess" operation represents an access to a field of a DataType.
+
+    ```mlir
+       tmplang.aggregateDataAccess(%0), 0 : (!tmplang<data "A"{i32, i32}>) -> i32
+    ```
+  }];
+
+  let arguments = (ins DataType:$input, IndexAttr:$idx);
+  let results = (outs AnyType:$result);
+
+  let hasCustomAssemblyFormat = 1;
+}
+
 #endif // TMPLANG_OPS

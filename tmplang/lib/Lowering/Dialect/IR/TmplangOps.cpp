@@ -155,3 +155,40 @@ void ConstantOp::print(mlir::OpAsmPrinter &p) {
   p << " -> ";
   p.printType(getType());
 }
+
+mlir::ParseResult AggregateDataAccessOp::parse(mlir::OpAsmParser &parser,
+                                               mlir::OperationState &result) {
+  // Sample of syntax:
+  // tmplang.aggregateDataAccess(%0), 0 : (!tmplang<data "A"{i32, i32}>) -> i32
+
+  mlir::OpAsmParser::UnresolvedOperand unresolvedOp;
+  int64_t idx;
+  mlir::Type inputTy;
+  mlir::Type accessTy;
+
+  const bool parsingResult =
+      parser.parseLParen() || parser.parseOperand(unresolvedOp) ||
+      parser.parseRParen() || parser.parseComma() || parser.parseInteger(idx) ||
+      parser.parseColonType(inputTy) || parser.parseArrow() ||
+      parser.parseType(accessTy);
+  if (!parsingResult) {
+    return mlir::failure();
+  }
+
+  llvm::SmallVector<mlir::Value, 1> val;
+  if (parser.resolveOperand(unresolvedOp, inputTy, val)) {
+    return mlir::failure();
+  }
+  assert(val.size() == 1);
+
+  result.addAttribute("idx", parser.getBuilder().getIndexAttr(idx));
+  result.addOperands(val.back());
+  result.addTypes(accessTy);
+
+  return mlir::success();
+}
+
+void AggregateDataAccessOp::print(mlir::OpAsmPrinter &p) {
+  p << '(' << getOperand() << "), " << idx() << " : " << getOperand().getType()
+    << " -> " << result().getType();
+}

@@ -128,6 +128,13 @@ private:
     return SymbolToValueMap[&expr.getSymbol()];
   }
 
+  mlir::Value get(const hir::ExprDataFieldAccess &expr) {
+    auto baseVal = get(expr.getBase());
+    return B.create<AggregateDataAccessOp>(
+        getLocation(expr), get(expr.getSymbol().getType()), baseVal,
+        B.getIndexAttr(expr.getIdxAccess()));
+  }
+
   mlir::Value get(const hir::Expr &expr) {
     switch (expr.getKind()) {
     case hir::Node::Kind::ExprIntegerNumber:
@@ -136,6 +143,8 @@ private:
       return get(*cast<hir::ExprTuple>(&expr));
     case hir::Node::Kind::ExprVarRef:
       return get(*cast<hir::ExprVarRef>(&expr));
+    case hir::Node::Kind::ExprDataFieldAccess:
+      return get(*cast<hir::ExprDataFieldAccess>(&expr));
     case hir::Node::Kind::ExprRet:
       build(*cast<hir::ExprRet>(&expr));
       // Ret is a terminator expresion
