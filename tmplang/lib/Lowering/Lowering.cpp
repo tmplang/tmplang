@@ -140,9 +140,12 @@ private:
       build(*cast<hir::ExprRet>(&expr));
       // Ret is a terminator expresion
       return {};
-    default:
-      llvm_unreachable("All cases covered");
-      break;
+    case hir::Node::Kind::CompilationUnit:
+    case hir::Node::Kind::SubprogramDecl:
+    case hir::Node::Kind::DataFieldDecl:
+    case hir::Node::Kind::DataDecl:
+    case hir::Node::Kind::ParamDecl:
+      llvm_unreachable("None of these are exprs");
     }
   }
 
