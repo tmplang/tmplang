@@ -1,7 +1,9 @@
+#include <iterator>
 #include <tmplang/Tree/HIR/Types.h>
 
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/Support/ErrorHandling.h>
+#include <tmplang/Tree/HIR/Decls.h>
 #include <tmplang/Tree/HIR/HIRContext.h>
 
 using namespace tmplang::hir;

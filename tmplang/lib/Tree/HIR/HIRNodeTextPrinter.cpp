@@ -186,6 +186,13 @@ public:
     traverseType(exprVarRef.getType());
     return true;
   }
+
+  bool visitExprDataFieldAccess(const ExprDataFieldAccess &exprDataFieldAcc) {
+    OS << ' ' << exprDataFieldAcc.getName() << ' ';
+    traverseType(exprDataFieldAcc.getType());
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

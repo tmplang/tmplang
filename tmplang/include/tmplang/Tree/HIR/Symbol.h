@@ -1,6 +1,7 @@
 #ifndef TMPLANG_TREE_HIR_SYMBOL_H
 #define TMPLANG_TREE_HIR_SYMBOL_H
 
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Allocator.h>
@@ -39,7 +40,7 @@ public:
   bool containsSymbol(SymbolKind kind, llvm::StringRef id) const;
   [[maybe_unused]] Symbol &addSymbol(Symbol &);
 
-  void dump(bool recursively = false) const;
+  void dump() const;
 
   llvm::ArrayRef<std::reference_wrapper<Symbol>> getSymbols() const {
     return Symbols;
@@ -61,6 +62,7 @@ public:
   SymbolKind getKind() const { return Kind; }
   llvm::StringRef getId() const { return Id; }
   const Type &getType() const { return Ty; }
+  const SymbolicScope *getCreatedSymScope() const { return CreatedSymScope; }
 
   bool operator==(const Symbol &) const;
 
@@ -69,8 +71,9 @@ private:
   friend class SymbolManager;
 
   /// Non-unresolvedSymbol constructor
-  Symbol(const SymbolKind kind, llvm::StringRef id, const Type &ty)
-      : Kind(kind), Id(id), Ty(ty) {}
+  Symbol(const SymbolKind kind, llvm::StringRef id, const Type &ty,
+         const SymbolicScope *createdSymScope = nullptr)
+      : Kind(kind), Id(id), Ty(ty), CreatedSymScope(createdSymScope) {}
 
   /// UnresolvedSymbol constructor
   /// It has unit type, althouhg it does not matter
@@ -83,6 +86,8 @@ private:
   llvm::StringRef Id;
   /// All symbols have a type
   const Type &Ty;
+  /// Some symbols may crate new symbolic scopes
+  const SymbolicScope *CreatedSymScope;
 };
 
 class SymbolManager {
@@ -94,8 +99,8 @@ public:
   const Symbol &getUnresolvedSymbol() const { return UnresolvedSymbol; }
 
   Symbol &createSymbol(const SymbolKind kind, llvm::StringRef id,
-                       const Type &ty) {
-    return *new (SymbolArena.Allocate()) Symbol(kind, id, ty);
+                       const Type &ty, const SymbolicScope *createdSymScope) {
+    return *new (SymbolArena.Allocate()) Symbol(kind, id, ty, createdSymScope);
   }
 
   SymbolicScope &createSymbolicScope() {

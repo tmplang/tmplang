@@ -104,6 +104,12 @@ protected:
     TRY_TO(visitNode(exprVarRef));
     return true;
   }
+  bool
+  traverseExprDataFieldAccess(const ExprDataFieldAccess &exprDataFieldAcc) {
+    TRY_TO(visitNode(exprDataFieldAcc));
+    TRY_TO(traverseNode(exprDataFieldAcc.getBase()));
+    return true;
+  }
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//

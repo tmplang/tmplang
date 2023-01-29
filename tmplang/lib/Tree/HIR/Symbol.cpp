@@ -21,16 +21,16 @@ Symbol &SymbolicScope::addSymbol(Symbol &sym) {
   return Symbols.emplace_back(sym);
 }
 
-void dumpImpl(const SymbolicScope &scope, bool recursively) {
-  constexpr const char *headerFmt = "Scope addr: {1}\n";
+void SymbolicScope::dump() const {
+  constexpr const char *headerFmt = "Scope addr: {0}\n";
 
-  llvm::dbgs() << llvm::formatv(headerFmt, &scope);
+  llvm::dbgs() << llvm::formatv(headerFmt, this);
 
-  for (const Symbol &sym : scope.getSymbols()) {
+  for (const Symbol &sym : getSymbols()) {
     constexpr const char *fmt = "  Sym:\n"
-                                "  |-Id: {1}\n"
-                                "  |-Type: {2}\n"
-                                "  `-Kind: {3}\n";
+                                "  |-Id: {0}\n"
+                                "  |-Type: {1}\n"
+                                "  `-Kind: {2}\n";
 
     std::string str;
     llvm::raw_string_ostream rso(str);
@@ -39,10 +39,6 @@ void dumpImpl(const SymbolicScope &scope, bool recursively) {
     llvm::formatv(fmt, sym.getId(), rso.str(), ToString(sym.getKind()))
         .format(llvm::dbgs());
   }
-}
-
-void SymbolicScope::dump(bool recursively) const {
-  dumpImpl(*this, recursively);
 }
 
 llvm::StringLiteral tmplang::hir::ToString(SymbolKind kind) {

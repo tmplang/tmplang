@@ -31,20 +31,24 @@ private:
   std::unique_ptr<ExprRet> get(const source::ExprRet &);
   std::unique_ptr<ExprTuple> get(const source::ExprTuple &);
   std::unique_ptr<ExprVarRef> get(const source::ExprVarRef &);
+  std::unique_ptr<ExprDataFieldAccess> get(const source::ExprDataFieldAccess &);
 
   const Type *get(const source::Type &);
 
   Symbol *fetchSymbolRecursively(SymbolKind kind, llvm::StringRef id) const;
   bool isSymbolInCurrentScope(SymbolKind kind, llvm::StringRef id) const;
   Symbol &addSymbolToCurrentScope(SymbolKind kind, llvm::StringRef id,
-                                  const Type &ty);
+                                  const Type &ty,
+                                  const SymbolicScope *symScope = nullptr);
 
-  SymbolicScope &pushSymbolicScope() {
+  [[maybe_unused]] SymbolicScope &pushSymbolicScope() {
     SymbolicScope &newScope = SymMan.createSymbolicScope();
     return *ScopeStack.emplace_back(&newScope);
   }
 
-  void popSymbolScope() { ScopeStack.pop_back(); }
+  [[maybe_unused]] SymbolicScope &popSymbolScope() {
+    return *ScopeStack.pop_back_val();
+  }
 
 private:
   HIRContext &Ctx;
@@ -52,6 +56,8 @@ private:
   /// Stack of scopes we are currently in. SymbolicScopes live in the
   /// SymbolicManager. TODO: Profile to know what size to give initialy
   SmallVector<SymbolicScope *, 6> ScopeStack;
+  /// Data Types to its Symbol map
+  llvm::DenseMap<const DataType *, const Symbol *> DataTyToSymMap;
 };
 
 std::unique_ptr<ExprIntegerNumber>
@@ -108,6 +114,58 @@ HIRBuilder::get(const source::ExprVarRef &exprVarRef) {
   return std::make_unique<ExprVarRef>(exprVarRef, *sym);
 }
 
+std::unique_ptr<ExprDataFieldAccess>
+HIRBuilder::get(const source::ExprDataFieldAccess &exprDataFieldAccess) {
+  auto base = get(exprDataFieldAccess.getBase());
+  if (!base) {
+    return nullptr;
+  }
+
+  auto *baseAsVarRef = dyn_cast<ExprVarRef>(base.get());
+  auto *baseAsDataFieldAccess = dyn_cast<ExprDataFieldAccess>(base.get());
+  assert(
+      (baseAsVarRef || baseAsDataFieldAccess) &&
+      "The only two possible expression by language definition are these two");
+  const Symbol &baseSym = baseAsVarRef ? baseAsVarRef->getSymbol()
+                                       : baseAsDataFieldAccess->getSymbol();
+
+  auto *dataTy = dyn_cast<DataType>(&baseSym.getType());
+  if (!dataTy) {
+    // TODO: Emit error about accessing a non data type
+    return nullptr;
+  }
+
+  // Find Symbol of DataType
+  assert(DataTyToSymMap.count(dataTy) && "The type must be in the map");
+  auto &dataTySym = *DataTyToSymMap[dataTy];
+
+  const SymbolicScope *createdSymScopeByBaseSym =
+      dataTySym.getCreatedSymScope();
+  assert(createdSymScopeByBaseSym &&
+         "All DataType symbols create a symbolic scope for its fields");
+
+  Optional<unsigned> idxOfField;
+  const Symbol *fieldSym = nullptr;
+  for (auto idxAndFieldSym :
+       llvm::enumerate(createdSymScopeByBaseSym->getSymbols())) {
+    auto &[idx, sym] = idxAndFieldSym;
+    if (sym.get().getId() == exprDataFieldAccess.getFieldName()) {
+      idxOfField = idx;
+      fieldSym = &sym.get();
+      break;
+    }
+  }
+  if (!idxOfField || !fieldSym) {
+    // TODO: Emit error about no named field for type X
+    return nullptr;
+  }
+
+  return std::make_unique<ExprDataFieldAccess>(
+      exprDataFieldAccess,
+      ExprDataFieldAccess::FromExprToDataFieldAccOrVarRef(std::move(base)),
+      *fieldSym, *idxOfField);
+}
+
 std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
   switch (expr.getKind()) {
   case source::Node::Kind::ExprTuple:
@@ -118,6 +176,8 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
     return get(*cast<source::ExprRet>(&expr));
   case source::Node::Kind::ExprVarRef:
     return get(*cast<source::ExprVarRef>(&expr));
+  case source::Node::Kind::ExprDataFieldAccess:
+    return get(*cast<source::ExprDataFieldAccess>(&expr));
   default:
     break;
   }
@@ -172,10 +232,11 @@ bool HIRBuilder::isSymbolInCurrentScope(SymbolKind kind,
 }
 
 Symbol &HIRBuilder::addSymbolToCurrentScope(SymbolKind kind, llvm::StringRef id,
-                                            const Type &ty) {
+                                            const Type &ty,
+                                            const SymbolicScope *symScope) {
   assert(!isSymbolInCurrentScope(kind, id));
 
-  auto &sym = SymMan.createSymbol(kind, id, ty);
+  auto &sym = SymMan.createSymbol(kind, id, ty, symScope);
   ScopeStack.back()->addSymbol(sym);
   return sym;
 }
@@ -304,16 +365,29 @@ std::unique_ptr<Decl> HIRBuilder::get(const source::DataDecl &dataDecl) {
   transform(fields, std::back_inserter(fieldTys),
             [](const DataFieldDecl &field) { return &field.getType(); });
 
-  popSymbolScope();
+  SymbolicScope &createdScope = popSymbolScope();
 
   if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromType,
                              dataDecl.getName())) {
     // FIXME: Report error
     return nullptr;
   }
-  Symbol &dataDeclSym = addSymbolToCurrentScope(
-      SymbolKind::ReferenciableFromType, dataDecl.getName(),
-      DataType::get(Ctx, dataDecl.getName(), fieldTys));
+
+  // FIXME: All this type, symbol and decl creation should be made at the same
+  // time, since each of them needs of the other. Create a unique point of
+  // creation for all three.
+
+  // Get data type
+  auto &dataTy = DataType::get(Ctx, dataDecl.getName(), fieldTys);
+
+  // Create symbol for this data type decl
+  Symbol &dataDeclSym =
+      addSymbolToCurrentScope(SymbolKind::ReferenciableFromType,
+                              dataDecl.getName(), dataTy, &createdScope);
+
+  // Link the type with its associated symbol
+  DataTyToSymMap[&dataTy] = &dataDeclSym;
+
   return std::make_unique<DataDecl>(dataDecl, dataDeclSym, std::move(fields));
 }
 
@@ -344,7 +418,8 @@ static void AddNamedBuiltinTypes(SymbolManager &sm, HIRContext &ctx) {
   constexpr BuiltinType::Kind builtinTypes[] = {BuiltinType::Kind::K_i32};
   for (BuiltinType::Kind kind : builtinTypes) {
     auto &sym = sm.createSymbol(SymbolKind::ReferenciableFromType,
-                                ToString(kind), BuiltinType::get(ctx, kind));
+                                ToString(kind), BuiltinType::get(ctx, kind),
+                                /*createdSymScope=*/nullptr);
     symScope.addSymbol(sym);
   }
 }

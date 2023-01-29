@@ -6,6 +6,8 @@
 #include <tmplang/Tree/HIR/Symbol.h>
 #include <tmplang/Tree/HIR/Types.h>
 
+#include <variant>
+
 namespace tmplang::hir {
 
 class ExprIntegerNumber final : public Expr {
@@ -70,6 +72,54 @@ public:
 
 private:
   const Symbol &ReferencedSym;
+};
+
+class ExprDataFieldAccess final : public Expr {
+public:
+  using BaseExpr = std::variant<std::unique_ptr<ExprDataFieldAccess>,
+                                std::unique_ptr<ExprVarRef>>;
+
+  static BaseExpr FromExprToDataFieldAccOrVarRef(std::unique_ptr<Expr> expr) {
+    if (isa<ExprVarRef>(expr.get())) {
+      return BaseExpr(std::unique_ptr<ExprVarRef>(
+          static_cast<ExprVarRef *>(expr.release())));
+    }
+    assert(isa<ExprDataFieldAccess>(expr.get()));
+    return BaseExpr(std::unique_ptr<ExprDataFieldAccess>(
+        static_cast<ExprDataFieldAccess *>(expr.release())));
+  };
+
+  ExprDataFieldAccess(const source::Node &srcNode, BaseExpr base,
+                      const Symbol &sym, const unsigned accessIdx)
+      : Expr(Kind::ExprDataFieldAccess, srcNode, sym.getType()),
+        Base(std::move(base)), AccessIdx(accessIdx), FieldAccessedSym(sym) {}
+
+  const Expr &getBase() const {
+    if (auto *varRef = std::get_if<std::unique_ptr<ExprVarRef>>(&Base)) {
+      return **varRef;
+    }
+    return *std::get<std::unique_ptr<ExprDataFieldAccess>>(Base);
+  }
+
+  const Symbol &getBaseSymbol() const {
+    if (auto *varRef = std::get_if<std::unique_ptr<ExprVarRef>>(&Base)) {
+      return varRef->get()->getSymbol();
+    }
+    return std::get<std::unique_ptr<ExprDataFieldAccess>>(Base)->getSymbol();
+  }
+
+  llvm::StringRef getName() const { return FieldAccessedSym.getId(); }
+  unsigned getIdxAccess() const { return AccessIdx; }
+  const Symbol &getSymbol() const { return FieldAccessedSym; }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprDataFieldAccess;
+  }
+
+private:
+  BaseExpr Base;
+  const unsigned AccessIdx;
+  const Symbol &FieldAccessedSym;
 };
 
 } // namespace tmplang::hir
