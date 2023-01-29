@@ -59,7 +59,7 @@ mlir::ArrayRef<mlir::Type> SubprogramOp::getResultTypes() {
 }
 
 mlir::ParseResult SubprogramOp::parse(mlir::OpAsmParser &parser,
-                                mlir::OperationState &result) {
+                                      mlir::OperationState &result) {
   // Dispatch to the FunctionOpInterface provided utility method that parses the
   // function operation.
   auto buildFuncType =
