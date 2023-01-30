@@ -9,7 +9,8 @@ namespace tmplang::source {
 
 class ExprIntegerNumber final : public Expr {
 public:
-  explicit ExprIntegerNumber(Token num) : Expr(Kind::ExprIntegerNumber), Number(num) {}
+  explicit ExprIntegerNumber(Token num)
+      : Expr(Kind::ExprIntegerNumber), Number(num) {}
 
   Token getNumber() const { return Number; }
 
