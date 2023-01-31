@@ -69,6 +69,23 @@ struct Token {
                                                              : ToString(Kind);
   }
 
+  // TODO: Extend to use llvm::APInt
+  int32_t getNumber() const {
+    assert(Kind == TK_IntegerNumber);
+
+    int32_t num = 0;
+    for (const char c : getLexeme()) {
+      if (c == '_') {
+        continue;
+      }
+      assert(llvm::is_contained("0123456789", c) && "Expected a number");
+
+      num *= 10;
+      num += c - '0';
+    }
+    return num;
+  }
+
   /// Query functions to know if the Token is or not of some kind/s
   bool is(TokenKind kind) const;
   bool isNot(TokenKind kind) const;
@@ -82,12 +99,22 @@ struct Token {
   bool isErrorRecoveryToken() const { return IsErrorRecoveryToken; }
   SourceLocationSpan getSpan() const { return SrcLocSpan; }
 
+protected:
+  TokenKind getKind() const { return Kind; }
+
 private:
   TokenKind Kind;
   bool IsErrorRecoveryToken = false;
   SourceLocationSpan SrcLocSpan;
   /// Since we keep open the file, storing a reference to the source is valid
   StringRef Lexeme;
+};
+
+/// Represents a token with one of the specified kinds
+template <TokenKind... Kinds> struct SpecificToken : public Token {
+  SpecificToken(Token tk) : Token(tk) {
+    assert(llvm::is_contained({Kinds...}, getKind()));
+  }
 };
 
 } // namespace tmplang

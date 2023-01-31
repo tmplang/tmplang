@@ -187,8 +187,15 @@ public:
     return true;
   }
 
-  bool visitExprDataFieldAccess(const ExprDataFieldAccess &exprDataFieldAcc) {
-    OS << ' ' << exprDataFieldAcc.getName() << ' ';
+  bool visitExprAggregateDataAccess(
+      const ExprAggregateDataAccess &exprDataFieldAcc) {
+    if (auto name = exprDataFieldAcc.getName()) {
+      OS << ' ' << *name;
+    } else {
+      OS << ' ' << exprDataFieldAcc.getIdxAccess();
+    }
+
+    OS << ' ';
     traverseType(exprDataFieldAcc.getType());
     return true;
   }

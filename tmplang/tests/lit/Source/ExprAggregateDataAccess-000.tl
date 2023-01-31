@@ -4,5 +4,5 @@ fn foo: A a {
   a.a;
 }
 
-//      CHECK:ExprDataFieldAccess: .a
+//      CHECK:ExprAggregateDataAccess: .a
 // CHECK-NEXT:ExprVarRef: a

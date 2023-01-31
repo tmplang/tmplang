@@ -149,7 +149,8 @@ public:
     printToken(exprVarRef.getIdentifier());
     return true;
   }
-  bool visitExprDataFieldAccess(const ExprDataFieldAccess &exprDataField) {
+  bool
+  visitExprAggregateDataAccess(const ExprAggregateDataAccess &exprDataField) {
     printToken(exprDataField.getDot());
     printToken(exprDataField.getAccessedField());
     return true;

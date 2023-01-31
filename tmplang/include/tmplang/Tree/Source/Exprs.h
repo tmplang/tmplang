@@ -127,32 +127,46 @@ private:
   Token Identifier;
 };
 
-class ExprDataFieldAccess final : public Expr {
+class ExprAggregateDataAccess final : public Expr {
 public:
-  using BaseType =
-      std::variant<std::unique_ptr<ExprDataFieldAccess>, ExprVarRef>;
+  using BaseType = std::variant<std::unique_ptr<ExprAggregateDataAccess>,
+                                std::unique_ptr<source::ExprTuple>, ExprVarRef>;
 
-  ExprDataFieldAccess(BaseType base, Token dot, Token field)
-      : Expr(Kind::ExprDataFieldAccess), Base(std::move(base)), Dot(dot),
+  ExprAggregateDataAccess(BaseType base, Token dot, Token field)
+      : Expr(Kind::ExprAggregateDataAccess), Base(std::move(base)), Dot(dot),
         Field(field) {}
 
   const Expr &getBase() const {
     if (auto *varRef = std::get_if<ExprVarRef>(&Base)) {
       return *varRef;
     }
-    return *std::get<std::unique_ptr<ExprDataFieldAccess>>(Base);
+    if (auto *tupleTy =
+            std::get_if<std::unique_ptr<source::ExprTuple>>(&Base)) {
+      return **tupleTy;
+    }
+    return *std::get<std::unique_ptr<ExprAggregateDataAccess>>(Base);
   }
 
   llvm::StringRef getBaseName() const {
+    assert(!std::holds_alternative<std::unique_ptr<source::ExprTuple>>(Base) &&
+           "Cannot get base name of tuple");
     if (auto *varRef = std::get_if<ExprVarRef>(&Base)) {
       return varRef->getName();
     }
-    return std::get<std::unique_ptr<ExprDataFieldAccess>>(Base)->getBaseName();
+    return std::get<std::unique_ptr<ExprAggregateDataAccess>>(Base)
+        ->getBaseName();
   }
 
   Token getDot() const { return Dot; }
   Token getAccessedField() const { return Field; }
-  llvm::StringRef getFieldName() const { return Field.getLexeme(); }
+  llvm::StringRef getFieldName() const {
+    assert(Field.is(TK_Identifier));
+    return Field.getLexeme();
+  }
+  int32_t getNumber() const {
+    assert(Field.is(TK_IntegerNumber));
+    return Field.getNumber();
+  }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return getBase().getBeginLoc();
@@ -162,13 +176,13 @@ public:
   }
 
   static bool classof(const Node *node) {
-    return node->getKind() == Kind::ExprDataFieldAccess;
+    return node->getKind() == Kind::ExprAggregateDataAccess;
   }
 
 private:
   BaseType Base;
   Token Dot;
-  Token Field;
+  SpecificToken<TK_Identifier, TK_IntegerNumber> Field;
 };
 
 } // namespace tmplang::source

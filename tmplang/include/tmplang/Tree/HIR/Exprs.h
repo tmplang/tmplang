@@ -74,52 +74,73 @@ private:
   const Symbol &ReferencedSym;
 };
 
-class ExprDataFieldAccess final : public Expr {
+class ExprAggregateDataAccess final : public Expr {
 public:
-  using BaseExpr = std::variant<std::unique_ptr<ExprDataFieldAccess>,
-                                std::unique_ptr<ExprVarRef>>;
+  using BaseExpr =
+      std::variant<std::unique_ptr<ExprAggregateDataAccess>,
+                   std::unique_ptr<ExprVarRef>, std::unique_ptr<ExprTuple>>;
 
-  static BaseExpr FromExprToDataFieldAccOrVarRef(std::unique_ptr<Expr> expr) {
+  static BaseExpr
+  FromExprToAggregateDataAccOrVarRefOrTuple(std::unique_ptr<Expr> expr) {
     if (isa<ExprVarRef>(expr.get())) {
       return BaseExpr(std::unique_ptr<ExprVarRef>(
           static_cast<ExprVarRef *>(expr.release())));
     }
-    assert(isa<ExprDataFieldAccess>(expr.get()));
-    return BaseExpr(std::unique_ptr<ExprDataFieldAccess>(
-        static_cast<ExprDataFieldAccess *>(expr.release())));
+    if (isa<ExprTuple>(expr.get())) {
+      return BaseExpr(
+          std::unique_ptr<ExprTuple>(static_cast<ExprTuple *>(expr.release())));
+    }
+    assert(isa<ExprAggregateDataAccess>(expr.get()));
+    return BaseExpr(std::unique_ptr<ExprAggregateDataAccess>(
+        static_cast<ExprAggregateDataAccess *>(expr.release())));
   };
 
-  ExprDataFieldAccess(const source::Node &srcNode, BaseExpr base,
-                      const Symbol &sym, const unsigned accessIdx)
-      : Expr(Kind::ExprDataFieldAccess, srcNode, sym.getType()),
-        Base(std::move(base)), AccessIdx(accessIdx), FieldAccessedSym(sym) {}
+  ExprAggregateDataAccess(const source::Node &srcNode, BaseExpr base,
+                          const Symbol &sym, const unsigned accessIdx)
+      : Expr(Kind::ExprAggregateDataAccess, srcNode, sym.getType()),
+        Base(std::move(base)), AccessIdx(accessIdx), FieldAccessedSym(&sym) {}
+
+  ExprAggregateDataAccess(const source::Node &srcNode, BaseExpr base,
+                          const Type &ty, const unsigned accessIdx)
+      : Expr(Kind::ExprAggregateDataAccess, srcNode, ty), Base(std::move(base)),
+        AccessIdx(accessIdx), FieldAccessedSym(nullptr) {}
 
   const Expr &getBase() const {
     if (auto *varRef = std::get_if<std::unique_ptr<ExprVarRef>>(&Base)) {
       return **varRef;
     }
-    return *std::get<std::unique_ptr<ExprDataFieldAccess>>(Base);
-  }
-
-  const Symbol &getBaseSymbol() const {
-    if (auto *varRef = std::get_if<std::unique_ptr<ExprVarRef>>(&Base)) {
-      return varRef->get()->getSymbol();
+    if (auto *tupleExpr = std::get_if<std::unique_ptr<ExprTuple>>(&Base)) {
+      return **tupleExpr;
     }
-    return std::get<std::unique_ptr<ExprDataFieldAccess>>(Base)->getSymbol();
+    return *std::get<std::unique_ptr<ExprAggregateDataAccess>>(Base);
   }
 
-  llvm::StringRef getName() const { return FieldAccessedSym.getId(); }
+  const Symbol *getBaseSymbol() const {
+    assert(!std::holds_alternative<std::unique_ptr<ExprTuple>>(Base) &&
+           "Cannot get symbol of tuple");
+    if (auto *varRef = std::get_if<std::unique_ptr<ExprVarRef>>(&Base)) {
+      return &varRef->get()->getSymbol();
+    }
+    return std::get<std::unique_ptr<ExprAggregateDataAccess>>(Base)
+        ->getSymbol();
+  }
+
+  Optional<llvm::StringRef> getName() const {
+    return FieldAccessedSym ? FieldAccessedSym->getId()
+                            : Optional<llvm::StringRef>{};
+  }
   unsigned getIdxAccess() const { return AccessIdx; }
-  const Symbol &getSymbol() const { return FieldAccessedSym; }
+  const Symbol *getSymbol() const { return FieldAccessedSym; }
 
   static bool classof(const Node *node) {
-    return node->getKind() == Kind::ExprDataFieldAccess;
+    return node->getKind() == Kind::ExprAggregateDataAccess;
   }
 
 private:
   BaseExpr Base;
   const unsigned AccessIdx;
-  const Symbol &FieldAccessedSym;
+  /// Symbol in case we are accessing a ExprVarRef
+  const Symbol *FieldAccessedSym;
 };
 
 } // namespace tmplang::hir

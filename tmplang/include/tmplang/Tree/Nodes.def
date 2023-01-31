@@ -22,7 +22,7 @@ SourceNode(ExprStmt)
 BothNode(ExprIntegerNumber)
 BothNode(ExprRet)
 BothNode(ExprVarRef)
-BothNode(ExprDataFieldAccess)
+BothNode(ExprAggregateDataAccess)
 BothNode(ExprTuple)
 SourceNode(TupleElem)
 

@@ -115,7 +115,8 @@ protected:
     TRY_TO(visitNode(exprVarRef));
     return true;
   }
-  bool traverseExprDataFieldAccess(const ExprDataFieldAccess &exprDataField) {
+  bool traverseExprAggregateDataAccess(
+      const ExprAggregateDataAccess &exprDataField) {
     TRY_TO(visitNode(exprDataField));
     TRY_TO(traverseNode(exprDataField.getBase()));
     return true;

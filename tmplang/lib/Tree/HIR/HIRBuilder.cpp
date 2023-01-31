@@ -31,7 +31,8 @@ private:
   std::unique_ptr<ExprRet> get(const source::ExprRet &);
   std::unique_ptr<ExprTuple> get(const source::ExprTuple &);
   std::unique_ptr<ExprVarRef> get(const source::ExprVarRef &);
-  std::unique_ptr<ExprDataFieldAccess> get(const source::ExprDataFieldAccess &);
+  std::unique_ptr<ExprAggregateDataAccess>
+  get(const source::ExprAggregateDataAccess &);
 
   const Type *get(const source::Type &);
 
@@ -62,21 +63,10 @@ private:
 
 std::unique_ptr<ExprIntegerNumber>
 HIRBuilder::get(const source::ExprIntegerNumber &exprIntNum) {
-  int32_t num = 0;
-  for (const char c : exprIntNum.getNumber().getLexeme()) {
-    if (c == '_') {
-      continue;
-    }
-    assert(llvm::is_contained("0123456789", c) && "Expected a number");
-
-    num *= 10;
-    num += c - '0';
-  }
-
   // FIXME: For now all numbers are signed 32 bits
   return std::make_unique<hir::ExprIntegerNumber>(
       exprIntNum, hir::BuiltinType::get(Ctx, BuiltinType::K_i32),
-      llvm::APInt(32, num, /*isSigned=*/true));
+      llvm::APInt(32, exprIntNum.getNumber().getNumber(), /*isSigned=*/true));
 }
 
 std::unique_ptr<ExprRet> HIRBuilder::get(const source::ExprRet &exprRet) {
@@ -114,30 +104,39 @@ HIRBuilder::get(const source::ExprVarRef &exprVarRef) {
   return std::make_unique<ExprVarRef>(exprVarRef, *sym);
 }
 
-std::unique_ptr<ExprDataFieldAccess>
-HIRBuilder::get(const source::ExprDataFieldAccess &exprDataFieldAccess) {
-  auto base = get(exprDataFieldAccess.getBase());
-  if (!base) {
+static std::unique_ptr<ExprAggregateDataAccess>
+GetTupleAccess(const source::ExprAggregateDataAccess &exprAggregateDataAccess,
+               const TupleType &tupleTy, std::unique_ptr<Expr> baseExpr) {
+  if (exprAggregateDataAccess.getAccessedField().isNot(TK_IntegerNumber)) {
+    // TODO: Emit error about tuples must be accessed though integer numbers
     return nullptr;
   }
 
-  auto *baseAsVarRef = dyn_cast<ExprVarRef>(base.get());
-  auto *baseAsDataFieldAccess = dyn_cast<ExprDataFieldAccess>(base.get());
-  assert(
-      (baseAsVarRef || baseAsDataFieldAccess) &&
-      "The only two possible expression by language definition are these two");
-  const Symbol &baseSym = baseAsVarRef ? baseAsVarRef->getSymbol()
-                                       : baseAsDataFieldAccess->getSymbol();
+  int32_t idx = exprAggregateDataAccess.getNumber();
+  if (static_cast<uint32_t>(idx) >= tupleTy.getTypes().size()) {
+    // TODO: Emit error about bad index
+    return nullptr;
+  }
 
-  auto *dataTy = dyn_cast<DataType>(&baseSym.getType());
-  if (!dataTy) {
-    // TODO: Emit error about accessing a non data type
+  return std::make_unique<hir::ExprAggregateDataAccess>(
+      exprAggregateDataAccess,
+      ExprAggregateDataAccess::FromExprToAggregateDataAccOrVarRefOrTuple(
+          std::move(baseExpr)),
+      *tupleTy.getTypes()[idx], idx);
+}
+
+static std::unique_ptr<ExprAggregateDataAccess> GetDataAccess(
+    const source::ExprAggregateDataAccess &exprAggregateDataAccess,
+    const DataType &dataTy, std::unique_ptr<Expr> baseExpr,
+    llvm::DenseMap<const DataType *, const Symbol *> &dataTyToSymMap) {
+  if (exprAggregateDataAccess.getAccessedField().isNot(TK_Identifier)) {
+    // TODO: Emit error about data types must be accessed though identifiers
     return nullptr;
   }
 
   // Find Symbol of DataType
-  assert(DataTyToSymMap.count(dataTy) && "The type must be in the map");
-  auto &dataTySym = *DataTyToSymMap[dataTy];
+  assert(dataTyToSymMap.count(&dataTy) && "The type must be in the map");
+  auto &dataTySym = *dataTyToSymMap[&dataTy];
 
   const SymbolicScope *createdSymScopeByBaseSym =
       dataTySym.getCreatedSymScope();
@@ -149,7 +148,7 @@ HIRBuilder::get(const source::ExprDataFieldAccess &exprDataFieldAccess) {
   for (auto idxAndFieldSym :
        llvm::enumerate(createdSymScopeByBaseSym->getSymbols())) {
     auto &[idx, sym] = idxAndFieldSym;
-    if (sym.get().getId() == exprDataFieldAccess.getFieldName()) {
+    if (sym.get().getId() == exprAggregateDataAccess.getFieldName()) {
       idxOfField = idx;
       fieldSym = &sym.get();
       break;
@@ -160,10 +159,33 @@ HIRBuilder::get(const source::ExprDataFieldAccess &exprDataFieldAccess) {
     return nullptr;
   }
 
-  return std::make_unique<ExprDataFieldAccess>(
-      exprDataFieldAccess,
-      ExprDataFieldAccess::FromExprToDataFieldAccOrVarRef(std::move(base)),
+  return std::make_unique<hir::ExprAggregateDataAccess>(
+      exprAggregateDataAccess,
+      ExprAggregateDataAccess::FromExprToAggregateDataAccOrVarRefOrTuple(
+          std::move(baseExpr)),
       *fieldSym, *idxOfField);
+}
+
+std::unique_ptr<ExprAggregateDataAccess> HIRBuilder::get(
+    const source::ExprAggregateDataAccess &exprAggregateDataAccess) {
+  auto base = get(exprAggregateDataAccess.getBase());
+  if (!base) {
+    // Error already reported
+    return nullptr;
+  }
+
+  const Type &baseTy = base->getType();
+  auto *tupleTy = dyn_cast<TupleType>(&baseTy);
+  auto *dataTy = dyn_cast<DataType>(&baseTy);
+  if (!tupleTy && !dataTy) {
+    // Return error about trying to access neither tuple nor data type
+    return nullptr;
+  }
+
+  return tupleTy ? GetTupleAccess(exprAggregateDataAccess, *tupleTy,
+                                  std::move(base))
+                 : GetDataAccess(exprAggregateDataAccess, *dataTy,
+                                 std::move(base), DataTyToSymMap);
 }
 
 std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
@@ -176,8 +198,8 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
     return get(*cast<source::ExprRet>(&expr));
   case source::Node::Kind::ExprVarRef:
     return get(*cast<source::ExprVarRef>(&expr));
-  case source::Node::Kind::ExprDataFieldAccess:
-    return get(*cast<source::ExprDataFieldAccess>(&expr));
+  case source::Node::Kind::ExprAggregateDataAccess:
+    return get(*cast<source::ExprAggregateDataAccess>(&expr));
   default:
     break;
   }
@@ -278,7 +300,7 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::ExprStmt:
   case source::Node::Kind::ExprIntegerNumber:
   case source::Node::Kind::ExprRet:
-  case source::Node::Kind::ExprDataFieldAccess:
+  case source::Node::Kind::ExprAggregateDataAccess:
   case source::Node::Kind::ExprTuple:
   case source::Node::Kind::ExprVarRef:
   case source::Node::Kind::TupleElem:

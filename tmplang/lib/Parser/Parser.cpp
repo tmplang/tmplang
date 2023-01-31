@@ -66,6 +66,8 @@ private:
 
   Optional<Token> Identifier();
   Optional<Token> Number();
+  std::unique_ptr<source::ExprAggregateDataAccess>
+  ExprAggregateDataAccess(source::ExprAggregateDataAccess::BaseType baseExpr);
   std::unique_ptr<source::ExprTuple> ExprTuple();
   Optional<Token> missingCommaBetweenTupleElemsRecovery();
 
@@ -772,31 +774,37 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   return result;
 }
 
-/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef | ExprDataFieldAccess
+std::unique_ptr<source::ExprAggregateDataAccess>
+Parser::ExprAggregateDataAccess(
+    source::ExprAggregateDataAccess::BaseType baseExpr) {
+  while (tk().is(TK_Dot)) {
+    auto dot = consume();
+    Optional<tmplang::Token> idOrNum = Identifier();
+    if (!idOrNum) {
+      idOrNum = Number();
+      if (!idOrNum) {
+        // FIXME: Add token recovery and diags error
+        return nullptr;
+      }
+    }
+    baseExpr = std::make_unique<source::ExprAggregateDataAccess>(
+        std::move(baseExpr), dot, *idOrNum);
+  }
+  assert(
+      std::holds_alternative<std::unique_ptr<source::ExprAggregateDataAccess>>(
+          baseExpr));
+
+  return std::move(
+      std::get<std::unique_ptr<source::ExprAggregateDataAccess>>(baseExpr));
+}
+
+/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef | ExprAggregateDataAccess
 RAIIExpr Parser::Expr() {
   if (auto id = Identifier()) {
     if (tk().isNot(TK_Dot)) {
       return std::make_unique<source::ExprVarRef>(*id);
     }
-
-    source::ExprDataFieldAccess::BaseType baseExpr = source::ExprVarRef(*id);
-    while (tk().is(TK_Dot)) {
-      auto dot = consume();
-      auto id = Identifier();
-      if (!id) {
-        // FIXME: Add token recovery and diags error
-        return nullptr;
-      }
-      auto e = std::make_unique<source::ExprDataFieldAccess>(
-          std::move(baseExpr), dot, *id);
-      e->getBase().getKind();
-      baseExpr = std::move(e);
-    }
-    assert(std::holds_alternative<std::unique_ptr<source::ExprDataFieldAccess>>(
-        baseExpr));
-
-    return std::move(
-        std::get<std::unique_ptr<source::ExprDataFieldAccess>>(baseExpr));
+    return ExprAggregateDataAccess(source::ExprVarRef(*id));
   }
 
   if (auto num = Number()) {
@@ -821,7 +829,15 @@ RAIIExpr Parser::Expr() {
   }
 
   if (tk().is(TK_LParentheses)) {
-    return ExprTuple();
+    auto tupleExpr = ExprTuple();
+    if (!tupleExpr) {
+      return nullptr;
+    }
+
+    if (tk().isNot(TK_Dot)) {
+      return std::move(tupleExpr);
+    }
+    return ExprAggregateDataAccess(std::move(tupleExpr));
   }
 
   return nullptr;
