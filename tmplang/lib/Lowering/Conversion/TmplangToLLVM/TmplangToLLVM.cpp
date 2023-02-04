@@ -106,24 +106,7 @@ struct ConvertTmplangToLLVMPass
     mlir::LLVMConversionTarget target(getContext());
     mlir::RewritePatternSet patterns(&getContext());
     mlir::LLVMTypeConverter converter(&getContext());
-
-    converter.addConversion([&](mlir::TupleType tupleTy) {
-      SmallVector<mlir::Type, 4> tys;
-      for (auto ty : tupleTy) {
-        tys.push_back(converter.convertType(ty));
-      }
-      return mlir::LLVM::LLVMStructType::getLiteral(&getContext(), tys);
-    });
-
-    converter.addConversion([&](tmplang::DataType dataType) {
-      SmallVector<mlir::Type, 4> tys;
-      for (auto ty : dataType.getTys()) {
-        tys.push_back(converter.convertType(ty));
-      }
-      return mlir::LLVM::LLVMStructType::getNewIdentified(
-          &getContext(), dataType.getName(), tys);
-    });
-
+    populateTmplangToLLVMConversionPatterns(getContext(), typeConverter);
     // Since we want to lower builtin tuple types, we need to lower func dialect
     // to LLVM along this pass
     mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
@@ -139,8 +122,27 @@ struct ConvertTmplangToLLVMPass
 } // namespace
 
 //===----------------------------------------------------------------------===//
-// Pattern Population
+// Conversion Patterns Population
 //===----------------------------------------------------------------------===//
+
+void tmplang::populateTmplangToLLVMConversionPatterns(
+    mlir::MLIRContext &context, mlir::LLVMTypeConverter &typeConverter) {
+  typeConverter.addConversion([&](mlir::TupleType tupleTy) {
+    SmallVector<mlir::Type, 4> tys;
+    for (auto ty : tupleTy) {
+      tys.push_back(typeConverter.convertType(ty));
+    }
+    return mlir::LLVM::LLVMStructType::getLiteral(&context, tys);
+  });
+  typeConverter.addConversion([&](tmplang::DataType dataType) {
+    SmallVector<mlir::Type, 4> tys;
+    for (auto ty : dataType.getTys()) {
+      tys.push_back(typeConverter.convertType(ty));
+    }
+    return mlir::LLVM::LLVMStructType::getNewIdentified(
+        &context, dataType.getName(), tys);
+  });
+}
 
 std::unique_ptr<mlir::Pass> tmplang::createConvertTmplangToLLVMPass() {
   return std::make_unique<ConvertTmplangToLLVMPass>();
