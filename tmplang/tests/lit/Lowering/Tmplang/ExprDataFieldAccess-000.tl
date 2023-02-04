@@ -9,4 +9,4 @@ fn foo: A a -> i32 {
 }
 
 //      CHECK:%0 = tmplang.aggregateDataAccess(%arg0), 0 : !tmplang<data "A"{i32, i32}> -> i32
-// CHECK-NEXT:  tmplang.return(%arg0) -> i32
+// CHECK-NEXT:tmplang.return(%0) -> i32
