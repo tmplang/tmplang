@@ -23,11 +23,23 @@ using namespace tmplang;
 
 namespace {
 
+template <typename TmplangOp>
+class TmplangToLLVMConversion : public mlir::ConvertOpToLLVMPattern<TmplangOp> {
+public:
+  TmplangToLLVMConversion(mlir::LLVMTypeConverter &typeConverter,
+                          mlir::PatternBenefit benefit = 1)
+      : mlir::ConvertOpToLLVMPattern<TmplangOp>(typeConverter, benefit),
+        typeConverter(typeConverter) {}
+
+protected:
+  mlir::LLVMTypeConverter &typeConverter;
+};
+
 //===----------------------------------------------------------------------===//
 // Op Lowering Patterns
 //===----------------------------------------------------------------------===//
-struct TupleOpLowering : public mlir::ConvertOpToLLVMPattern<TupleOp> {
-  using ConvertOpToLLVMPattern<TupleOp>::ConvertOpToLLVMPattern;
+struct TupleOpLowering : public TmplangToLLVMConversion<TupleOp> {
+  using TmplangToLLVMConversion<TupleOp>::TmplangToLLVMConversion;
 
   mlir::LogicalResult
   matchAndRewrite(TupleOp op, OpAdaptor adaptor,
@@ -35,13 +47,13 @@ struct TupleOpLowering : public mlir::ConvertOpToLLVMPattern<TupleOp> {
     const mlir::Location location = op->getLoc();
 
     mlir::Value one = rewriter.create<mlir::LLVM::ConstantOp>(
-        location, typeConverter->convertType(rewriter.getIndexType()),
+        location, typeConverter.convertType(rewriter.getIndexType()),
         rewriter.getIntegerAttr(
-            typeConverter->convertType(rewriter.getIndexType()), 1));
+            typeConverter.convertType(rewriter.getIndexType()), 1));
 
     auto ptrToStructTy =
-        typeConverter->convertType(mlir::LLVM::LLVMPointerType::get(
-            typeConverter->convertType(op.getType())));
+        typeConverter.convertType(mlir::LLVM::LLVMPointerType::get(
+            typeConverter.convertType(op.getType())));
 
     auto allocaVal =
         rewriter.create<mlir::LLVM::AllocaOp>(location, ptrToStructTy, one);
@@ -63,14 +75,14 @@ private:
 
     for (auto &[idx, operand] : llvm::enumerate(op->getOperands())) {
       auto idxVal = rewriter.create<mlir::LLVM::ConstantOp>(
-          location, typeConverter->convertType(rewriter.getIndexType()),
+          location, typeConverter.convertType(rewriter.getIndexType()),
           rewriter.getIntegerAttr(
-              typeConverter->convertType(rewriter.getIndexType()), idx));
+              typeConverter.convertType(rewriter.getIndexType()), idx));
 
       auto gepVal = rewriter.create<mlir::LLVM::GEPOp>(
           operand.getLoc(),
           mlir::LLVM::LLVMPointerType::get(
-              typeConverter->convertType(operand.getType())),
+              typeConverter.convertType(operand.getType())),
           allocaVal, mlir::ValueRange{idxVal});
 
       rewriter.create<mlir::LLVM::StoreOp>(location, operand, gepVal);
