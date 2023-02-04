@@ -2,16 +2,13 @@
 
 #include <mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/ConversionTarget.h>
-#include <mlir/Conversion/LLVMCommon/LoweringOptions.h>
 #include <mlir/Conversion/LLVMCommon/Pattern.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/LLVMIR/LLVMTypes.h>
 #include <mlir/IR/BuiltinDialect.h>
 #include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/TypeUtilities.h>
-#include <mlir/Support/LogicalResult.h>
 #include <tmplang/ADT/LLVM.h>
 #include <tmplang/Lowering/Dialect/IR/Dialect.h>
 #include <tmplang/Lowering/Dialect/IR/Ops.h>
@@ -90,6 +87,19 @@ private:
   }
 };
 
+struct AggregateDataAccessOpLowering
+    : public TmplangToLLVMConversion<AggregateDataAccessOp> {
+  using TmplangToLLVMConversion<AggregateDataAccessOp>::TmplangToLLVMConversion;
+
+  mlir::LogicalResult
+  matchAndRewrite(AggregateDataAccessOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+        op, adaptor.getOperands()[0], op.idx().getSExtValue());
+    return mlir::success();
+  }
+};
+
 } // namespace
 
 ////===----------------------------------------------------------------------===//
@@ -103,18 +113,21 @@ struct ConvertTmplangToLLVMPass
   ConvertTmplangToLLVMPass() = default;
 
   void runOnOperation() override {
-    mlir::LLVMConversionTarget target(getContext());
-    mlir::RewritePatternSet patterns(&getContext());
-    mlir::LLVMTypeConverter converter(&getContext());
+    mlir::LLVMTypeConverter typeConverter(&getContext());
     populateTmplangToLLVMConversionPatterns(getContext(), typeConverter);
-    // Since we want to lower builtin tuple types, we need to lower func dialect
-    // to LLVM along this pass
-    mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
-    patterns.add<TupleOpLowering>(converter);
 
-    if (failed(applyPartialConversion(getOperation(), target,
-                                      std::move(patterns)))) {
-      signalPassFailure();
+    mlir::LLVMConversionTarget target(getContext());
+    target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+    target
+        .addIllegalDialect<mlir::func::FuncDialect, tmplang::TmplangDialect>();
+
+    mlir::RewritePatternSet patterns(&getContext());
+    mlir::populateFuncToLLVMConversionPatterns(typeConverter, patterns);
+    patterns.add<AggregateDataAccessOpLowering, TupleOpLowering>(typeConverter);
+
+    if (mlir::failed(mlir::applyPartialConversion(getOperation(), target,
+                                                  std::move(patterns)))) {
+      mlir::Pass::signalPassFailure();
     }
   }
 };
