@@ -10,13 +10,6 @@ using namespace tmplang;
 
 namespace {
 
-struct LexicalScope {
-  Token LKeyBracket;
-  Token RKeyBracket;
-};
-
-using RAIIExpr = std::unique_ptr<source::Expr>;
-
 class Parser {
 public:
   Parser(Lexer &lex, raw_ostream &out, const SourceManager &sm)
@@ -61,7 +54,7 @@ private:
 
   Optional<std::vector<source::ExprStmt>> ExprList();
 
-  RAIIExpr Expr();
+  std::unique_ptr<source::Expr> Expr();
   Optional<Token> missingSemicolonAfterExpressionRecovery();
 
   Optional<Token> Identifier();
@@ -804,9 +797,8 @@ Parser::ExprAggregateDataAccess(
       std::get<std::unique_ptr<source::ExprAggregateDataAccess>>(baseExpr));
 }
 
-/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef |
-/// ExprAggregateDataAccess
-RAIIExpr Parser::Expr() {
+/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef | ExprAggregateDataAccess
+std::unique_ptr<source::Expr> Parser::Expr() {
   if (auto id = Identifier()) {
     if (tk().isNot(TK_Dot)) {
       return std::make_unique<source::ExprVarRef>(std::move(*id));
