@@ -5,12 +5,12 @@ include "tmplang/Lowering/Dialect/IR/TmplangBase.td"
 
 include "mlir/IR/AttrTypeBase.td"
 
-class Tmplang_Type<string name, string typeMnemonic, list<Trait> traits = []>
+class TmplangTypeBase<string name, string typeMnemonic, list<Trait> traits = []>
     : TypeDef<Tmplang_Dialect, name, traits, "tmplang::TmplangType"> {
   let mnemonic = typeMnemonic;
 }
 
-def DataType : Tmplang_Type<"Data", "data", []> {
+def DataType : TmplangTypeBase<"Data", "data", []> {
   let summary = "User-defined data.";
 
   let description = [{
