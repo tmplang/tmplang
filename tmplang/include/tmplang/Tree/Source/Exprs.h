@@ -129,10 +129,10 @@ private:
 
 class ExprAggregateDataAccess final : public Expr {
 public:
-  using BaseType = std::variant<std::unique_ptr<ExprAggregateDataAccess>,
+  using BaseNode = std::variant<std::unique_ptr<ExprAggregateDataAccess>,
                                 std::unique_ptr<source::ExprTuple>, ExprVarRef>;
 
-  ExprAggregateDataAccess(BaseType base, Token dot, Token field)
+  ExprAggregateDataAccess(BaseNode base, Token dot, Token field)
       : Expr(Kind::ExprAggregateDataAccess), Base(std::move(base)), Dot(dot),
         Field(field) {}
 
@@ -180,7 +180,7 @@ public:
   }
 
 private:
-  BaseType Base;
+  BaseNode Base;
   Token Dot;
   SpecificToken<TK_Identifier, TK_IntegerNumber> Field;
 };

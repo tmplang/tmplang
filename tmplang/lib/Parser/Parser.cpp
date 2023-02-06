@@ -67,7 +67,7 @@ private:
   Optional<Token> Identifier();
   Optional<Token> Number();
   std::unique_ptr<source::ExprAggregateDataAccess>
-  ExprAggregateDataAccess(source::ExprAggregateDataAccess::BaseType baseExpr);
+  ExprAggregateDataAccess(source::ExprAggregateDataAccess::BaseNode baseExpr);
   std::unique_ptr<source::ExprTuple> ExprTuple();
   Optional<Token> missingCommaBetweenTupleElemsRecovery();
 
@@ -776,7 +776,7 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
 
 std::unique_ptr<source::ExprAggregateDataAccess>
 Parser::ExprAggregateDataAccess(
-    source::ExprAggregateDataAccess::BaseType baseExpr) {
+    source::ExprAggregateDataAccess::BaseNode baseExpr) {
   while (tk().is(TK_Dot)) {
     auto dot = consume();
     Optional<tmplang::Token> idOrNum = Identifier();
