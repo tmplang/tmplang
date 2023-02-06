@@ -4,6 +4,7 @@
 include "tmplang/Lowering/Dialect/IR/TmplangBase.td"
 
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinTypes.td"
 
 class TmplangTypeBase<string name, string typeMnemonic, list<Trait> traits = []>
     : TypeDef<Tmplang_Dialect, name, traits, "tmplang::TmplangType"> {
@@ -22,5 +23,13 @@ def DataType : TmplangTypeBase<"Data", "data", []> {
 
   let assemblyFormat = "$name`{` $tys `}`";
 }
+
+def AggregateDataType : AnyTypeOf<[DataType, Builtin_Tuple]>;
+
+// TODO: Define general TmplangType
+//   - TupleType
+//   - DataType
+//   - FunctionType
+//   - I32
 
 #endif // TMPLANG_TYPES

@@ -85,16 +85,13 @@ def ConstantOp : Tmplang_Op<"constant", [NoSideEffect]> {
     ```
   }];
 
-  let arguments = (ins AnyAttrOf<[APIntAttr, F32Attr, F64Attr]>:$value);
-  let results = (outs AnyTypeOf<[AnyInteger, AnyFloat]>:$result);
+  let arguments = (ins AnyAttrOf<[I32Attr]>:$value);
+  let results = (outs AnyTypeOf<[I32]>:$result);
 
   let builders = [
     OpBuilder<(ins "mlir::IntegerAttr":$value), [{
       build($_builder, $_state, value.getType(), value);
     }]>,
-    OpBuilder<(ins "mlir::FloatAttr":$value), [{
-      build($_builder, $_state, value.getType(), value);
-    }]>
   ];
 
   bit hasCustomAssemblyFormat = 1;
@@ -175,7 +172,7 @@ def AggregateDataAccessOp : Tmplang_Op<"aggregateDataAccess", [NoSideEffect]> {
     ```
   }];
 
-  let arguments = (ins DataType:$input, IndexAttr:$idx);
+  let arguments = (ins AggregateDataType:$input, IndexAttr:$idx);
   let results = (outs AnyType:$result);
 
   let hasCustomAssemblyFormat = 1;

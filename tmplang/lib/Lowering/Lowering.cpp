@@ -259,7 +259,7 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
 
   // Build pass manager and run pipeline
   mlir::PassManager pm(ctx.get());
-  pm.enableVerifier(/*verifyPasses=*/false);
+  pm.enableVerifier();
 
   if (static_cast<bool>(printingCfg & MLIRPrintingOpsCfg::Translation)) {
     // Disable multithreading, otherwise we can't print the IR
