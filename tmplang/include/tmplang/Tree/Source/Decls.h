@@ -12,15 +12,14 @@ namespace tmplang::source {
 
 class ParamDecl final : public Decl {
 public:
-  explicit ParamDecl(RAIIType paramType, Token id)
+  explicit ParamDecl(RAIIType paramType, SpecificToken<TK_Identifier> id)
       : Decl(Node::Kind::ParamDecl), ParamType(std::move(paramType)),
-        Identifier(id) {}
+        Identifier(std::move(id)) {}
 
   const Type &getType() const { return *ParamType; }
-
   StringRef getName() const override { return Identifier.getLexeme(); }
-  Token getIdentifier() const { return Identifier; }
-  const Optional<Token> &getComma() const { return Comma; }
+  const auto &getIdentifier() const { return Identifier; }
+  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return ParamType->getBeginLoc();
@@ -33,25 +32,25 @@ public:
     return node->getKind() == Node::Kind::ParamDecl;
   }
 
-  void setComma(Token comma) { Comma = comma; }
+  void setComma(SpecificToken<TK_Comma> comma) { Comma = std::move(comma); }
 
 private:
   RAIIType ParamType;
-  Token Identifier;
-  Optional<Token> Comma;
+  SpecificToken<TK_Identifier> Identifier;
+  Optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class SubprogramDecl final : public Decl {
 public:
   struct ArrowAndType {
-    Token Arrow;
+    SpecificToken<TK_RArrow> Arrow;
     RAIIType RetType;
   };
 
   struct Block {
-    Token LKeyBracket;
+    SpecificToken<TK_LKeyBracket> LKeyBracket;
     std::vector<source::ExprStmt> Exprs;
-    Token RKeyBracket;
+    SpecificToken<TK_RKeyBracket> RKeyBracket;
   };
 
   const Type *getReturnType() const {
@@ -59,15 +58,16 @@ public:
   }
   const ArrayRef<ParamDecl> getParams() const { return ParamList; }
   StringRef getName() const override { return Identifier.getLexeme(); }
-  Token getFuncType() const { return FuncType; }
-  Token getIdentifier() const { return Identifier; }
-  const Optional<Token> &getColon() const { return Colon; }
-  Optional<Token> getArrow() const {
-    return OptArrowAndType ? OptArrowAndType->Arrow : Optional<Token>{};
-  }
-  Token getLKeyBracket() const { return B.LKeyBracket; }
-  Token getRKeyBracket() const { return B.RKeyBracket; }
+  const auto &getFuncType() const { return FuncType; }
+  const auto &getIdentifier() const { return Identifier; }
+  const Optional<SpecificToken<TK_Colon>> &getColon() const { return Colon; }
+  const auto &getLKeyBracket() const { return B.LKeyBracket; }
+  const auto &getRKeyBracket() const { return B.RKeyBracket; }
   const Block &getBlock() const { return B; }
+  Optional<SpecificToken<TK_RArrow>> getArrow() const {
+    return OptArrowAndType ? OptArrowAndType->Arrow
+                           : Optional<SpecificToken<TK_RArrow>>{};
+  }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return FuncType.getSpan().Start;
@@ -84,12 +84,14 @@ public:
   /// fn foo: i32 a, f32 b {}
   /// fn foo -> i32 {}
   /// fn foo {}
-  SubprogramDecl(Token funcType, Token identifier, Block block,
-                 Optional<Token> colon = llvm::None,
-                 SmallVector<source::ParamDecl, 4> paramList = {},
+  SubprogramDecl(SpecificToken<TK_FnType, TK_ProcType> funcType,
+                 SpecificToken<TK_Identifier> identifier, Block block,
+                 Optional<SpecificToken<TK_Colon>> colon,
+                 SmallVector<source::ParamDecl, 4> paramList,
                  Optional<ArrowAndType> arrowAndType = llvm::None)
-      : Decl(Kind::SubprogramDecl), FuncType(funcType), Identifier(identifier),
-        Colon(colon), ParamList(std::move(paramList)),
+      : Decl(Kind::SubprogramDecl), FuncType(std::move(funcType)),
+        Identifier(std::move(identifier)), Colon(std::move(colon)),
+        ParamList(std::move(paramList)),
         OptArrowAndType(std::move(arrowAndType)), B(std::move(block)) {}
 
   SubprogramDecl(SubprogramDecl &&) = default;
@@ -97,9 +99,9 @@ public:
   virtual ~SubprogramDecl() = default;
 
 private:
-  Token FuncType;
-  Token Identifier;
-  Optional<Token> Colon;
+  SpecificToken<TK_FnType, TK_ProcType> FuncType;
+  SpecificToken<TK_Identifier> Identifier;
+  Optional<SpecificToken<TK_Colon>> Colon;
   SmallVector<source::ParamDecl, 4> ParamList;
   Optional<ArrowAndType> OptArrowAndType;
   Block B;
@@ -108,15 +110,12 @@ private:
 class DataFieldDecl final : public Decl {
 public:
   StringRef getName() const override { return Identifier.getLexeme(); }
-  Token getIdentifier() const { return Identifier; }
-  Token getColon() const { return Colon; }
+  const auto &getIdentifier() const { return Identifier; }
+  const auto &getColon() const { return Colon; }
   const Type &getType() const { return *Ty; }
-  const Optional<Token> &getComma() const { return Comma; }
+  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
 
-  void setComma(Token comma) {
-    assert(comma.is(TokenKind::TK_Comma));
-    Comma = comma;
-  }
+  void setComma(SpecificToken<TK_Comma> comma) { Comma = std::move(comma); }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return Identifier.getSpan().Start;
@@ -130,27 +129,28 @@ public:
     return node->getKind() == Kind::DataFieldDecl;
   }
 
-  DataFieldDecl(Token id, Token colon, RAIIType ty)
-      : Decl(Node::Kind::DataFieldDecl), Identifier(id), Colon(colon),
-        Ty(std::move(ty)) {
+  DataFieldDecl(SpecificToken<TK_Identifier> id, SpecificToken<TK_Colon> colon,
+                RAIIType ty)
+      : Decl(Node::Kind::DataFieldDecl), Identifier(std::move(id)),
+        Colon(std::move(colon)), Ty(std::move(ty)) {
     assert(Ty);
   }
 
 private:
-  Token Identifier;
-  Token Colon;
+  SpecificToken<TK_Identifier> Identifier;
+  SpecificToken<TK_Colon> Colon;
   RAIIType Ty;
-  Optional<Token> Comma;
+  Optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class DataDecl final : public Decl {
 public:
-  Token getDataKeyword() const { return DataKeyword; }
+  const auto &getDataKeyword() const { return DataKeyword; }
   StringRef getName() const override { return Identifier.getLexeme(); }
-  Token getIdentifier() const { return Identifier; }
+  const auto &getIdentifier() const { return Identifier; }
   llvm::ArrayRef<DataFieldDecl> getFields() const { return Fields; }
-  Token getStartingEq() const { return StartingEq; }
-  Token getEndingSemicolon() const { return EndingSemicolon; }
+  const auto &getStartingEq() const { return StartingEq; }
+  const auto &getEndingSemicolon() const { return EndingSemicolon; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return DataKeyword.getSpan().Start;
@@ -163,22 +163,24 @@ public:
     return node->getKind() == Kind::DataDecl;
   }
 
-  DataDecl(Token dataKeyword, Token id, Token startingEq,
-           SmallVector<DataFieldDecl, 4> fields, Token endingSemicolon)
-      : Decl(Kind::DataDecl), DataKeyword(dataKeyword), Identifier(id),
-        StartingEq(startingEq), Fields(std::move(fields)),
-        EndingSemicolon(endingSemicolon) {
+  DataDecl(SpecificToken<TK_Data> dataKeyword, SpecificToken<TK_Identifier> id,
+           SpecificToken<TK_Eq> startingEq,
+           SmallVector<DataFieldDecl, 4> fields,
+           SpecificToken<TK_Semicolon> endingSemicolon)
+      : Decl(Kind::DataDecl), DataKeyword(std::move(dataKeyword)),
+        Identifier(std::move(id)), StartingEq(std::move(startingEq)),
+        Fields(std::move(fields)), EndingSemicolon(std::move(endingSemicolon)) {
     assert(!Fields.empty());
   }
 
   virtual ~DataDecl() = default;
 
 private:
-  Token DataKeyword;
-  Token Identifier;
-  Token StartingEq;
+  SpecificToken<TK_Data> DataKeyword;
+  SpecificToken<TK_Identifier> Identifier;
+  SpecificToken<TK_Eq> StartingEq;
   llvm::SmallVector<DataFieldDecl, 4> Fields;
-  Token EndingSemicolon;
+  SpecificToken<TK_Semicolon> EndingSemicolon;
 };
 
 } // namespace tmplang::source

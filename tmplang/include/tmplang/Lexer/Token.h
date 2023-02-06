@@ -112,7 +112,7 @@ private:
 
 /// Represents a token with one of the specified kinds
 template <TokenKind... Kinds> struct SpecificToken : public Token {
-  SpecificToken(Token tk) : Token(tk) {
+  SpecificToken(Token &&tk) : Token(std::forward<Token>(tk)) {
     assert(llvm::is_contained({Kinds...}, getKind()));
   }
 };

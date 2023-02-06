@@ -43,7 +43,7 @@ private:
 
   std::unique_ptr<source::SubprogramDecl> SubprogramDecl();
   std::unique_ptr<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
-      Token funcType, Token id, Optional<Token> colon = None,
+      Token funcType, Token id, Optional<SpecificToken<TK_Colon>> colon = None,
       SmallVector<source::ParamDecl, 4> paramList = {});
   Optional<Token> missingSubprogramTypeRecovery();
   Optional<Token> missingSubprogramIdRecovery();
@@ -189,7 +189,7 @@ Optional<source::CompilationUnit> Parser::Start() {
 }
 
 std::unique_ptr<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
-    Token funcType, Token id, Optional<Token> colon,
+    Token funcType, Token id, Optional<SpecificToken<TK_Colon>> colon,
     SmallVector<source::ParamDecl, 4> paramList) {
   if (auto arrow = parseOrTryRecover<&Parser::ParseToken<TK_RArrow>,
                                      &Parser::missingReturnTypeArrowRecovery>(
@@ -208,8 +208,10 @@ std::unique_ptr<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
     }
 
     return std::make_unique<source::SubprogramDecl>(
-        funcType, id, std::move(*block), colon, std::move(paramList),
-        source::SubprogramDecl::ArrowAndType{*arrow, std::move(returnType)});
+        std::move(funcType), std::move(id), std::move(*block), std::move(colon),
+        std::move(paramList),
+        source::SubprogramDecl::ArrowAndType{std::move(*arrow),
+                                             std::move(returnType)});
   }
 
   // [2]
@@ -220,7 +222,8 @@ std::unique_ptr<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
   }
 
   return std::make_unique<source::SubprogramDecl>(
-      funcType, id, std::move(*block), colon, std::move(paramList));
+      std::move(funcType), std::move(id), std::move(*block), std::move(colon),
+      std::move(paramList));
 }
 
 std::unique_ptr<source::DataDecl> Parser::DataDecl() {
@@ -252,8 +255,9 @@ std::unique_ptr<source::DataDecl> Parser::DataDecl() {
     return nullptr;
   }
 
-  return std::make_unique<source::DataDecl>(*data, *id, *eq, std::move(*fields),
-                                            *semicolon);
+  return std::make_unique<source::DataDecl>(std::move(*data), std::move(*id),
+                                            std::move(*eq), std::move(*fields),
+                                            std::move(*semicolon));
 }
 
 Optional<Token> Parser::missingDataDeclId() {
@@ -310,7 +314,8 @@ Optional<source::DataFieldDecl> Parser::DataFieldDecl() {
     return None;
   }
 
-  return source::DataFieldDecl(*id, *colon, std::move(ty));
+  return source::DataFieldDecl(std::move(*id), *std::move(colon),
+                               std::move(ty));
 }
 
 Optional<Token> Parser::missingDataFieldId() {
@@ -387,7 +392,7 @@ Optional<SmallVector<source::DataFieldDecl, 4>> Parser::DataFieldDeclList() {
              parseOrTryRecover<&Parser::ParseToken<TK_Comma>,
                                &Parser::missingCommaDataFieldSepRecovery>(
                  /*emitUnexpectedTokenDiag*/ false)) {
-    dataFieldDecls.back().setComma(*comma);
+    dataFieldDecls.back().setComma(std::move(*comma));
 
     auto dataField = DataFieldDecl();
     if (!dataField) {
@@ -456,8 +461,9 @@ std::unique_ptr<source::SubprogramDecl> Parser::SubprogramDecl() {
       return nullptr;
     }
 
-    return ArrowAndEndOfSubprogramFactored(*funcType, *id, colon,
-                                           std::move(*paramList));
+    return ArrowAndEndOfSubprogramFactored(
+        *funcType, *id, SpecificToken<TK_Colon>(std::move(colon)),
+        std::move(*paramList));
   }
 
   return ArrowAndEndOfSubprogramFactored(*funcType, *id);
@@ -523,7 +529,7 @@ Optional<SmallVector<source::ParamDecl, 4>> Parser::ParamList() {
   while (auto comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>,
                                         &Parser::missingCommaParamSepRecovery>(
              /*emitUnexpectedTokenDiag*/ false)) {
-    paramList.back().setComma(*comma);
+    paramList.back().setComma(std::move(*comma));
 
     auto param = Param();
     if (!param) {
@@ -572,7 +578,7 @@ Optional<source::ParamDecl> Parser::Param() {
     return None;
   }
 
-  return source::ParamDecl(std::move(type), *paramId);
+  return source::ParamDecl(std::move(type), std::move(*paramId));
 }
 
 Optional<Token> Parser::missingVariableOnParamRecovery() {
@@ -607,8 +613,8 @@ Optional<source::SubprogramDecl::Block> Parser::Block() {
     return None;
   }
 
-  return source::SubprogramDecl::Block{*lKeyBracket, std::move(*exprs),
-                                       *rKeyBracket};
+  return source::SubprogramDecl::Block{
+      std::move(*lKeyBracket), std::move(*exprs), std::move(*rKeyBracket)};
 }
 
 Optional<Token> Parser::missingLeftKeyBracketRecovery() {
@@ -663,7 +669,7 @@ source::RAIIType Parser::NamedType() {
   auto id = Identifier();
   assert(id && "This is validated on the call-site");
 
-  return source::make_RAIIType<source::NamedType>(*id);
+  return source::make_RAIIType<source::NamedType>(std::move(*id));
 }
 
 /// TupleType = "(" ( Type ("," Type)* )? ")";
@@ -706,7 +712,7 @@ source::RAIIType Parser::TupleType() {
   assert(rparentheses && "This is unconditionally valid");
 
   return source::make_RAIIType<source::TupleType>(
-      lparentheses, std::move(types), std::move(commas),
+      std::move(lparentheses), std::move(types), std::move(commas),
       std::move(*rparentheses));
 }
 
@@ -768,7 +774,7 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
       return None;
     }
 
-    result.push_back(source::ExprStmt(std::move(expr), *semicolon));
+    result.push_back(source::ExprStmt(std::move(expr), std::move(*semicolon)));
   }
 
   return result;
@@ -788,7 +794,7 @@ Parser::ExprAggregateDataAccess(
       }
     }
     baseExpr = std::make_unique<source::ExprAggregateDataAccess>(
-        std::move(baseExpr), dot, *idOrNum);
+        std::move(baseExpr), std::move(dot), std::move(*idOrNum));
   }
   assert(
       std::holds_alternative<std::unique_ptr<source::ExprAggregateDataAccess>>(
@@ -798,24 +804,25 @@ Parser::ExprAggregateDataAccess(
       std::get<std::unique_ptr<source::ExprAggregateDataAccess>>(baseExpr));
 }
 
-/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef | ExprAggregateDataAccess
+/// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef |
+/// ExprAggregateDataAccess
 RAIIExpr Parser::Expr() {
   if (auto id = Identifier()) {
     if (tk().isNot(TK_Dot)) {
-      return std::make_unique<source::ExprVarRef>(*id);
+      return std::make_unique<source::ExprVarRef>(std::move(*id));
     }
-    return ExprAggregateDataAccess(source::ExprVarRef(*id));
+    return ExprAggregateDataAccess(source::ExprVarRef(std::move(*id)));
   }
 
   if (auto num = Number()) {
-    return std::make_unique<source::ExprIntegerNumber>(*num);
+    return std::make_unique<source::ExprIntegerNumber>(std::move(*num));
   }
 
   if (tk().is(TK_Ret)) {
     Token ret = consume();
 
     if (tk().is(tmplang::TK_Semicolon)) {
-      return std::make_unique<source::ExprRet>(ret);
+      return std::make_unique<source::ExprRet>(std::move(ret));
     }
 
     auto retExpr = Expr();
@@ -825,7 +832,8 @@ RAIIExpr Parser::Expr() {
           .print(Out, SM);
       return nullptr;
     }
-    return std::make_unique<source::ExprRet>(ret, std::move(retExpr));
+    return std::make_unique<source::ExprRet>(std::move(ret),
+                                             std::move(retExpr));
   }
 
   if (tk().is(TK_LParentheses)) {
@@ -912,8 +920,8 @@ std::unique_ptr<source::ExprTuple> Parser::ExprTuple() {
                         &Parser::missingRightParenthesesOfTupleRecovery>();
   assert(rparentheses && "This is unconditionally valid");
 
-  return std::make_unique<source::ExprTuple>(lparentheses, std::move(vals),
-                                             *rparentheses);
+  return std::make_unique<source::ExprTuple>(
+      std::move(lparentheses), std::move(vals), std::move(*rparentheses));
 }
 
 Optional<Token> Parser::missingCommaBetweenTupleElemsRecovery() {

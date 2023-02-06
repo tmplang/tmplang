@@ -10,11 +10,11 @@ namespace tmplang::source {
 
 class NamedType final : public Type {
 public:
-  explicit NamedType(Token identifier)
-      : Type(Kind::NamedType), Identifier(identifier) {}
+  explicit NamedType(SpecificToken<TK_Identifier> identifier)
+      : Type(Kind::NamedType), Identifier(std::move(identifier)) {}
 
   StringRef getName() const { return Identifier.getLexeme(); }
-  Token getIdentifier() const { return Identifier; }
+  const auto &getIdentifier() const { return Identifier; }
 
   SourceLocation getBeginLoc() const override {
     return Identifier.getSpan().Start;
@@ -24,21 +24,24 @@ public:
   static bool classof(const Type *T) { return T->getKind() == Kind::NamedType; }
 
 protected:
-  Token Identifier;
+  SpecificToken<TK_Identifier> Identifier;
 };
 
 class TupleType final : public Type {
 public:
-  TupleType(Token lparentheses, SmallVectorImpl<RAIIType> &&types,
-            SmallVectorImpl<Token> &&commas, Token rparentheses)
-      : Type(Kind::TupleType), LParentheses(lparentheses),
+  TupleType(SpecificToken<TK_LParentheses> lparentheses,
+            SmallVectorImpl<RAIIType> &&types, SmallVectorImpl<Token> &&commas,
+            SpecificToken<TK_RParentheses> rparentheses)
+      : Type(Kind::TupleType), LParentheses(std::move(lparentheses)),
         TypesAndCommas(std::move(types), std::move(commas)),
-        RParentheses(rparentheses) {}
+        RParentheses(std::move(rparentheses)) {}
 
-  Token getLParentheses() const { return LParentheses; }
+  const auto &getLParentheses() const { return LParentheses; }
   ArrayRef<RAIIType> getTypes() const { return TypesAndCommas.Elems; }
-  ArrayRef<Token> getCommas() const { return TypesAndCommas.Commas; }
-  Token getRParentheses() const { return RParentheses; }
+  ArrayRef<SpecificToken<TK_Comma>> getCommas() const {
+    return TypesAndCommas.Commas;
+  }
+  const auto &getRParentheses() const { return RParentheses; }
 
   SourceLocation getBeginLoc() const override {
     return LParentheses.getSpan().Start;
@@ -50,9 +53,9 @@ public:
   static bool classof(const Type *T) { return T->getKind() == Kind::TupleType; }
 
 private:
-  Token LParentheses;
+  SpecificToken<TK_LParentheses> LParentheses;
   CommaSeparatedList<RAIIType, 4> TypesAndCommas;
-  Token RParentheses;
+  SpecificToken<TK_RParentheses> RParentheses;
 };
 
 } // namespace tmplang::source

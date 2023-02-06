@@ -280,8 +280,8 @@ Optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
   return ParamDecl(srcParamDecl, sym);
 }
 
-static SubprogramDecl::FunctionKind GetFunctionKind(Token tk) {
-  assert(tk.isOneOf(TK_ProcType, TK_FnType));
+static SubprogramDecl::FunctionKind
+GetFunctionKind(SpecificToken<TK_FnType, TK_ProcType> tk) {
   if (tk.is(TK_ProcType)) {
     return SubprogramDecl::proc;
   }

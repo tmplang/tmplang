@@ -11,15 +11,15 @@ template <typename T, unsigned N> struct CommaSeparatedList {
   CommaSeparatedList() = default;
   CommaSeparatedList(SmallVectorImpl<T> &&elems,
                      SmallVectorImpl<Token> &&commas)
-      : Elems(std::move(elems)), Commas(std::move(commas)) {
+      : Elems(std::move(elems)) {
+    llvm::move(std::move(commas), std::back_inserter(Commas));
+
     assert((Elems.empty() && Commas.empty()) ||
            (Elems.size() == Commas.size() + 1));
-    assert(
-        llvm::all_of(Commas, [](const Token &tk) { return tk.is(TK_Comma); }));
   }
 
   SmallVector<T, N> Elems;
-  SmallVector<Token, N - 1> Commas;
+  SmallVector<SpecificToken<TK_Comma>, N - 1> Commas;
 };
 
 } // namespace tmplang::source

@@ -9,10 +9,10 @@ namespace tmplang::source {
 
 class ExprIntegerNumber final : public Expr {
 public:
-  explicit ExprIntegerNumber(Token num)
+  explicit ExprIntegerNumber(SpecificToken<TK_IntegerNumber> num)
       : Expr(Kind::ExprIntegerNumber), Number(num) {}
 
-  Token getNumber() const { return Number; }
+  const auto &getNumber() const { return Number; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return Number.getSpan().Start;
@@ -26,7 +26,7 @@ public:
   }
 
 private:
-  Token Number;
+  SpecificToken<TK_IntegerNumber> Number;
 };
 
 class TupleElem final : public Node {
@@ -42,8 +42,8 @@ public:
   }
 
   const Expr &getVal() const { return *Val; }
-  const Optional<Token> &getComma() const { return Comma; }
-  void setComma(Token comma) { Comma = comma; }
+  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Kind::TupleElem;
@@ -51,17 +51,19 @@ public:
 
 private:
   std::unique_ptr<Expr> Val;
-  Optional<Token> Comma;
+  Optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class ExprTuple final : public Expr {
 public:
-  ExprTuple(Token lParen, SmallVector<TupleElem, 4> values, Token rParen)
+  ExprTuple(SpecificToken<TK_LParentheses> lParen,
+            SmallVector<TupleElem, 4> values,
+            SpecificToken<TK_RParentheses> rParen)
       : Expr(Kind::ExprTuple), LParen(lParen), Values(std::move(values)),
         RParen(rParen) {}
 
-  const Token &getLParen() const { return LParen; }
-  const Token &getRParen() const { return RParen; }
+  const auto &getLParen() const { return LParen; }
+  const auto &getRParen() const { return RParen; }
   ArrayRef<TupleElem> getVals() const { return Values; }
 
   tmplang::SourceLocation getBeginLoc() const override {
@@ -76,17 +78,17 @@ public:
   }
 
 private:
-  Token LParen;
+  SpecificToken<TK_LParentheses> LParen;
   SmallVector<TupleElem, 4> Values;
-  Token RParen;
+  SpecificToken<TK_RParentheses> RParen;
 };
 
 class ExprRet final : public Expr {
 public:
-  ExprRet(Token ret, std::unique_ptr<Expr> expr = nullptr)
+  ExprRet(SpecificToken<TK_Ret> ret, std::unique_ptr<Expr> expr = nullptr)
       : Expr(Kind::ExprRet), Ret(ret), ExprToRet(std::move(expr)) {}
 
-  const Token &getRetTk() const { return Ret; }
+  const auto &getRetTk() const { return Ret; }
   const Expr *getReturnedExpr() const { return ExprToRet.get(); }
 
   tmplang::SourceLocation getBeginLoc() const override {
@@ -101,15 +103,16 @@ public:
   }
 
 private:
-  Token Ret;
+  SpecificToken<TK_Ret> Ret;
   std::unique_ptr<Expr> ExprToRet;
 };
 
 class ExprVarRef final : public Expr {
 public:
-  ExprVarRef(Token id) : Expr(Kind::ExprVarRef), Identifier(id) {}
+  ExprVarRef(SpecificToken<TK_Identifier> id)
+      : Expr(Kind::ExprVarRef), Identifier(id) {}
 
-  const Token &getIdentifier() const { return Identifier; }
+  const auto &getIdentifier() const { return Identifier; }
   llvm::StringRef getName() const { return Identifier.getLexeme(); }
 
   tmplang::SourceLocation getBeginLoc() const override {
@@ -124,7 +127,7 @@ public:
   }
 
 private:
-  Token Identifier;
+  SpecificToken<TK_Identifier> Identifier;
 };
 
 class ExprAggregateDataAccess final : public Expr {
@@ -132,7 +135,8 @@ public:
   using BaseNode = std::variant<std::unique_ptr<ExprAggregateDataAccess>,
                                 std::unique_ptr<source::ExprTuple>, ExprVarRef>;
 
-  ExprAggregateDataAccess(BaseNode base, Token dot, Token field)
+  ExprAggregateDataAccess(BaseNode base, SpecificToken<TK_Dot> dot,
+                          SpecificToken<TK_Identifier, TK_IntegerNumber> field)
       : Expr(Kind::ExprAggregateDataAccess), Base(std::move(base)), Dot(dot),
         Field(field) {}
 
@@ -157,8 +161,9 @@ public:
         ->getBaseName();
   }
 
-  Token getDot() const { return Dot; }
-  Token getAccessedField() const { return Field; }
+  const auto &getDot() const { return Dot; }
+  const auto &getAccessedField() const { return Field; }
+
   llvm::StringRef getFieldName() const {
     assert(Field.is(TK_Identifier));
     return Field.getLexeme();
@@ -181,7 +186,7 @@ public:
 
 private:
   BaseNode Base;
-  Token Dot;
+  SpecificToken<TK_Dot> Dot;
   SpecificToken<TK_Identifier, TK_IntegerNumber> Field;
 };
 

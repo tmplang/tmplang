@@ -20,11 +20,13 @@ protected:
 
 class ExprStmt final : public Node {
 public:
-  explicit ExprStmt(std::unique_ptr<Expr> expr, Token semiColon)
-      : Node(Node::Kind::ExprStmt), E(std::move(expr)), Semicolon(semiColon) {}
+  explicit ExprStmt(std::unique_ptr<Expr> expr,
+                    SpecificToken<TK_Semicolon> semiColon)
+      : Node(Node::Kind::ExprStmt), E(std::move(expr)),
+        Semicolon(std::move(semiColon)) {}
 
   const Expr *getExpr() const { return &*E; }
-  const Token &getSemicolon() const { return Semicolon; }
+  const auto &getSemicolon() const { return Semicolon; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Kind::ExprStmt;
@@ -39,7 +41,7 @@ public:
 
 private:
   std::unique_ptr<Expr> E;
-  Token Semicolon;
+  SpecificToken<TK_Semicolon> Semicolon;
 };
 
 } // namespace tmplang::source

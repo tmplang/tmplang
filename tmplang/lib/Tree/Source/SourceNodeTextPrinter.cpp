@@ -177,11 +177,11 @@ public:
     printToken(tupleType.getLParentheses());
 
     ArrayRef<RAIIType> types = tupleType.getTypes();
-    ArrayRef<Token> commas = tupleType.getCommas();
+    ArrayRef<SpecificToken<TK_Comma>> commas = tupleType.getCommas();
 
     for (unsigned i = 0; i < commas.size(); i++) {
       const RAIIType &type = types[i];
-      const Token &comma = commas[i];
+      const SpecificToken<TK_Comma> &comma = commas[i];
 
       TypeBase::traverseType(*type);
       OS << ' ';
