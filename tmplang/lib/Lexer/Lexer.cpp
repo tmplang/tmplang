@@ -7,7 +7,7 @@ using namespace tmplang;
 
 namespace {
 
-constexpr StringLiteral AllNumbers = "0123456789";
+static constexpr StringLiteral AllNumbers = "0123456789";
 
 /// Auxiliary struct to build tokens while updating the state of the Lexer
 struct TokenBuilder {
