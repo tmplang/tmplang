@@ -35,6 +35,12 @@ StringLiteral tmplang::ToString(TokenKind tk) {
     return ";";
   case TK_Dot:
     return ".";
+  case TK_Otherwise:
+    return "otherwise";
+  case TK_Underscore:
+    return "_";
+  case TK_Match:
+    return "match";
   case TK_Data:
     return "data";
   case TK_FnType:

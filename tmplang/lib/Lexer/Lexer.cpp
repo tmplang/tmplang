@@ -104,6 +104,9 @@ Token Lexer::next() {
   case '.':
     simpleTokenMatched = TK_Dot;
     break;
+  case '_':
+    simpleTokenMatched = TK_Underscore;
+    break;
   case '-':
     if (State.CurrentInput.startswith("->")) {
       simpleTokenMatched = TK_RArrow;
@@ -155,6 +158,8 @@ Token Lexer::next() {
                      .Case(ToString(TK_FnType), TK_FnType)
                      .Case(ToString(TK_Ret), TK_Ret)
                      .Case(ToString(TK_Data), TK_Data)
+                     .Case(ToString(TK_Match), TK_Match)
+                     .Case(ToString(TK_Otherwise), TK_Otherwise)
                      .Default(TK_Identifier);
 
   if (tk == TK_Identifier) {

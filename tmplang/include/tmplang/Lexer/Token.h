@@ -31,11 +31,14 @@ enum TokenKind {
   TK_Semicolon,
   TK_RArrow,
   TK_Dot,
+  TK_Underscore,
 
   // Keywords
   TK_Data,
   TK_FnType,
+  TK_Match,
   TK_ProcType,
+  TK_Otherwise,
   TK_Ret,
 };
 StringLiteral ToString(TokenKind tk);

@@ -50,7 +50,7 @@ struct MimicToken {
 
 static void CheckResult(ArrayRef<MimicToken> targetTokens,
                         ArrayRef<Token> resultTokens, const SourceManager &sm) {
-  SCOPED_TRACE("Result tokens: {" + Toks(resultTokens, sm) + "}\n");
+  SCOPED_TRACE("Result tokens: {" + Toks(resultTokens, sm) + "}");
   ASSERT_EQ(resultTokens.size(), targetTokens.size());
 
   for (size_t i = 0; i < resultTokens.size(); ++i) {
@@ -218,8 +218,10 @@ TEST(BasicLexer, Numbers) {
                         });
 }
 
-TEST(BasicLexer, InvalidNumber) {
-  TestLexer("_1", {{TK_Unknown, {1, 1}, {1, 1}}});
+TEST(BasicLexer, Underscore) {
+  TestLexer("_1", {{TK_Underscore, {1, 1}, {1, 1}},
+                   {"1", TK_IntegerNumber, {1, 2}, {1, 2}},
+                   {TK_EOF, {1, 3}, {1, 3}}});
 }
 
 TEST(BasicLexer, StartOfData) {
@@ -227,5 +229,13 @@ TEST(BasicLexer, StartOfData) {
                           {TK_Data, {1, 1}, {1, 4}},
                           {TK_Eq, {1, 6}, {1, 6}},
                           {TK_EOF, {1, 7}, {1, 7}},
+                      });
+}
+
+TEST(BasicLexer, StartOfMatch) {
+  TestLexer("match =", {
+                          {TK_Match, {1, 1}, {1, 5}},
+                          {TK_Eq, {1, 7}, {1, 7}},
+                          {TK_EOF, {1, 8}, {1, 8}},
                       });
 }
