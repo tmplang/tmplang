@@ -70,8 +70,14 @@ HIRBuilder::get(const source::ExprIntegerNumber &exprIntNum) {
 }
 
 std::unique_ptr<ExprRet> HIRBuilder::get(const source::ExprRet &exprRet) {
-  auto returnedExpr =
-      exprRet.getReturnedExpr() ? get(*exprRet.getReturnedExpr()) : nullptr;
+  std::unique_ptr<Expr> returnedExpr;
+  if (auto *retExpr = exprRet.getReturnedExpr()) {
+    returnedExpr = get(*exprRet.getReturnedExpr());
+    if (!returnedExpr) {
+      // Already reported
+      return nullptr;
+    }
+  }
 
   return std::make_unique<hir::ExprRet>(
       exprRet, returnedExpr ? returnedExpr->getType() : TupleType::getUnit(Ctx),
