@@ -54,6 +54,7 @@ private:
 
   std::optional<std::vector<source::ExprStmt>> ExprList();
 
+  std::unique_ptr<source::Expr> ConstantExpr();
   std::unique_ptr<source::Expr> Expr();
   std::optional<Token> missingSemicolonAfterExpressionRecovery();
 
@@ -61,6 +62,16 @@ private:
   std::optional<Token> Number();
   std::unique_ptr<source::ExprAggregateDataAccess>
   ExprAggregateDataAccess(source::ExprAggregateDataAccess::BaseNode baseExpr);
+
+  Optional<source::TupleDestructuration> TupleDestructuration();
+  Optional<source::DataDestructurationElem>
+  DataDestructurationFieldNameAndValue();
+  Optional<source::DataDestructuration> DataDestructuration();
+  std::unique_ptr<source::ExprMatchCaseLhsVal> MatchCaseLhsValue();
+  Optional<source::ExprMatchCase::Lhs> MatchCaseLhs();
+  Optional<source::ExprMatchCase> MatchCase();
+  std::unique_ptr<source::ExprMatch> ExprMatch();
+
   std::unique_ptr<source::ExprTuple> ExprTuple();
   std::optional<Token> missingCommaBetweenTupleElemsRecovery();
 
@@ -747,7 +758,7 @@ std::optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   std::vector<source::ExprStmt> result;
 
   while (tk().isOneOf(/*firstTokensOfExpr*/ TK_LParentheses, TK_IntegerNumber,
-                      TK_Ret, TK_Identifier)) {
+                      TK_Ret, TK_Identifier, TK_Match)) {
     if (tk().is(TK_Semicolon)) {
       // Consume dangling ';'s
       result.push_back(source::ExprStmt(nullptr, consume()));
@@ -797,7 +808,17 @@ Parser::ExprAggregateDataAccess(
       std::get<std::unique_ptr<source::ExprAggregateDataAccess>>(baseExpr));
 }
 
+/// ConstantExpr = ExprNumber | ToBeAdded(StringLiteral, ...)
+std::unique_ptr<source::Expr> Parser::ConstantExpr() {
+  if (auto num = Number()) {
+    return std::make_unique<source::ExprIntegerNumber>(std::move(*num));
+  }
+  return nullptr;
+}
+
+// clang-format off
 /// Expr = ExprNumber | "ret" Expr | ExprTuple | ExprVarRef | ExprAggregateDataAccess
+// clang-format on
 std::unique_ptr<source::Expr> Parser::Expr() {
   if (auto id = Identifier()) {
     if (tk().isNot(TK_Dot)) {
@@ -808,6 +829,10 @@ std::unique_ptr<source::Expr> Parser::Expr() {
 
   if (auto num = Number()) {
     return std::make_unique<source::ExprIntegerNumber>(std::move(*num));
+  }
+
+  if (tk().is(TK_Match)) {
+    return ExprMatch();
   }
 
   if (tk().is(TK_Ret)) {
@@ -872,6 +897,226 @@ std::optional<Token> Parser::Identifier() {
 
 std::optional<Token> Parser::Number() {
   return tk().is(TK_IntegerNumber) ? consume() : std::optional<Token>{};
+}
+
+Optional<source::TupleDestructuration> Parser::TupleDestructuration() {
+  auto lparen = parseOrTryRecover<&Parser::ParseToken<TK_LParentheses>>();
+  if (!lparen) {
+    // TODO: Report error and try recover
+    return None;
+  }
+
+  std::unique_ptr<source::ExprMatchCaseLhsVal> lhsVal = MatchCaseLhsValue();
+  if (!lhsVal) {
+    return None;
+  }
+
+  std::vector<source::TupleDestructurationElem> tupleElems;
+  while (tk().isNot(TK_RParentheses)) {
+    Optional<Token> comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
+    if (!comma) {
+      // TODO: Report error and try recover
+      return None;
+    }
+
+    tupleElems.emplace_back(std::move(lhsVal));
+    tupleElems.back().Comma = std::move(*comma);
+
+    lhsVal = MatchCaseLhsValue();
+    if (!lhsVal) {
+      // Nothing to do here, reported on Expr
+      return None;
+    }
+  }
+  tupleElems.emplace_back(std::move(lhsVal));
+
+  // Already checked to break the above while
+  auto rparen = consume();
+
+  return source::TupleDestructuration{std::move(*lparen), std::move(tupleElems),
+                                      std::move(rparen)};
+}
+
+Optional<source::DataDestructurationElem>
+Parser::DataDestructurationFieldNameAndValue() {
+  auto id = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>>();
+  if (!id) {
+    // TODO: Report error and try recover
+    return None;
+  }
+  auto colon = parseOrTryRecover<&Parser::ParseToken<TK_Colon>>();
+  if (!colon) {
+    // TODO: Report error and try recover
+    return None;
+  }
+  auto matchCaseLhsVal = MatchCaseLhsValue();
+  if (!matchCaseLhsVal) {
+    // Nothing to do here, reported on MatchCaseLhsValue
+    return None;
+  }
+  return source::DataDestructurationElem{std::move(*id), std::move(*colon),
+                                         std::move(matchCaseLhsVal)};
+}
+
+Optional<source::DataDestructuration> Parser::DataDestructuration() {
+  auto lbracket = parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>>();
+  if (!lbracket) {
+    // TODO: Report error and try recover
+    return None;
+  }
+
+  auto fieldNameAndVal = DataDestructurationFieldNameAndValue();
+  if (!fieldNameAndVal) {
+    return None;
+  }
+
+  std::vector<source::DataDestructurationElem> dataElems;
+  while (tk().isNot(TK_RKeyBracket)) {
+    Optional<Token> comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
+    if (!comma) {
+      // TODO: Report error and try recover
+      return None;
+    }
+
+    dataElems.emplace_back(std::move(*fieldNameAndVal));
+    dataElems.back().setComma(std::move(*comma));
+
+    fieldNameAndVal = DataDestructurationFieldNameAndValue();
+    if (!fieldNameAndVal) {
+      // Nothing to do here, reported on Expr
+      return None;
+    }
+  }
+  dataElems.emplace_back(std::move(*fieldNameAndVal));
+
+  // Already checked to break the above while
+  auto rparen = consume();
+
+  return source::DataDestructuration{std::move(*lbracket), std::move(dataElems),
+                                     std::move(rparen)};
+}
+
+std::unique_ptr<source::ExprMatchCaseLhsVal> Parser::MatchCaseLhsValue() {
+  if (tk().is(TK_Underscore)) {
+    return std::make_unique<source::ExprMatchCaseLhsVal>(
+        SpecificToken<TK_Underscore>(consume()));
+  }
+
+  if (tk().is(TK_Identifier)) {
+    return std::make_unique<source::ExprMatchCaseLhsVal>(
+        source::PlaceholderDecl(consume()));
+  }
+
+  if (tk().is(TK_LKeyBracket)) {
+    auto destructuration = DataDestructuration();
+    if (!destructuration) {
+      return nullptr;
+    }
+    return std::make_unique<source::ExprMatchCaseLhsVal>(
+        std::move(*destructuration));
+  }
+
+  if (tk().is(TK_LParentheses)) {
+    auto destructuration = TupleDestructuration();
+    if (!destructuration) {
+      return nullptr;
+    }
+    return std::make_unique<source::ExprMatchCaseLhsVal>(
+        std::move(*destructuration));
+  }
+
+  // If not, try with any constant expression
+  if (auto constantExpr = ConstantExpr()) {
+    return std::make_unique<source::ExprMatchCaseLhsVal>(
+        std::move(constantExpr));
+  }
+
+  // TODO: Report error about invalid token
+  return nullptr;
+}
+
+Optional<source::ExprMatchCase::Lhs> Parser::MatchCaseLhs() {
+  if (tk().is(TK_Otherwise)) {
+    return source::ExprMatchCase::Lhs(SpecificToken<TK_Otherwise>(consume()));
+  }
+
+  auto lhsVal = MatchCaseLhsValue();
+  if (!lhsVal) {
+    return None;
+  }
+  return source::ExprMatchCase::Lhs(std::move(lhsVal));
+}
+
+Optional<source::ExprMatchCase> Parser::MatchCase() {
+  Optional<source::ExprMatchCase::Lhs> caseLhsVal = MatchCaseLhs();
+  if (!caseLhsVal) {
+    return None;
+  }
+
+  Optional<Token> arrow = parseOrTryRecover<&Parser::ParseToken<TK_RArrow>>();
+  if (!arrow) {
+    // TODO: Report error and recover
+    return None;
+  }
+
+  auto rhsExpr = Expr();
+  if (!rhsExpr) {
+    return None;
+  }
+
+  return source::ExprMatchCase(std::move(*caseLhsVal), std::move(*arrow),
+                               std::move(rhsExpr));
+}
+
+std::unique_ptr<source::ExprMatch> Parser::ExprMatch() {
+  SpecificToken<TK_Match> match = consume();
+
+  auto expr = Expr();
+  if (!expr) {
+    return nullptr;
+  }
+
+  Optional<Token> lKeyBracket =
+      parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>>();
+  if (!lKeyBracket) {
+    // TODO: Report error and recover
+    return nullptr;
+  }
+
+  SmallVector<source::ExprMatchCase, 4> cases;
+  auto matchCase = MatchCase();
+  if (!matchCase) {
+    // Already reported
+    return nullptr;
+  }
+
+  while (tk().isNot(TK_RKeyBracket)) {
+    Optional<Token> comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
+    if (!comma) {
+      // TODO: Report error and recover
+      return nullptr;
+    }
+    matchCase->setComma(std::move(*comma));
+    cases.push_back(std::move(*matchCase));
+
+    matchCase = MatchCase();
+    if (!matchCase) {
+      // Nothing to do here, reported on Expr
+      return nullptr;
+    }
+  }
+  cases.push_back(std::move(*matchCase));
+
+  Optional<Token> rKeyBracket =
+      parseOrTryRecover<&Parser::ParseToken<TK_RKeyBracket>>();
+  if (!rKeyBracket) {
+    // TODO: Report error and recover
+    return nullptr;
+  }
+
+  return std::make_unique<source::ExprMatch>(
+      std::move(match), std::move(expr), std::move(*lKeyBracket),
+      std::move(cases), std::move(*rKeyBracket));
 }
 
 std::unique_ptr<source::ExprTuple> Parser::ExprTuple() {

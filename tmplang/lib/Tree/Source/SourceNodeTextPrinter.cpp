@@ -155,6 +155,59 @@ public:
     printToken(exprDataField.getAccessedField());
     return true;
   }
+
+  bool visitExprMatch(const ExprMatch &exprMatch) {
+    printToken(exprMatch.getMatch());
+    OS << ' ';
+    printToken(exprMatch.getLKeyBracket());
+    OS << ' ';
+    printToken(exprMatch.getRKeyBracket());
+    return true;
+  }
+
+  bool visitExprMatchCase(const ExprMatchCase &matchCase) {
+    printToken(matchCase.getArrow());
+    return true;
+  }
+
+  bool visitPlaceholderDecl(const PlaceholderDecl &placeholderDecl) {
+    printToken(placeholderDecl.getIdentifier());
+    return true;
+  }
+
+  bool visitDataDestructuration(const DataDestructuration &dataDes) {
+    printToken(dataDes.LhsBracket);
+    printToken(dataDes.RhsBracket);
+    return true;
+  }
+
+  bool visitTupleDestructuration(const TupleDestructuration &tupleDes) {
+    printToken(tupleDes.LhsParen);
+    printToken(tupleDes.RhsParen);
+    return true;
+  }
+
+  bool
+  visitDataDestructurationElem(const DataDestructurationElem &dataDesElem) {
+    printToken(dataDesElem.Id);
+    OS << ' ';
+    printToken(dataDesElem.Colon);
+    if (auto comma = dataDesElem.Comma) {
+      OS << ' ';
+      printToken(*comma);
+    }
+
+    return true;
+  }
+
+  bool
+  visitTupleDestructurationElem(const TupleDestructurationElem &tupleDesElem) {
+    if (auto comma = tupleDesElem.Comma) {
+      printToken(*comma);
+    }
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//
