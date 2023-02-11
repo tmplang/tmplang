@@ -182,17 +182,17 @@ public:
   }
 
   bool visitTupleDestructuration(const TupleDestructuration &tupleDes) {
-    printToken(tupleDes.LhsParen);
-    printToken(tupleDes.RhsParen);
+    printToken(tupleDes.getLhsParen());
+    printToken(tupleDes.getRhsParen());
     return true;
   }
 
   bool
   visitDataDestructurationElem(const DataDestructurationElem &dataDesElem) {
-    printToken(dataDesElem.Id);
+    printToken(dataDesElem.getId());
     OS << ' ';
-    printToken(dataDesElem.Colon);
-    if (auto comma = dataDesElem.Comma) {
+    printToken(dataDesElem.getColon());
+    if (auto comma = dataDesElem.getComma()) {
       OS << ' ';
       printToken(*comma);
     }
@@ -202,7 +202,7 @@ public:
 
   bool
   visitTupleDestructurationElem(const TupleDestructurationElem &tupleDesElem) {
-    if (auto comma = tupleDesElem.Comma) {
+    if (auto comma = tupleDesElem.getComma()) {
       printToken(*comma);
     }
     return true;

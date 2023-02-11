@@ -13,8 +13,8 @@ source::DataDestructurationElem::getValue() const {
 }
 
 SourceLocation source::DataDestructurationElem::getEndLoc() const {
-  if (Comma) {
-    return Comma->getSpan().End;
+  if (auto comma = getComma()) {
+    return comma->getSpan().End;
   }
   return std::visit(
       source::visitors{
@@ -32,8 +32,8 @@ SourceLocation source::TupleDestructurationElem::getBeginLoc() const {
 }
 
 SourceLocation source::TupleDestructurationElem::getEndLoc() const {
-  if (Comma) {
-    return Comma->getSpan().End;
+  if (auto comma = getComma()) {
+    return comma->getSpan().End;
   }
   return std::visit(
       source::visitors{

@@ -30,7 +30,7 @@ private:
   SpecificToken<TK_IntegerNumber> Number;
 };
 
-class TupleElem final : public Node {
+class TupleElem final : public Node, public TrailingOptComma {
 public:
   TupleElem(std::unique_ptr<Expr> val)
       : Node(Kind::TupleElem), Val(std::move(val)) {}
@@ -39,12 +39,10 @@ public:
     return Val->getBeginLoc();
   }
   tmplang::SourceLocation getEndLoc() const override {
-    return Comma ? Comma->getSpan().End : Val->getEndLoc();
+    return getComma() ? getComma()->getSpan().End : Val->getEndLoc();
   }
 
   const Expr &getVal() const { return *Val; }
-  const std::optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
-  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
 
   static bool classof(const Node *node) {
     return node->getKind() == Kind::TupleElem;
@@ -52,7 +50,6 @@ public:
 
 private:
   std::unique_ptr<Expr> Val;
-  std::optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class ExprTuple final : public Expr {
@@ -242,15 +239,12 @@ using ExprMatchCaseLhsVal =
     std::variant<std::unique_ptr<Expr>, PlaceholderDecl, VoidPlaceholder,
                  TupleDestructuration, DataDestructuration>;
 
-class TupleDestructurationElem : public Node {
+class TupleDestructurationElem : public Node, public TrailingOptComma {
 public:
   TupleDestructurationElem(std::unique_ptr<ExprMatchCaseLhsVal> value)
       : Node(Kind::TupleDestructurationElem), Value(std::move(value)) {}
 
   const ExprMatchCaseLhsVal &getValue() const;
-
-  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
-  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
 
   tmplang::SourceLocation getBeginLoc() const override;
   tmplang::SourceLocation getEndLoc() const override;
@@ -261,10 +255,9 @@ public:
 
 private:
   std::unique_ptr<ExprMatchCaseLhsVal> Value;
-  Optional<SpecificToken<TK_Comma>> Comma;
 };
 
-class DataDestructurationElem : public Node {
+class DataDestructurationElem : public Node, public TrailingOptComma {
 public:
   DataDestructurationElem(SpecificToken<TK_Identifier> id,
                           SpecificToken<TK_Colon> colon,
@@ -275,9 +268,6 @@ public:
   const auto &getId() const { return Id; }
   const auto &getColon() const { return Colon; }
   const ExprMatchCaseLhsVal &getValue() const;
-
-  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
-  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return Id.getSpan().Start;
@@ -292,7 +282,6 @@ private:
   SpecificToken<TK_Identifier> Id;
   SpecificToken<TK_Colon> Colon;
   std::unique_ptr<ExprMatchCaseLhsVal> Value;
-  Optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class TupleDestructuration : public Node {
@@ -357,7 +346,7 @@ public:
   SpecificToken<TK_RKeyBracket> RhsBracket;
 };
 
-class ExprMatchCase final : public Node {
+class ExprMatchCase final : public Node, public TrailingOptComma {
 public:
   using Lhs = std::variant<std::unique_ptr<ExprMatchCaseLhsVal>, Otherwise>;
   using Rhs = std::unique_ptr<Expr>;
@@ -369,9 +358,6 @@ public:
   const Lhs &getLhs() const { return LhsOfCase; }
   const auto &getArrow() const { return Arrow; }
   const Rhs &getRhs() const { return RhsOfCases; }
-
-  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
-  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     if (auto *otherwise = std::get_if<Otherwise>(&LhsOfCase)) {
@@ -396,7 +382,6 @@ private:
   Lhs LhsOfCase;
   SpecificToken<TK_RArrow> Arrow;
   Rhs RhsOfCases;
-  Optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class ExprMatch final : public Expr {

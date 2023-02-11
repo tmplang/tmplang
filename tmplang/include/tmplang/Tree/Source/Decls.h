@@ -10,7 +10,7 @@
 
 namespace tmplang::source {
 
-class ParamDecl final : public Decl {
+class ParamDecl final : public Decl, public TrailingOptComma {
 public:
   explicit ParamDecl(RAIIType paramType, SpecificToken<TK_Identifier> id)
       : Decl(Node::Kind::ParamDecl), ParamType(std::move(paramType)),
@@ -19,7 +19,6 @@ public:
   const Type &getType() const { return *ParamType; }
   StringRef getName() const override { return Identifier.getLexeme(); }
   const auto &getIdentifier() const { return Identifier; }
-  const std::optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return ParamType->getBeginLoc();
@@ -32,12 +31,9 @@ public:
     return node->getKind() == Node::Kind::ParamDecl;
   }
 
-  void setComma(SpecificToken<TK_Comma> comma) { Comma = std::move(comma); }
-
 private:
   RAIIType ParamType;
   SpecificToken<TK_Identifier> Identifier;
-  std::optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class SubprogramDecl final : public Decl {
@@ -107,22 +103,19 @@ private:
   Block B;
 };
 
-class DataFieldDecl final : public Decl {
+class DataFieldDecl final : public Decl, public TrailingOptComma {
 public:
   StringRef getName() const override { return Identifier.getLexeme(); }
   const auto &getIdentifier() const { return Identifier; }
   const auto &getColon() const { return Colon; }
   const Type &getType() const { return *Ty; }
-  const std::optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
-
-  void setComma(SpecificToken<TK_Comma> comma) { Comma = std::move(comma); }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return Identifier.getSpan().Start;
   }
 
   tmplang::SourceLocation getEndLoc() const override {
-    return Comma ? Comma->getSpan().End : Ty->getEndLoc();
+    return getComma() ? getComma()->getSpan().End : Ty->getEndLoc();
   }
 
   static bool classof(const Node *node) {
@@ -140,7 +133,6 @@ private:
   SpecificToken<TK_Identifier> Identifier;
   SpecificToken<TK_Colon> Colon;
   RAIIType Ty;
-  std::optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class DataDecl final : public Decl {

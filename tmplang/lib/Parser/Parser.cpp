@@ -36,7 +36,8 @@ private:
 
   std::unique_ptr<source::SubprogramDecl> SubprogramDecl();
   std::unique_ptr<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
-      Token funcType, Token id, std::optional<SpecificToken<TK_Colon>> colon = nullopt,
+      Token funcType, Token id,
+      std::optional<SpecificToken<TK_Colon>> colon = nullopt,
       SmallVector<source::ParamDecl, 4> paramList = {});
   std::optional<Token> missingSubprogramTypeRecovery();
   std::optional<Token> missingSubprogramIdRecovery();
@@ -63,13 +64,13 @@ private:
   std::unique_ptr<source::ExprAggregateDataAccess>
   ExprAggregateDataAccess(source::ExprAggregateDataAccess::BaseNode baseExpr);
 
-  Optional<source::TupleDestructuration> TupleDestructuration();
-  Optional<source::DataDestructurationElem>
+  std::optional<source::TupleDestructuration> TupleDestructuration();
+  std::optional<source::DataDestructurationElem>
   DataDestructurationFieldNameAndValue();
-  Optional<source::DataDestructuration> DataDestructuration();
+  std::optional<source::DataDestructuration> DataDestructuration();
   std::unique_ptr<source::ExprMatchCaseLhsVal> MatchCaseLhsValue();
-  Optional<source::ExprMatchCase::Lhs> MatchCaseLhs();
-  Optional<source::ExprMatchCase> MatchCase();
+  std::optional<source::ExprMatchCase::Lhs> MatchCaseLhs();
+  std::optional<source::ExprMatchCase> MatchCase();
   std::unique_ptr<source::ExprMatch> ExprMatch();
 
   std::unique_ptr<source::ExprTuple> ExprTuple();
@@ -299,8 +300,9 @@ std::optional<Token> Parser::missingDataDeclStartingEq() {
 }
 
 std::optional<source::DataFieldDecl> Parser::DataFieldDecl() {
-  std::optional<Token> id = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>,
-                                         &Parser::missingDataFieldId>();
+  std::optional<Token> id =
+      parseOrTryRecover<&Parser::ParseToken<TK_Identifier>,
+                        &Parser::missingDataFieldId>();
   if (!id) {
     return nullopt;
   }
@@ -382,7 +384,8 @@ std::optional<Token> Parser::missingDataFieldType() {
 }
 
 /// DataFieldDeclList = DataFieldDecl (",", DataFieldDecl)*;
-std::optional<SmallVector<source::DataFieldDecl, 4>> Parser::DataFieldDeclList() {
+std::optional<SmallVector<source::DataFieldDecl, 4>>
+Parser::DataFieldDeclList() {
   SmallVector<source::DataFieldDecl, 4> dataFieldDecls;
 
   auto firstParam = DataFieldDecl();
@@ -899,33 +902,34 @@ std::optional<Token> Parser::Number() {
   return tk().is(TK_IntegerNumber) ? consume() : std::optional<Token>{};
 }
 
-Optional<source::TupleDestructuration> Parser::TupleDestructuration() {
+std::optional<source::TupleDestructuration> Parser::TupleDestructuration() {
   auto lparen = parseOrTryRecover<&Parser::ParseToken<TK_LParentheses>>();
   if (!lparen) {
     // TODO: Report error and try recover
-    return None;
+    return std::nullopt;
   }
 
   std::unique_ptr<source::ExprMatchCaseLhsVal> lhsVal = MatchCaseLhsValue();
   if (!lhsVal) {
-    return None;
+    return std::nullopt;
   }
 
   std::vector<source::TupleDestructurationElem> tupleElems;
   while (tk().isNot(TK_RParentheses)) {
-    Optional<Token> comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
+    std::optional<Token> comma =
+        parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
     if (!comma) {
       // TODO: Report error and try recover
-      return None;
+      return std::nullopt;
     }
 
     tupleElems.emplace_back(std::move(lhsVal));
-    tupleElems.back().Comma = std::move(*comma);
+    tupleElems.back().setComma(std::move(*comma));
 
     lhsVal = MatchCaseLhsValue();
     if (!lhsVal) {
       // Nothing to do here, reported on Expr
-      return None;
+      return std::nullopt;
     }
   }
   tupleElems.emplace_back(std::move(lhsVal));
@@ -937,45 +941,46 @@ Optional<source::TupleDestructuration> Parser::TupleDestructuration() {
                                       std::move(rparen)};
 }
 
-Optional<source::DataDestructurationElem>
+std::optional<source::DataDestructurationElem>
 Parser::DataDestructurationFieldNameAndValue() {
   auto id = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>>();
   if (!id) {
     // TODO: Report error and try recover
-    return None;
+    return std::nullopt;
   }
   auto colon = parseOrTryRecover<&Parser::ParseToken<TK_Colon>>();
   if (!colon) {
     // TODO: Report error and try recover
-    return None;
+    return std::nullopt;
   }
   auto matchCaseLhsVal = MatchCaseLhsValue();
   if (!matchCaseLhsVal) {
     // Nothing to do here, reported on MatchCaseLhsValue
-    return None;
+    return std::nullopt;
   }
   return source::DataDestructurationElem{std::move(*id), std::move(*colon),
                                          std::move(matchCaseLhsVal)};
 }
 
-Optional<source::DataDestructuration> Parser::DataDestructuration() {
+std::optional<source::DataDestructuration> Parser::DataDestructuration() {
   auto lbracket = parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>>();
   if (!lbracket) {
     // TODO: Report error and try recover
-    return None;
+    return std::nullopt;
   }
 
   auto fieldNameAndVal = DataDestructurationFieldNameAndValue();
   if (!fieldNameAndVal) {
-    return None;
+    return std::nullopt;
   }
 
   std::vector<source::DataDestructurationElem> dataElems;
   while (tk().isNot(TK_RKeyBracket)) {
-    Optional<Token> comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
+    std::optional<Token> comma =
+        parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
     if (!comma) {
       // TODO: Report error and try recover
-      return None;
+      return std::nullopt;
     }
 
     dataElems.emplace_back(std::move(*fieldNameAndVal));
@@ -984,7 +989,7 @@ Optional<source::DataDestructuration> Parser::DataDestructuration() {
     fieldNameAndVal = DataDestructurationFieldNameAndValue();
     if (!fieldNameAndVal) {
       // Nothing to do here, reported on Expr
-      return None;
+      return std::nullopt;
     }
   }
   dataElems.emplace_back(std::move(*fieldNameAndVal));
@@ -1035,33 +1040,34 @@ std::unique_ptr<source::ExprMatchCaseLhsVal> Parser::MatchCaseLhsValue() {
   return nullptr;
 }
 
-Optional<source::ExprMatchCase::Lhs> Parser::MatchCaseLhs() {
+std::optional<source::ExprMatchCase::Lhs> Parser::MatchCaseLhs() {
   if (tk().is(TK_Otherwise)) {
     return source::ExprMatchCase::Lhs(SpecificToken<TK_Otherwise>(consume()));
   }
 
   auto lhsVal = MatchCaseLhsValue();
   if (!lhsVal) {
-    return None;
+    return std::nullopt;
   }
   return source::ExprMatchCase::Lhs(std::move(lhsVal));
 }
 
-Optional<source::ExprMatchCase> Parser::MatchCase() {
-  Optional<source::ExprMatchCase::Lhs> caseLhsVal = MatchCaseLhs();
+std::optional<source::ExprMatchCase> Parser::MatchCase() {
+  std::optional<source::ExprMatchCase::Lhs> caseLhsVal = MatchCaseLhs();
   if (!caseLhsVal) {
-    return None;
+    return std::nullopt;
   }
 
-  Optional<Token> arrow = parseOrTryRecover<&Parser::ParseToken<TK_RArrow>>();
+  std::optional<Token> arrow =
+      parseOrTryRecover<&Parser::ParseToken<TK_RArrow>>();
   if (!arrow) {
     // TODO: Report error and recover
-    return None;
+    return std::nullopt;
   }
 
   auto rhsExpr = Expr();
   if (!rhsExpr) {
-    return None;
+    return std::nullopt;
   }
 
   return source::ExprMatchCase(std::move(*caseLhsVal), std::move(*arrow),
@@ -1076,7 +1082,7 @@ std::unique_ptr<source::ExprMatch> Parser::ExprMatch() {
     return nullptr;
   }
 
-  Optional<Token> lKeyBracket =
+  std::optional<Token> lKeyBracket =
       parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>>();
   if (!lKeyBracket) {
     // TODO: Report error and recover
@@ -1091,7 +1097,8 @@ std::unique_ptr<source::ExprMatch> Parser::ExprMatch() {
   }
 
   while (tk().isNot(TK_RKeyBracket)) {
-    Optional<Token> comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
+    std::optional<Token> comma =
+        parseOrTryRecover<&Parser::ParseToken<TK_Comma>>();
     if (!comma) {
       // TODO: Report error and recover
       return nullptr;
@@ -1107,7 +1114,7 @@ std::unique_ptr<source::ExprMatch> Parser::ExprMatch() {
   }
   cases.push_back(std::move(*matchCase));
 
-  Optional<Token> rKeyBracket =
+  std::optional<Token> rKeyBracket =
       parseOrTryRecover<&Parser::ParseToken<TK_RKeyBracket>>();
   if (!rKeyBracket) {
     // TODO: Report error and recover

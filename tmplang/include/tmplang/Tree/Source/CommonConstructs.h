@@ -20,6 +20,17 @@ template <typename T, unsigned N> struct CommaSeparatedList {
   SmallVector<SpecificToken<TK_Comma>, N - 1> Commas;
 };
 
+/// Some nodes have a trailing optional comma, this struct servers as
+/// factorization
+class TrailingOptComma {
+public:
+  const std::optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  void setComma(SpecificToken<TK_Comma> comma) { Comma = std::move(comma); }
+
+private:
+  std::optional<SpecificToken<TK_Comma>> Comma;
+};
+
 } // namespace tmplang::source
 
 #endif // TMPLANG_TREE_SOURCE_COMMONCONSTRUCTS_H
