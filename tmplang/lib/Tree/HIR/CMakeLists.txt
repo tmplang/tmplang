@@ -9,6 +9,7 @@ llvm_add_library(TmplangHIRTree
 
     LINK_LIBS PUBLIC
     TmplangLexer
+    TmplangSourceTree
     TmplangSupport
 
     LINK_COMPONENTS

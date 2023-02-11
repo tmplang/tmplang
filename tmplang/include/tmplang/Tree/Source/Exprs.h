@@ -1,6 +1,7 @@
 #ifndef TMPLANG_TREE_SOURCE_EXPRS_H
 #define TMPLANG_TREE_SOURCE_EXPRS_H
 
+#include <tmplang/Tree/Source/Decls.h>
 #include <tmplang/Tree/Source/Expr.h>
 
 #include <variant>
@@ -188,6 +189,249 @@ private:
   BaseNode Base;
   SpecificToken<TK_Dot> Dot;
   SpecificToken<TK_Identifier, TK_IntegerNumber> Field;
+};
+
+class VoidPlaceholder : public Node {
+public:
+  VoidPlaceholder(Token tk) : Node(Kind::VoidPlaceholder), Tk(std::move(tk)) {}
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Tk.getSpan().Start;
+  }
+
+  tmplang::SourceLocation getEndLoc() const override {
+    return Tk.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::VoidPlaceholder;
+  }
+
+private:
+  SpecificToken<TK_Underscore> Tk;
+};
+
+class Otherwise : public Node {
+public:
+  Otherwise(Token tk) : Node(Kind::Otherwise), Tk(std::move(tk)) {}
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Tk.getSpan().Start;
+  }
+
+  tmplang::SourceLocation getEndLoc() const override {
+    return Tk.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::Otherwise;
+  }
+
+private:
+  SpecificToken<TK_Otherwise> Tk;
+};
+
+/// Utility to be able to call std::visit over a a std::variant with a lambdas
+template <class... Ts> struct visitors : Ts... { using Ts::operator()...; };
+template <class... Ts> visitors(Ts...) -> visitors<Ts...>;
+
+class TupleDestructuration;
+class DataDestructuration;
+
+using ExprMatchCaseLhsVal =
+    std::variant<std::unique_ptr<Expr>, PlaceholderDecl, VoidPlaceholder,
+                 TupleDestructuration, DataDestructuration>;
+
+class TupleDestructurationElem : public Node {
+public:
+  TupleDestructurationElem(std::unique_ptr<ExprMatchCaseLhsVal> value)
+      : Node(Kind::TupleDestructurationElem), Value(std::move(value)) {}
+
+  const ExprMatchCaseLhsVal &getValue() const;
+
+  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
+
+  tmplang::SourceLocation getBeginLoc() const override;
+  tmplang::SourceLocation getEndLoc() const override;
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::TupleDestructurationElem;
+  }
+
+private:
+  std::unique_ptr<ExprMatchCaseLhsVal> Value;
+  Optional<SpecificToken<TK_Comma>> Comma;
+};
+
+class DataDestructurationElem : public Node {
+public:
+  DataDestructurationElem(SpecificToken<TK_Identifier> id,
+                          SpecificToken<TK_Colon> colon,
+                          std::unique_ptr<ExprMatchCaseLhsVal> value)
+      : Node(Kind::DataDestructurationElem), Id(std::move(id)),
+        Colon(std::move(colon)), Value(std::move(value)) {}
+
+  const auto &getId() const { return Id; }
+  const auto &getColon() const { return Colon; }
+  const ExprMatchCaseLhsVal &getValue() const;
+
+  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Id.getSpan().Start;
+  }
+  tmplang::SourceLocation getEndLoc() const override;
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::DataDestructurationElem;
+  }
+
+private:
+  SpecificToken<TK_Identifier> Id;
+  SpecificToken<TK_Colon> Colon;
+  std::unique_ptr<ExprMatchCaseLhsVal> Value;
+  Optional<SpecificToken<TK_Comma>> Comma;
+};
+
+class TupleDestructuration : public Node {
+public:
+  TupleDestructuration(Token lParen,
+                       std::vector<TupleDestructurationElem> tupleElems,
+                       Token rParen)
+      : Node(Kind::TupleDestructuration), LhsParen(std::move(lParen)),
+        TupleElems(std::move(tupleElems)), RhsParen(std::move(rParen)) {}
+
+  const auto &getLhsParen() const { return LhsParen; }
+  ArrayRef<TupleDestructurationElem> getTupleElems() const {
+    return TupleElems;
+  }
+  const auto &getRhsParen() const { return RhsParen; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return LhsParen.getSpan().Start;
+  }
+
+  tmplang::SourceLocation getEndLoc() const override {
+    return RhsParen.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::TupleDestructuration;
+  }
+
+private:
+  SpecificToken<TK_LParentheses> LhsParen;
+  std::vector<TupleDestructurationElem> TupleElems;
+  SpecificToken<TK_RParentheses> RhsParen;
+};
+
+class DataDestructuration : public Node {
+public:
+  DataDestructuration(Token lbracket,
+                      std::vector<DataDestructurationElem> structElems,
+                      Token rbracket)
+      : Node(Kind::DataDestructuration), LhsBracket(std::move(lbracket)),
+        DataElems(std::move(structElems)), RhsBracket(std::move(rbracket)) {}
+
+  const auto &getLhsBracket() const { return LhsBracket; }
+  ArrayRef<DataDestructurationElem> getDataElems() const { return DataElems; }
+  const auto &getRhsBracket() const { return RhsBracket; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return LhsBracket.getSpan().Start;
+  }
+
+  tmplang::SourceLocation getEndLoc() const override {
+    return RhsBracket.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::DataDestructuration;
+  }
+
+public:
+  SpecificToken<TK_LKeyBracket> LhsBracket;
+  std::vector<DataDestructurationElem> DataElems;
+  SpecificToken<TK_RKeyBracket> RhsBracket;
+};
+
+class ExprMatchCase final : public Node {
+public:
+  using Lhs = std::variant<std::unique_ptr<ExprMatchCaseLhsVal>, Otherwise>;
+  using Rhs = std::unique_ptr<Expr>;
+
+  ExprMatchCase(Lhs lhs, SpecificToken<TK_RArrow> arrow, Rhs rhs)
+      : Node(Kind::ExprMatchCase), LhsOfCase(std::move(lhs)),
+        Arrow(std::move(arrow)), RhsOfCases(std::move(rhs)) {}
+
+  const Lhs &getLhs() const { return LhsOfCase; }
+  const auto &getArrow() const { return Arrow; }
+  const Rhs &getRhs() const { return RhsOfCases; }
+
+  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    if (auto *otherwise = std::get_if<Otherwise>(&LhsOfCase)) {
+      return otherwise->getBeginLoc();
+    }
+    return std::visit(
+        visitors{
+            [](const std::unique_ptr<Expr> &val) { return val->getBeginLoc(); },
+            [](const auto &val) { return val.getBeginLoc(); }},
+        *std::get<std::unique_ptr<ExprMatchCaseLhsVal>>(LhsOfCase));
+  }
+
+  tmplang::SourceLocation getEndLoc() const override {
+    return RhsOfCases->getEndLoc();
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprMatchCase;
+  }
+
+private:
+  Lhs LhsOfCase;
+  SpecificToken<TK_RArrow> Arrow;
+  Rhs RhsOfCases;
+  Optional<SpecificToken<TK_Comma>> Comma;
+};
+
+class ExprMatch final : public Expr {
+public:
+  ExprMatch(SpecificToken<TK_Match> match, std::unique_ptr<Expr> expr,
+            SpecificToken<TK_LKeyBracket> lkeyBracket,
+            SmallVectorImpl<ExprMatchCase> &&cases,
+            SpecificToken<TK_RKeyBracket> rkeyBracket)
+      : Expr(Kind::ExprMatch), Match(std::move(match)),
+        Expression(std::move(expr)), LKeyBracket(std::move(lkeyBracket)),
+        Cases(std::move(cases)), RKeyBracket(std::move(rkeyBracket)) {}
+
+  const auto &getMatch() const { return Match; }
+  const Expr &getMatchedExpr() const { return *Expression; }
+  const auto &getLKeyBracket() const { return LKeyBracket; }
+  ArrayRef<ExprMatchCase> getCases() const { return Cases; }
+  const auto &getRKeyBracket() const { return RKeyBracket; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Match.getSpan().Start;
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return RKeyBracket.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprMatch;
+  }
+
+private:
+  SpecificToken<TK_Match> Match;
+  std::unique_ptr<Expr> Expression;
+  SpecificToken<TK_LKeyBracket> LKeyBracket;
+  llvm::SmallVector<ExprMatchCase, 4> Cases;
+  SpecificToken<TK_RKeyBracket> RKeyBracket;
 };
 
 } // namespace tmplang::source

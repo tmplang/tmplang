@@ -183,6 +183,29 @@ private:
   SpecificToken<TK_Semicolon> EndingSemicolon;
 };
 
+class PlaceholderDecl final : public Decl {
+public:
+  PlaceholderDecl(SpecificToken<TK_Identifier> id)
+      : Decl(Kind::PlaceholderDecl), Identifier(std::move(id)) {}
+
+  const auto &getIdentifier() const { return Identifier; }
+  StringRef getName() const override { return Identifier.getLexeme(); }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Identifier.getSpan().Start;
+  }
+  tmplang::SourceLocation getEndLoc() const override {
+    return Identifier.getSpan().End;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::PlaceholderDecl;
+  }
+
+private:
+  SpecificToken<TK_Identifier> Identifier;
+};
+
 } // namespace tmplang::source
 
 #endif // TMPLANG_TREE_SOURCE_DECLS_H

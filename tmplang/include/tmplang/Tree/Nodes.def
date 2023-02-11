@@ -25,6 +25,15 @@ BothNode(ExprVarRef)
 BothNode(ExprAggregateDataAccess)
 BothNode(ExprTuple)
 SourceNode(TupleElem)
+SourceNode(ExprMatch)
+SourceNode(PlaceholderDecl)
+SourceNode(ExprMatchCase)
+SourceNode(TupleDestructuration)
+SourceNode(TupleDestructurationElem)
+SourceNode(DataDestructuration)
+SourceNode(DataDestructurationElem)
+SourceNode(VoidPlaceholder)
+SourceNode(Otherwise)
 
 #undef BothNode 
 #undef HIRNode 

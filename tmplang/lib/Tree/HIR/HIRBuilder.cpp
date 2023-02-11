@@ -200,7 +200,23 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
     return get(*cast<source::ExprVarRef>(&expr));
   case source::Node::Kind::ExprAggregateDataAccess:
     return get(*cast<source::ExprAggregateDataAccess>(&expr));
-  default:
+  case source::Node::Kind::ExprMatch:
+    return {};
+  case source::Node::Kind::ExprMatchCase:
+  case source::Node::Kind::CompilationUnit:
+  case source::Node::Kind::SubprogramDecl:
+  case source::Node::Kind::DataFieldDecl:
+  case source::Node::Kind::DataDecl:
+  case source::Node::Kind::ParamDecl:
+  case source::Node::Kind::ExprStmt:
+  case source::Node::Kind::TupleElem:
+  case source::Node::Kind::PlaceholderDecl:
+  case source::Node::Kind::VoidPlaceholder:
+  case source::Node::Kind::Otherwise:
+  case source::Node::Kind::TupleDestructuration:
+  case source::Node::Kind::TupleDestructurationElem:
+  case source::Node::Kind::DataDestructuration:
+  case source::Node::Kind::DataDestructurationElem:
     break;
   }
   llvm_unreachable("This should not be reachable");
@@ -304,6 +320,15 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::ExprTuple:
   case source::Node::Kind::ExprVarRef:
   case source::Node::Kind::TupleElem:
+  case source::Node::Kind::ExprMatch:
+  case source::Node::Kind::ExprMatchCase:
+  case source::Node::Kind::PlaceholderDecl:
+  case source::Node::Kind::VoidPlaceholder:
+  case source::Node::Kind::Otherwise:
+  case source::Node::Kind::TupleDestructuration:
+  case source::Node::Kind::TupleDestructurationElem:
+  case source::Node::Kind::DataDestructuration:
+  case source::Node::Kind::DataDestructurationElem:
     // All these nodes cannot be top level decls
     break;
   }

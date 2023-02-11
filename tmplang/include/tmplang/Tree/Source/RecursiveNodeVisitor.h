@@ -81,6 +81,10 @@ protected:
     }
     return true;
   }
+  bool traversePlaceholderDecl(const PlaceholderDecl &placeholderDecl) {
+    TRY_TO(visitNode(placeholderDecl));
+    return true;
+  }
   bool traverseExprStmt(const ExprStmt &exprStmt) {
     TRY_TO(visitNode(exprStmt));
     if (auto *expr = exprStmt.getExpr()) {
@@ -121,6 +125,110 @@ protected:
     TRY_TO(traverseNode(exprDataField.getBase()));
     return true;
   }
+  bool traverseExprMatch(const ExprMatch &exprMatch) {
+    TRY_TO(visitNode(exprMatch));
+    TRY_TO(traverseNode(exprMatch.getMatchedExpr()));
+    for (const ExprMatchCase &matchCase : exprMatch.getCases()) {
+      TRY_TO(traverseNode(matchCase));
+    }
+    return true;
+  }
+
+  bool traverseExprMatchCase(const ExprMatchCase &matchCase) {
+    TRY_TO(visitNode(matchCase));
+
+    if (auto *otherwise = std::get_if<Otherwise>(&matchCase.getLhs())) {
+      TRY_TO(traverseNode(*otherwise));
+    } else {
+      auto visitors = source::visitors{[&](const std::unique_ptr<Expr> &val) {
+                                         TRY_TO(traverseNode(*val));
+                                         return true;
+                                       },
+                                       [&](const auto &val) {
+                                         TRY_TO(traverseNode(val));
+                                         return true;
+                                       }};
+      const auto &lhsVal =
+          std::get<std::unique_ptr<ExprMatchCaseLhsVal>>(matchCase.getLhs());
+      if (!std::visit(visitors, *lhsVal)) {
+        return false;
+      }
+    }
+
+    TRY_TO(traverseNode(*matchCase.getRhs()));
+
+    return true;
+  }
+
+  bool traverseVoidPlaceholder(const VoidPlaceholder &placeholder) {
+    TRY_TO(visitNode(placeholder));
+    return true;
+  }
+
+  bool traverseOtherwise(const Otherwise &otherwise) {
+    TRY_TO(visitNode(otherwise));
+    return true;
+  }
+
+  bool traverseDataDestructuration(const DataDestructuration &dataDes) {
+    TRY_TO(visitNode(dataDes));
+
+    for (const auto &dataDesElem : dataDes.DataElems) {
+      TRY_TO(traverseNode(dataDesElem));
+    }
+
+    return true;
+  }
+
+  bool traverseTupleDestructuration(const TupleDestructuration &tupleDes) {
+    TRY_TO(visitNode(tupleDes));
+
+    for (const auto &tupleDesElem : tupleDes.getTupleElems()) {
+      TRY_TO(traverseNode(tupleDesElem));
+    }
+
+    return true;
+  }
+
+  bool
+  traverseDataDestructurationElem(const DataDestructurationElem &dataDesElem) {
+    TRY_TO(visitNode(dataDesElem));
+
+    auto visitors = source::visitors{[&](const std::unique_ptr<Expr> &val) {
+                                       TRY_TO(traverseNode(*val));
+                                       return true;
+                                     },
+                                     [&](const auto &val) {
+                                       TRY_TO(traverseNode(val));
+                                       return true;
+                                     }};
+    if (!std::visit(visitors, dataDesElem.getValue())) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool traverseTupleDestructurationElem(
+      const TupleDestructurationElem &tupleDesElem) {
+    TRY_TO(visitNode(tupleDesElem));
+
+    auto visitors = source::visitors{[&](const std::unique_ptr<Expr> &val) {
+                                       TRY_TO(traverseNode(*val));
+                                       return true;
+                                     },
+                                     [&](const auto &val) {
+                                       TRY_TO(traverseNode(val));
+                                       return true;
+                                     }};
+
+    if (!std::visit(visitors, tupleDesElem.getValue())) {
+      return false;
+    }
+
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//
