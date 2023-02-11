@@ -1,8 +1,6 @@
 #ifndef TMPLANG_TREE_SOURCE_COMMONCONSTRUCTS_H
 #define TMPLANG_TREE_SOURCE_COMMONCONSTRUCTS_H
 
-#include <llvm/ADT/STLExtras.h>
-#include <llvm/ADT/SmallVector.h>
 #include <tmplang/Lexer/Token.h>
 
 namespace tmplang::source {
