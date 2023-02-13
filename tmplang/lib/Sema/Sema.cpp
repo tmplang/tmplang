@@ -110,6 +110,70 @@ public:
 };
 
 //=-------------------------------------------------------------------------=//
+//=                       AllBranchesOfMatchExprAreSameType =//
+//=-------------------------------------------------------------------------=//
+/// Make sure that all branches of a match expression return same type
+//=-------------------------------------------------------------------------=//
+class AllBranchesOfMatchExprAreSameType
+    : public SemaAnalysisPass,
+      public RecursiveASTVisitor<AllBranchesOfMatchExprAreSameType> {
+public:
+  using SemaAnalysisPass::SemaAnalysisPass;
+
+  bool visitExprMatch(const ExprMatch &match) {
+    ArrayRef<std::unique_ptr<ExprMatchCase>> cases = match.getExprMatchCases();
+    assert(!cases.empty());
+
+    const auto &firstBranchTy = cases.front()->getType();
+    for (const std::unique_ptr<tmplang::hir::ExprMatchCase> &branch : cases) {
+      if (&branch->getRhs().getType() != &firstBranchTy) {
+        Diagnostic(
+            DiagId::err_match_branch_type_does_not_match_first_branch_type,
+            {branch->getRhs().getBeginLoc(), branch->getRhs().getEndLoc()},
+            NoHint())
+            .print(outs(), getSourceManager());
+        markAsFailure();
+      }
+    }
+
+    return true;
+  }
+};
+
+//=-------------------------------------------------------------------------=//
+//=                       OnlyIntergerExprOnAggregateDestructuration =//
+//=-------------------------------------------------------------------------=//
+// Only integers are supported on any placeholder of the lhs of a branch of
+// a match expression
+//=-------------------------------------------------------------------------=//
+class OnlyIntergerExprOnAggregateDestructuration
+    : public SemaAnalysisPass,
+      public RecursiveASTVisitor<OnlyIntergerExprOnAggregateDestructuration> {
+public:
+  using SemaAnalysisPass::SemaAnalysisPass;
+
+  bool
+  visitAggregateDestructuration(const AggregateDestructuration &destructuing) {
+    for (const AggregateDestructurationElem &elem : destructuing.getElems()) {
+      auto *expr = std::get_if<std::unique_ptr<Expr>>(&elem.getValue());
+      if (!expr) {
+        continue;
+      }
+
+      if (expr->get()->getKind() != Node::Kind::ExprIntegerNumber) {
+        Diagnostic(DiagId::err_match_lhs_branch_is_not_integer,
+                   {expr->get()->getBeginLoc(), expr->get()->getEndLoc()},
+                   NoHint())
+            .print(outs(), getSourceManager());
+        markAsFailure();
+      }
+    }
+
+    return true;
+  }
+};
+
+//=-------------------------------------------------------------------------=//
 //=                       End Semantic Analysis Passes                      =//
 //=-------------------------------------------------------------------------=//
 
@@ -133,6 +197,8 @@ bool tmplang::Sema(CompilationUnit &compUnit, const SourceManager &sm,
   //        that are not default constructible
   RunPass(AssertReturnsInAllCFPaths);
   RunPass(AssertReturnMatchesTypeOfSubprogram);
+  RunPass(AllBranchesOfMatchExprAreSameType);
+  RunPass(OnlyIntergerExprOnAggregateDestructuration);
 
   return !didAnyPassEmitAnError;
 }
