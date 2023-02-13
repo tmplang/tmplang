@@ -42,8 +42,8 @@ namespace {
 //=-------------------------------------------------------------------------=//
 //=                 AssertReturnMatchesTypeOfSubprogram                     =//
 //=-------------------------------------------------------------------------=//
-/// Make sure all returned values type match the fuction result type where
-/// they dwell in.
+// Make sure all returned values type match the fuction result type where
+// they dwell in.
 //=-------------------------------------------------------------------------=//
 class AssertReturnMatchesTypeOfSubprogram
     : public SemaAnalysisPass,
@@ -73,8 +73,8 @@ private:
 //=-------------------------------------------------------------------------=//
 //=                       AssertReturnsInAllCFPaths                         =//
 //=-------------------------------------------------------------------------=//
-/// Make sure that for a subprogram that its return type is diferent from unit
-/// there is a ret expression in all possible paths. So no path is without ret
+// Make sure that for a subprogram that its return type is diferent from unit
+// there is a ret expression in all possible paths. So no path is without ret
 //=-------------------------------------------------------------------------=//
 class AssertReturnsInAllCFPaths
     : public SemaAnalysisPass,
@@ -110,9 +110,9 @@ public:
 };
 
 //=-------------------------------------------------------------------------=//
-//=                       AllBranchesOfMatchExprAreSameType =//
+//=                       AllBranchesOfMatchExprAreSameType                 =//
 //=-------------------------------------------------------------------------=//
-/// Make sure that all branches of a match expression return same type
+// Make sure that all branches of a match expression return same type
 //=-------------------------------------------------------------------------=//
 class AllBranchesOfMatchExprAreSameType
     : public SemaAnalysisPass,
@@ -141,7 +141,7 @@ public:
 };
 
 //=-------------------------------------------------------------------------=//
-//=                       OnlyIntergerExprOnAggregateDestructuration =//
+//=                       OnlyIntergerExprOnAggregateDestructuration        =//
 //=-------------------------------------------------------------------------=//
 // Only integers are supported on any placeholder of the lhs of a branch of
 // a match expression
@@ -174,6 +174,48 @@ public:
 };
 
 //=-------------------------------------------------------------------------=//
+//=                       OtherwisePositionalCheck                          =//
+//=-------------------------------------------------------------------------=//
+// Make sure any match expr contains as last branch the unique possible
+// otherwise in the match expression
+//=-------------------------------------------------------------------------=//
+class OtherwisePositionalCheck
+    : public SemaAnalysisPass,
+      public RecursiveASTVisitor<OtherwisePositionalCheck> {
+public:
+  using SemaAnalysisPass::SemaAnalysisPass;
+
+  bool visitExprMatch(const ExprMatch &match) {
+    ArrayRef<std::unique_ptr<ExprMatchCase>> cases = match.getExprMatchCases();
+    assert(!cases.empty());
+
+    for (const auto &both : llvm::enumerate(cases)) {
+      auto &[idx, branch] = both;
+
+      if (std::holds_alternative<Otherwise>(branch->getLhs()) &&
+          idx != cases.size() - 1) {
+        Diagnostic(DiagId::err_otherwise_can_only_appear_at_last_case,
+                   {branch->getBeginLoc(), branch->getEndLoc()}, NoHint())
+            .print(outs(), getSourceManager());
+
+        markAsFailure();
+      }
+    }
+
+    const ExprMatchCase &lastCase = *cases.back();
+    if (!std::holds_alternative<Otherwise>(lastCase.getLhs())) {
+      Diagnostic(DiagId::err_match_without_final_otherwise_catch_all,
+                 {match.getBeginLoc(), match.getEndLoc()}, NoHint())
+          .print(outs(), getSourceManager());
+
+      markAsFailure();
+    }
+
+    return true;
+  }
+};
+
+//=-------------------------------------------------------------------------=//
 //=                       End Semantic Analysis Passes                      =//
 //=-------------------------------------------------------------------------=//
 
@@ -199,6 +241,7 @@ bool tmplang::Sema(CompilationUnit &compUnit, const SourceManager &sm,
   RunPass(AssertReturnMatchesTypeOfSubprogram);
   RunPass(AllBranchesOfMatchExprAreSameType);
   RunPass(OnlyIntergerExprOnAggregateDestructuration);
+  RunPass(OtherwisePositionalCheck);
 
   return !didAnyPassEmitAnError;
 }
