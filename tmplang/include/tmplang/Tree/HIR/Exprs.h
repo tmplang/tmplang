@@ -2,9 +2,11 @@
 #define TMPLANG_TREE_HIR_EXPRS_H
 
 #include <llvm/ADT/APInt.h>
+#include <tmplang/Tree/HIR/Decls.h>
 #include <tmplang/Tree/HIR/Expr.h>
 #include <tmplang/Tree/HIR/Symbol.h>
 #include <tmplang/Tree/HIR/Types.h>
+#include <tmplang/Tree/Source/Exprs.h>
 
 #include <optional>
 #include <variant>
@@ -142,6 +144,118 @@ private:
   const unsigned AccessIdx;
   /// Symbol in case we are accessing a ExprVarRef
   const Symbol *FieldAccessedSym;
+};
+
+class AggregateDestructuration;
+
+struct VoidPlaceholder {};
+struct Otherwise {};
+
+using ExprMatchCaseLhsVal =
+    std::variant<std::unique_ptr<Expr>, PlaceholderDecl, VoidPlaceholder,
+                 AggregateDestructuration>;
+
+class AggregateDestructurationElem : public Node {
+public:
+  AggregateDestructurationElem(
+      const source::AggregateDestructurationElem &srcNode, const Type &elemTy,
+      std::unique_ptr<ExprMatchCaseLhsVal> value)
+      : Node(Kind::AggregateDestructurationElem, srcNode), ElemTy(elemTy),
+        Value(std::move(value)) {}
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::AggregateDestructurationElem;
+  }
+
+  const Type &getType() const { return ElemTy; }
+  const ExprMatchCaseLhsVal &getValue() const;
+
+private:
+  const Type &ElemTy;
+  std::unique_ptr<ExprMatchCaseLhsVal> Value;
+};
+
+class AggregateDestructuration : public Node {
+public:
+  AggregateDestructuration(
+      const source::TupleDestructuration &srcNode, const Type &typeDestructured,
+      std::vector<AggregateDestructurationElem> &&destructuratedElems)
+      : AggregateDestructuration(static_cast<const source::Node &>(srcNode),
+                                 typeDestructured,
+                                 std::move(destructuratedElems)) {}
+
+  AggregateDestructuration(
+      const source::DataDestructuration &srcNode, const Type &typeDestructured,
+      std::vector<AggregateDestructurationElem> &&destructuratedElems)
+      : AggregateDestructuration(static_cast<const source::Node &>(srcNode),
+                                 typeDestructured,
+                                 std::move(destructuratedElems)) {}
+
+  const Type &getDestructuringType() const { return DestructuringTy; }
+
+  ArrayRef<AggregateDestructurationElem> getElems() const {
+    return DestructuratedElems;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::AggregateDestructuration;
+  }
+
+private:
+  AggregateDestructuration(
+      const source::Node &srcNode, const Type &typeDestructured,
+      std::vector<AggregateDestructurationElem> &&destructuratedElems)
+      : Node(Kind::AggregateDestructuration, srcNode),
+        DestructuringTy(typeDestructured),
+        DestructuratedElems(std::move(destructuratedElems)) {}
+
+private:
+  const Type &DestructuringTy;
+  std::vector<AggregateDestructurationElem> DestructuratedElems;
+};
+
+class ExprMatchCase final : public Expr {
+public:
+  using LhsValue = std::variant<ExprMatchCaseLhsVal, Otherwise>;
+  ExprMatchCase(const source::ExprMatchCase &srcNode, LhsValue matchingElem,
+                std::unique_ptr<Expr> rhsExpr)
+      : Expr(Kind::ExprMatchCase, srcNode, rhsExpr->getType()),
+        Lhs(std::move(matchingElem)), Rhs(std::move(rhsExpr)) {}
+
+  const LhsValue &getLhs() const { return Lhs; }
+  const Expr &getRhs() const { return *Rhs; }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprMatchCase;
+  }
+
+private:
+  LhsValue Lhs;
+  std::unique_ptr<Expr> Rhs;
+};
+
+class ExprMatch final : public Expr {
+public:
+  ExprMatch(const source::Node &srcNode, const Type &ty,
+            std::unique_ptr<Expr> matchedExpr,
+            SmallVectorImpl<std::unique_ptr<ExprMatchCase>> &&cases)
+      : Expr(Kind::ExprMatch, srcNode, ty), MatchedExpr(std::move(matchedExpr)),
+        ExprMatchCases(std::move(cases)) {}
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::ExprMatch;
+  }
+
+  const Expr &getMatchedExpr() const { return *MatchedExpr; }
+
+  ArrayRef<std::unique_ptr<ExprMatchCase>> getExprMatchCases() const {
+    return ExprMatchCases;
+  }
+
+private:
+  std::unique_ptr<Expr> MatchedExpr;
+  // TODO: Profile nice initial number
+  SmallVector<std::unique_ptr<ExprMatchCase>> ExprMatchCases;
 };
 
 } // namespace tmplang::hir

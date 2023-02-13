@@ -1,4 +1,5 @@
 llvm_add_library(TmplangHIRTree
+    Exprs.cpp
     Decls.cpp
     HIRBuilder.cpp
     HIRContext.cpp

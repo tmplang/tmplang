@@ -4,6 +4,7 @@
 #include <tmplang/Tree/HIR/RecursiveTypeVisitor.h>
 
 #include "../TreeFormatPrinter.h"
+#include "tmplang/Tree/HIR/Exprs.h"
 
 using namespace tmplang;
 using namespace tmplang::hir;
@@ -161,6 +162,14 @@ public:
     return true;
   }
 
+  bool visitPlaceholderDecl(const PlaceholderDecl &placeholderDecl) {
+    OS << " ";
+    traverseType(placeholderDecl.getType());
+    OS << " :";
+    printIdentifier(placeholderDecl.getName());
+    return true;
+  }
+
   bool visitExprIntegerNumber(const ExprIntegerNumber &exprNum) {
     OS << ' ';
     traverseType(exprNum.getType());
@@ -197,6 +206,31 @@ public:
 
     OS << ' ';
     traverseType(exprDataFieldAcc.getType());
+    return true;
+  }
+
+  bool visitExprMatch(const ExprMatch &exprMatch) {
+    OS << ' ';
+    traverseType(exprMatch.getType());
+    return true;
+  }
+
+  bool visitExprMatchCase(const ExprMatchCase &matchCase) {
+    OS << ' ';
+    traverseType(matchCase.getType());
+    return true;
+  }
+
+  bool visitAggregateDestructuration(const AggregateDestructuration &aggreDes) {
+    OS << ' ';
+    traverseType(aggreDes.getDestructuringType());
+    return true;
+  }
+
+  bool visitAggregateDestructurationElem(
+      const AggregateDestructurationElem &aggreDesElem) {
+    OS << ' ';
+    traverseType(aggreDesElem.getType());
     return true;
   }
 

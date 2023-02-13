@@ -37,6 +37,8 @@ ERROR(missing_variable_identifier_after_type,  "missing variable identifier afte
 //=----------------------------- Sema Diags --------------------------------=//
 ERROR(subprogram_does_not_return_in_all_paths, "subprogram with return type different to unit does not return in all possible paths")
 ERROR(mistmach_between_ret_and_subprogram_type, "mismatch between returned expression type and subprogram return type")
+ERROR(match_branch_type_does_not_match_first_branch_type, "match expr branch type does not match first branch type")
+ERROR(match_lhs_branch_is_not_integer, "only interger expressions are supported on the left hand side of a branch")
 
 #undef WARN
 #undef ERROR

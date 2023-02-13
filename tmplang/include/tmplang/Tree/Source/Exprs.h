@@ -239,12 +239,24 @@ using ExprMatchCaseLhsVal =
     std::variant<std::unique_ptr<Expr>, PlaceholderDecl, VoidPlaceholder,
                  TupleDestructuration, DataDestructuration>;
 
-class TupleDestructurationElem : public Node, public TrailingOptComma {
+class AggregateDestructurationElem : public Node {
 public:
-  TupleDestructurationElem(std::unique_ptr<ExprMatchCaseLhsVal> value)
-      : Node(Kind::TupleDestructurationElem), Value(std::move(value)) {}
+  AggregateDestructurationElem(Node::Kind kind,
+                               std::unique_ptr<ExprMatchCaseLhsVal> val)
+      : Node(kind), Value(std::move(val)) {}
 
   const ExprMatchCaseLhsVal &getValue() const;
+
+private:
+  std::unique_ptr<ExprMatchCaseLhsVal> Value;
+};
+
+class TupleDestructurationElem : public AggregateDestructurationElem,
+                                 public TrailingOptComma {
+public:
+  TupleDestructurationElem(std::unique_ptr<ExprMatchCaseLhsVal> value)
+      : AggregateDestructurationElem(Kind::TupleDestructurationElem,
+                                     std::move(value)) {}
 
   tmplang::SourceLocation getBeginLoc() const override;
   tmplang::SourceLocation getEndLoc() const override;
@@ -252,22 +264,20 @@ public:
   static bool classof(const Node *node) {
     return node->getKind() == Kind::TupleDestructurationElem;
   }
-
-private:
-  std::unique_ptr<ExprMatchCaseLhsVal> Value;
 };
 
-class DataDestructurationElem : public Node, public TrailingOptComma {
+class DataDestructurationElem : public AggregateDestructurationElem,
+                                public TrailingOptComma {
 public:
   DataDestructurationElem(SpecificToken<TK_Identifier> id,
                           SpecificToken<TK_Colon> colon,
                           std::unique_ptr<ExprMatchCaseLhsVal> value)
-      : Node(Kind::DataDestructurationElem), Id(std::move(id)),
-        Colon(std::move(colon)), Value(std::move(value)) {}
+      : AggregateDestructurationElem(Kind::DataDestructurationElem,
+                                     std::move(value)),
+        Id(std::move(id)), Colon(std::move(colon)) {}
 
   const auto &getId() const { return Id; }
   const auto &getColon() const { return Colon; }
-  const ExprMatchCaseLhsVal &getValue() const;
 
   tmplang::SourceLocation getBeginLoc() const override {
     return Id.getSpan().Start;
@@ -281,7 +291,6 @@ public:
 private:
   SpecificToken<TK_Identifier> Id;
   SpecificToken<TK_Colon> Colon;
-  std::unique_ptr<ExprMatchCaseLhsVal> Value;
 };
 
 class TupleDestructuration : public Node {

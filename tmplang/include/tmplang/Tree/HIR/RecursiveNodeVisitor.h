@@ -82,6 +82,10 @@ protected:
     TRY_TO(visitNode(paramDecl));
     return true;
   }
+  bool traversePlaceholderDecl(const PlaceholderDecl &placeholderDecl) {
+    TRY_TO(visitNode(placeholderDecl));
+    return true;
+  }
   bool traverseExprIntegerNumber(const ExprIntegerNumber &num) {
     TRY_TO(visitNode(num));
     return true;
@@ -110,6 +114,71 @@ protected:
     TRY_TO(traverseNode(exprDataFieldAcc.getBase()));
     return true;
   }
+
+  bool traverseExprMatch(const ExprMatch &exprMatch) {
+    TRY_TO(visitNode(exprMatch));
+    TRY_TO(traverseNode(exprMatch.getMatchedExpr()));
+    for (const auto &matchCase : exprMatch.getExprMatchCases()) {
+      TRY_TO(traverseNode(*matchCase));
+    }
+    return true;
+  }
+
+  bool TraverseExprMatchCaseLhsVal(const ExprMatchCaseLhsVal &lhsVals) {
+    return std::visit(
+        source::visitors{
+            [&](const std::unique_ptr<Expr> &expr) {
+              TRY_TO(traverseNode(*expr));
+              return true;
+            },
+            [&](const VoidPlaceholder &arg) { return true; },
+            [&](const PlaceholderDecl &arg) {
+              TRY_TO(traverseNode(arg));
+              return true;
+            },
+            [&](const AggregateDestructuration &arg) {
+              TRY_TO(traverseNode(arg));
+              return true;
+            },
+            [](const auto &arg) -> std::unique_ptr<ExprMatchCaseLhsVal> {
+              llvm_unreachable("All cases covered");
+            }},
+        lhsVals);
+  }
+
+  bool traverseExprMatchCase(const ExprMatchCase &matchCase) {
+    TRY_TO(visitNode(matchCase));
+
+    auto lhsVisitors =
+        source::visitors{[&](const Otherwise &arg) { return true; },
+                         [&](const ExprMatchCaseLhsVal &arg) {
+                           return TraverseExprMatchCaseLhsVal(arg);
+                         }};
+
+    if (!std::visit(lhsVisitors, matchCase.getLhs())) {
+      return false;
+    }
+
+    TRY_TO(traverseNode(matchCase.getRhs()));
+
+    return true;
+  }
+
+  bool traverseAggregateDestructuration(
+      const AggregateDestructuration &aggregateDes) {
+    TRY_TO(visitNode(aggregateDes));
+    for (auto &elem : aggregateDes.getElems()) {
+      TRY_TO(traverseNode(elem));
+    }
+    return true;
+  }
+
+  bool traverseAggregateDestructurationElem(
+      const AggregateDestructurationElem &aggregateDesElem) {
+    TRY_TO(visitNode(aggregateDesElem));
+    return TraverseExprMatchCaseLhsVal(aggregateDesElem.getValue());
+  }
+
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//

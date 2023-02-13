@@ -24,6 +24,7 @@
 #include <tmplang/Support/SourceManager.h>
 #include <tmplang/Tree/HIR/CompilationUnit.h>
 #include <tmplang/Tree/HIR/Decls.h>
+#include <tmplang/Tree/HIR/Exprs.h>
 #include <tmplang/Tree/HIR/Types.h>
 
 #include <memory>
@@ -149,12 +150,20 @@ private:
       build(*cast<hir::ExprRet>(&expr));
       // Ret is a terminator expresion
       return {};
+    case hir::Node::Kind::ExprMatch:
+      // FIXME: Implement
+      return {};
     case hir::Node::Kind::CompilationUnit:
     case hir::Node::Kind::SubprogramDecl:
     case hir::Node::Kind::DataFieldDecl:
     case hir::Node::Kind::DataDecl:
     case hir::Node::Kind::ParamDecl:
+    case hir::Node::Kind::PlaceholderDecl:
+    case hir::Node::Kind::ExprMatchCase:
+    case hir::Node::Kind::AggregateDestructuration:
+    case hir::Node::Kind::AggregateDestructurationElem:
       llvm_unreachable("None of these are exprs");
+      break;
     }
   }
 

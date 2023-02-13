@@ -3,7 +3,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <tmplang/Tree/HIR/Decl.h>
-#include <tmplang/Tree/HIR/Exprs.h>
+#include <tmplang/Tree/HIR/Types.h>
 
 namespace tmplang::source {
 class Node;
@@ -12,6 +12,7 @@ class Node;
 namespace tmplang::hir {
 
 class Type;
+class Expr;
 
 class ParamDecl final : public Decl {
 public:
@@ -42,10 +43,8 @@ public:
 
   explicit SubprogramDecl(const source::Node &srcNode, const Symbol &sym,
                           FunctionKind kind, std::vector<ParamDecl> params,
-                          std::vector<std::unique_ptr<Expr>> exprs)
-      : Decl(Node::Kind::SubprogramDecl, srcNode, sym), FuncKind(kind),
-        Params(std::move(params)), Expressions(std::move(exprs)) {}
-  virtual ~SubprogramDecl() = default;
+                          std::vector<std::unique_ptr<Expr>> exprs);
+  virtual ~SubprogramDecl();
 
 private:
   FunctionKind FuncKind;
@@ -81,6 +80,16 @@ public:
 
 private:
   std::vector<DataFieldDecl> Fields;
+};
+
+class PlaceholderDecl final : public Decl {
+public:
+  PlaceholderDecl(const source::Node &srcNode, Symbol &sym)
+      : Decl(Kind::PlaceholderDecl, srcNode, sym) {}
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::PlaceholderDecl;
+  }
 };
 
 } // namespace tmplang::hir

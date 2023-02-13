@@ -1,5 +1,8 @@
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 
+#include <llvm/ADT/StringSet.h>
 #include <llvm/Support/Casting.h>
 #include <tmplang/Tree/HIR/Exprs.h>
 #include <tmplang/Tree/Source/CompilationUnit.h>
@@ -21,11 +24,15 @@ public:
 private:
   std::unique_ptr<Decl> getTopLevelDecl(const source::Decl &);
 
+  // All declarations
   std::unique_ptr<Decl> get(const source::SubprogramDecl &);
   std::optional<ParamDecl> get(const source::ParamDecl &);
   std::unique_ptr<Decl> get(const source::DataDecl &);
   std::optional<DataFieldDecl> get(const source::DataFieldDecl &);
+  std::optional<PlaceholderDecl> get(const source::PlaceholderDecl &,
+                                     const Type &matchedExprTy);
 
+  // All expressions
   std::unique_ptr<Expr> get(const source::Expr &);
   std::unique_ptr<ExprIntegerNumber> get(const source::ExprIntegerNumber &);
   std::unique_ptr<ExprRet> get(const source::ExprRet &);
@@ -34,6 +41,20 @@ private:
   std::unique_ptr<ExprAggregateDataAccess>
   get(const source::ExprAggregateDataAccess &);
 
+  // MatchExpr related building functions
+  std::optional<AggregateDestructurationElem>
+  get(const source::AggregateDestructurationElem &, const Type &);
+  std::optional<AggregateDestructuration>
+  get(const source::DataDestructuration &, const Type &);
+  std::optional<AggregateDestructuration>
+  get(const source::TupleDestructuration &, const Type &);
+  std::unique_ptr<ExprMatchCaseLhsVal> get(const source::ExprMatchCaseLhsVal &,
+                                           const Type &);
+  std::unique_ptr<ExprMatchCase> get(const source::ExprMatchCase &,
+                                     const Type &matchedExprTy);
+  std::unique_ptr<ExprMatch> get(const source::ExprMatch &);
+
+  // All types
   const Type *get(const source::Type &);
 
   Symbol *fetchSymbolRecursively(SymbolKind kind, llvm::StringRef id) const;
@@ -108,6 +129,192 @@ HIRBuilder::get(const source::ExprVarRef &exprVarRef) {
   }
 
   return std::make_unique<ExprVarRef>(exprVarRef, *sym);
+}
+
+std::unique_ptr<ExprMatchCaseLhsVal>
+HIRBuilder::get(const source::ExprMatchCaseLhsVal &lhsVal, const Type &currTy) {
+  auto visitors = source::visitors{
+      [&](const std::unique_ptr<source::Expr> &expr) {
+        auto evaluatedExpr = get(*expr);
+        return evaluatedExpr ? std::make_unique<ExprMatchCaseLhsVal>(
+                                   std::move(evaluatedExpr))
+                             : nullptr;
+      },
+      [](const source::VoidPlaceholder &arg) {
+        return std::make_unique<ExprMatchCaseLhsVal>(VoidPlaceholder());
+      },
+      [&](const source::PlaceholderDecl &arg) {
+        auto placeHolder = get(arg, currTy);
+        return placeHolder ? std::make_unique<ExprMatchCaseLhsVal>(
+                                 std::move(*placeHolder))
+                           : nullptr;
+      },
+      [&](const source::TupleDestructuration &arg) {
+        auto des = get(arg, currTy);
+        return des ? std::make_unique<ExprMatchCaseLhsVal>(std::move(*des))
+                   : nullptr;
+      },
+      [&](const source::DataDestructuration &arg) {
+        auto des = get(arg, currTy);
+        return des ? std::make_unique<ExprMatchCaseLhsVal>(std::move(*des))
+                   : nullptr;
+      },
+      [](const auto &arg) -> std::unique_ptr<ExprMatchCaseLhsVal> {
+        llvm_unreachable("All cases covered");
+      }};
+
+  return std::visit(visitors, lhsVal);
+}
+
+std::optional<AggregateDestructurationElem>
+HIRBuilder::get(const source::AggregateDestructurationElem &srcNode,
+                const Type &currTy) {
+  auto value = get(srcNode.getValue(), currTy);
+  return value ? AggregateDestructurationElem(srcNode, currTy, std::move(value))
+               : std::optional<AggregateDestructurationElem>{};
+}
+
+std::optional<AggregateDestructuration>
+HIRBuilder::get(const source::DataDestructuration &srcNode,
+                const Type &currentTy) {
+  std::vector<AggregateDestructurationElem> destructuratedElems;
+  destructuratedElems.reserve(srcNode.DataElems.size());
+
+  llvm::StringSet<> alreadySeenFields;
+  for (const source::DataDestructurationElem &elem : srcNode.DataElems) {
+    auto *dataTy = dyn_cast<DataType>(&currentTy);
+    if (!dataTy) {
+      // TODO: Emit error about destructuring a non data type
+      return std::nullopt;
+    }
+
+    assert(DataTyToSymMap.count(dataTy));
+
+    const SymbolicScope *dataTyScope =
+        DataTyToSymMap[dataTy]->getCreatedSymScope();
+
+    // Find if the field exists in the type
+    auto *fieldSymIt = llvm::find_if(
+        dataTyScope->getSymbols(), [&currElem = elem](const Symbol &sym) {
+          return sym.getId() == currElem.getId().getLexeme();
+        });
+
+    if (fieldSymIt == dataTyScope->getSymbols().end()) {
+      // TODO: Emit error about accessing an element which does not exists
+      return std::nullopt;
+    }
+
+    // Field aready accessed, this is an error
+    if (!alreadySeenFields.insert(fieldSymIt->get().getId()).second) {
+      // TODO: Emit error about field aready accessed
+      return std::nullopt;
+    }
+
+    // Pass the type of the retrieve field
+    auto val = get(elem, fieldSymIt->get().getType());
+    if (!val) {
+      // Error already reported
+      return std::nullopt;
+    }
+
+    destructuratedElems.push_back(std::move(*val));
+  }
+
+  return AggregateDestructuration(srcNode, currentTy,
+                                  std::move(destructuratedElems));
+}
+
+std::optional<AggregateDestructuration>
+HIRBuilder::get(const source::TupleDestructuration &srcNode,
+                const Type &currentTy) {
+  std::vector<AggregateDestructurationElem> destructuratedElems;
+  destructuratedElems.reserve(srcNode.getTupleElems().size());
+
+  for (const auto &idxAndElem : llvm::enumerate(srcNode.getTupleElems())) {
+    auto [idx, elem] = idxAndElem;
+
+    auto *tupleTy = dyn_cast<TupleType>(&currentTy);
+    if (!tupleTy) {
+      // TODO: Emit error about destructuring a non tuple type
+      return std::nullopt;
+    }
+
+    if (idx >= tupleTy->getTypes().size()) {
+      // TODO: emir error about accesing the elements of the tuple
+      return std::nullopt;
+    }
+
+    // Pass the type of the retrieve elemt of the tuple
+    auto val = get(elem, *tupleTy->getTypes()[idx]);
+    if (!val) {
+      // Error already reported
+      return std::nullopt;
+    }
+
+    destructuratedElems.push_back(std::move(*val));
+  }
+
+  return AggregateDestructuration(srcNode, currentTy,
+                                  std::move(destructuratedElems));
+}
+
+std::unique_ptr<ExprMatchCase>
+HIRBuilder::get(const source::ExprMatchCase &matchCase,
+                const Type &matchedExprTy) {
+  pushSymbolicScope();
+
+  std::optional<ExprMatchCase::LhsValue> matchingElem = std::visit(
+      source::visitors{
+          [&](const source::Otherwise &arg)
+              -> std::optional<ExprMatchCase::LhsValue> {
+            return ExprMatchCase::LhsValue{Otherwise()};
+          },
+          [&](const std::unique_ptr<source::ExprMatchCaseLhsVal> &arg)
+              -> std::optional<ExprMatchCase::LhsValue> {
+            auto lhsValue = get(*arg, matchedExprTy);
+            return lhsValue ? ExprMatchCase::LhsValue(std::move(*lhsValue))
+                            : std::optional<ExprMatchCase::LhsValue>{};
+          }},
+      matchCase.getLhs());
+
+  if (!matchingElem) {
+    // Errors already reported
+    return nullptr;
+  }
+
+  auto expr = get(*matchCase.getRhs());
+  if (!expr) {
+    // Error already reported
+    return nullptr;
+  }
+
+  popSymbolScope();
+
+  return std::make_unique<ExprMatchCase>(matchCase, std::move(*matchingElem),
+                                         std::move(expr));
+}
+
+std::unique_ptr<ExprMatch> HIRBuilder::get(const source::ExprMatch &exprMatch) {
+  auto matchedExpr = get(exprMatch.getMatchedExpr());
+  if (!matchedExpr) {
+    return nullptr;
+  }
+
+  assert(!exprMatch.getCases().empty() && "Guaranteed by grammar");
+
+  SmallVector<std::unique_ptr<ExprMatchCase>> cases;
+  cases.reserve(exprMatch.getCases().size());
+
+  for (const source::ExprMatchCase &matchCase : exprMatch.getCases()) {
+    auto hirCase = get(matchCase, matchedExpr->getType());
+    if (!hirCase) {
+      return nullptr;
+    }
+    cases.push_back(std::move(hirCase));
+  }
+
+  return std::make_unique<ExprMatch>(exprMatch, cases.front()->getType(),
+                                     std::move(matchedExpr), std::move(cases));
 }
 
 static std::unique_ptr<ExprAggregateDataAccess>
@@ -207,7 +414,7 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
   case source::Node::Kind::ExprAggregateDataAccess:
     return get(*cast<source::ExprAggregateDataAccess>(&expr));
   case source::Node::Kind::ExprMatch:
-    return {};
+    return get(*cast<source::ExprMatch>(&expr));
   case source::Node::Kind::ExprMatchCase:
   case source::Node::Kind::CompilationUnit:
   case source::Node::Kind::SubprogramDecl:
@@ -285,7 +492,8 @@ Symbol &HIRBuilder::addSymbolToCurrentScope(SymbolKind kind, llvm::StringRef id,
   return sym;
 }
 
-std::optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
+std::optional<ParamDecl>
+HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
   const Type *type = get(srcParamDecl.getType());
   if (!type) {
     return nullopt;
@@ -463,6 +671,20 @@ HIRBuilder::get(const source::DataFieldDecl &dataFieldDecl) {
       SymbolKind::UnreferenciableDataFieldDecl, dataFieldDecl.getName(), *ty);
 
   return DataFieldDecl(dataFieldDecl, dataFieldSym);
+}
+
+std::optional<PlaceholderDecl>
+HIRBuilder::get(const source::PlaceholderDecl &placeholderDecl,
+                const Type &placeholderTy) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                             placeholderDecl.getName())) {
+    // TODO: Report message about placeholder already defined
+    return std::nullopt;
+  }
+
+  auto &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                                      placeholderDecl.getName(), placeholderTy);
+  return PlaceholderDecl(placeholderDecl, sym);
 }
 
 static void AddNamedBuiltinTypes(SymbolManager &sm, HIRContext &ctx) {

@@ -3,12 +3,7 @@
 using namespace tmplang;
 
 const source::ExprMatchCaseLhsVal &
-source::TupleDestructurationElem::getValue() const {
-  return *Value;
-}
-
-const source::ExprMatchCaseLhsVal &
-source::DataDestructurationElem::getValue() const {
+source::AggregateDestructurationElem::getValue() const {
   return *Value;
 }
 
