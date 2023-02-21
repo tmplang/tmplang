@@ -193,3 +193,66 @@ void AggregateDataAccessOp::print(mlir::OpAsmPrinter &p) {
   p << '(' << getOperand() << "), " << getIdx() << " : " << getOperand().getType()
     << " -> " << getResult().getType();
 }
+
+mlir::ParseResult MatchOp::parse(mlir::OpAsmParser &parser,
+                                 mlir::OperationState &result) {
+  // Sample of syntax:
+  // tmplang.aggregateDataAccess(%0), 0 : (!tmplang<data "A"{i32, i32}>) -> i32
+
+  mlir::OpAsmParser::UnresolvedOperand unresolvedOp;
+  mlir::Type inputTy;
+  mlir::Type resultTy;
+  mlir::Region &region = *result.addRegion();
+
+  const bool parsingResult =
+      parser.parseLParen() || parser.parseOperand(unresolvedOp) ||
+      parser.parseRParen() || parser.parseColonType(inputTy) ||
+      parser.parseArrow() || parser.parseType(resultTy) ||
+      parser.parseRegion(region);
+  if (!parsingResult) {
+    return mlir::failure();
+  }
+
+  llvm::SmallVector<mlir::Value, 1> val;
+  if (parser.resolveOperand(unresolvedOp, inputTy, val)) {
+    return mlir::failure();
+  }
+  assert(val.size() == 1);
+
+  result.addOperands(val.back());
+  result.addTypes(resultTy);
+
+  return mlir::success();
+}
+
+void MatchOp::print(mlir::OpAsmPrinter &p) {
+  p << '(' << getOperand() << ") : " << getInput().getType() << " -> "
+    << getResult().getType() << ' ';
+  p.printRegion(getBody());
+}
+
+mlir::LogicalResult MatchYieldOp::verify() {
+  auto matchOp = cast<MatchOp>((*this)->getParentOp());
+
+  /// ReturnOps can only have a single optional operand.
+  if (getNumOperands() > 1) {
+    return emitOpError() << "expects at most 1 yield operand";
+  }
+
+  // If the operation does not have an input, we are done.
+  if (!hasOperand()) {
+    return mlir::success();
+  }
+
+  auto matchOpResultTy = this->getResults()[0].getType();
+  auto yieldResultTy = matchOp.getResult().getType();
+
+  // Check that the result type of the function matches the operand type.
+  if (matchOpResultTy != yieldResultTy) {
+    return emitError() << "type of match_yield operand (" << matchOpResultTy
+                       << ") doesn't match match result type (" << yieldResultTy
+                       << ")";
+  }
+
+  return mlir::success();
+}

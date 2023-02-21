@@ -8,6 +8,7 @@ include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/BuiltinTypes.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -173,6 +174,59 @@ def AggregateDataAccessOp : Tmplang_Op<"aggregateDataAccess", [NoMemoryEffect]> 
   let results = (outs AnyType:$result);
 
   let hasCustomAssemblyFormat = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// MatchExpr
+//===----------------------------------------------------------------------===//
+def MatchOp : Tmplang_Op<"match", [NoMemoryEffect]> {
+  let summary = "match operation";
+
+  let description = [{
+    The "match" operation represents patter-mattching access to a value.
+
+    ```mlir
+       %0 = "tmplang.match"(%arg0) ({
+        
+       }) : (tuple<i32, !tmplang<data "Dummy"{i32, i32}>>) -> i32
+    ```
+  }];
+
+  let arguments = (ins AnyType:$input);
+  let results = (outs AnyType:$result);
+  let regions = (region AnyRegion:$body);
+
+  let hasCustomAssemblyFormat = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// MatchYieldOp
+//===----------------------------------------------------------------------===//
+def MatchYieldOp : Tmplang_Op<"match_yield", [NoMemoryEffect, ReturnLike,
+                                              Terminator, HasParent<"MatchOp">]> {
+  let summary = "match yield and termination operation";
+
+  let description = [{
+    TODO: Add our documentation
+
+    "match_yield" yields an SSA value from the match op region and terminates
+    the regions. If "match_yield" has any operands, the operands must match the
+    parent operation's results.
+  }];
+
+  let arguments = (ins Variadic<AnyType>:$results);
+  let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>];
+
+  let assemblyFormat =
+      [{  attr-dict (`(`$results^`)` `:` type($results))? }];
+
+  let extraClassDeclaration = [{
+    bool hasOperand() { return getNumOperands() != 0; }
+  }];
+
+  // Verify that the return operation must match the return type of the
+  // enclosing match.
+  let hasVerifier = 1;
 }
 
 #endif // TMPLANG_OPS

@@ -4,6 +4,7 @@
 #include <mlir/Conversion/ArithToLLVM/ArithToLLVM.h>
 #include <mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -136,6 +137,85 @@ private:
                                            B.getIndexAttr(expr.getIdxAccess()));
   }
 
+  mlir::Value get(const hir::PlaceholderDecl &placeholderDecl,
+                  mlir::Value baseVal) {
+    assert(!SymbolToValueMap.count(&placeholderDecl.getSymbol()));
+    SymbolToValueMap[&placeholderDecl.getSymbol()] = baseVal;
+    return {};
+  }
+
+  mlir::Value get(const hir::AggregateDestructuration &aggregateDes,
+                  mlir::Value baseVal, mlir::Block &nextCase) {
+    for (auto &elem : aggregateDes.getElems()) {
+      auto aggregateDataOp = B.create<AggregateDataAccessOp>(
+          getLocation(elem), get(elem.getType()), baseVal,
+          B.getIndexAttr(elem.getIdxOfAggregateAccess()));
+      get(elem.getValue(), aggregateDataOp, nextCase);
+    }
+    return {};
+  }
+
+  mlir::Value get(const hir::ExprMatchCaseLhsVal &expr, mlir::Value baseVal,
+                  mlir::Block &nextCase) {
+    auto visitors = source::visitors{
+        [&](const std::unique_ptr<hir::Expr> &expr) {
+          auto cmp = B.create<mlir::arith::CmpIOp>(
+              getLocation(*expr), mlir::arith::CmpIPredicate::eq, get(*expr),
+              baseVal);
+          mlir::Block *falseBranch = nullptr;
+          {
+            mlir::OpBuilder::InsertionGuard insertionGuard(B);
+            falseBranch = B.createBlock(&nextCase);
+          }
+          B.create<mlir::cf::CondBranchOp>(getLocation(*expr), cmp, &nextCase,
+                                           falseBranch, mlir::ValueRange());
+          B.setInsertionPointToStart(falseBranch);
+          return mlir::Value();
+        },
+        [&](const hir::PlaceholderDecl &decl) { return get(decl, baseVal); },
+        [&](const hir::AggregateDestructuration &aggreDes) {
+          return get(aggreDes, baseVal, nextCase);
+        },
+        [](const auto &) { return mlir::Value(); },
+    };
+    return std::visit(visitors, expr);
+  }
+
+  mlir::Value get(const hir::ExprMatch &expr) {
+    mlir::OpBuilder::InsertionGuard insertionGuard(B);
+
+    auto baseVal = get(expr.getMatchedExpr());
+    auto matchOp =
+        B.create<MatchOp>(getLocation(expr), get(expr.getType()), baseVal);
+
+    // Reserve all blocks
+    std::vector<mlir::Block *> allBlocks;
+    allBlocks.reserve(expr.getExprMatchCases().size());
+    for (unsigned i = 0; i < expr.getExprMatchCases().size(); i++) {
+      allBlocks.push_back(&matchOp.getBody().emplaceBlock());
+    }
+
+    for (const auto &idxAndhirCase :
+         llvm::enumerate(expr.getExprMatchCases())) {
+      auto &[idx, hirCase] = idxAndhirCase;
+      B.setInsertionPointToStart(allBlocks[idx]);
+
+      // Add all comprobations and branching
+      if (auto *lhs =
+              std::get_if<hir::ExprMatchCaseLhsVal>(&hirCase->getLhs())) {
+        if (mlir::Value val = get(*lhs, baseVal, *allBlocks[idx + 1])) {
+          val.dump();
+        }
+      }
+
+      // If everything matched, return the expression
+      B.create<MatchYieldOp>(getLocation(hirCase->getRhs()),
+                             mlir::ValueRange{get(hirCase->getRhs())});
+    }
+
+    return matchOp;
+  }
+
   mlir::Value get(const hir::Expr &expr) {
     switch (expr.getKind()) {
     case hir::Node::Kind::ExprIntegerNumber:
@@ -151,8 +231,7 @@ private:
       // Ret is a terminator expresion
       return {};
     case hir::Node::Kind::ExprMatch:
-      // FIXME: Implement
-      return {};
+      return get(*cast<hir::ExprMatch>(&expr));
     case hir::Node::Kind::CompilationUnit:
     case hir::Node::Kind::SubprogramDecl:
     case hir::Node::Kind::DataFieldDecl:
@@ -246,7 +325,8 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
                const SourceManager &sm, const MLIRPrintingOpsCfg printingCfg) {
   auto ctx = std::make_unique<mlir::MLIRContext>();
   // Load the required dialects (mlir::BuiltinDialect is loaded by default)
-  ctx->loadDialect<TmplangDialect>();
+  ctx->loadDialect<TmplangDialect, mlir::arith::ArithDialect,
+                   mlir::cf::ControlFlowDialect>();
 
   auto mod = MLIRBuilder(*ctx, sm).build(compUnit);
 

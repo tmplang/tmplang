@@ -1,5 +1,3 @@
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include <tmplang/Tree/HIR/HIRBuilder.h>
 
 #include <llvm/ADT/StringSet.h>
@@ -43,7 +41,7 @@ private:
 
   // MatchExpr related building functions
   std::optional<AggregateDestructurationElem>
-  get(const source::AggregateDestructurationElem &, const Type &);
+  get(const source::AggregateDestructurationElem &, const Type &, unsigned idx);
   std::optional<AggregateDestructuration>
   get(const source::DataDestructuration &, const Type &);
   std::optional<AggregateDestructuration>
@@ -168,9 +166,10 @@ HIRBuilder::get(const source::ExprMatchCaseLhsVal &lhsVal, const Type &currTy) {
 
 std::optional<AggregateDestructurationElem>
 HIRBuilder::get(const source::AggregateDestructurationElem &srcNode,
-                const Type &currTy) {
+                const Type &currTy, unsigned idx) {
   auto value = get(srcNode.getValue(), currTy);
-  return value ? AggregateDestructurationElem(srcNode, currTy, std::move(value))
+  return value ? AggregateDestructurationElem(srcNode, currTy, idx,
+                                              std::move(value))
                : std::optional<AggregateDestructurationElem>{};
 }
 
@@ -211,7 +210,9 @@ HIRBuilder::get(const source::DataDestructuration &srcNode,
     }
 
     // Pass the type of the retrieve field
-    auto val = get(elem, fieldSymIt->get().getType());
+    auto val =
+        get(elem, fieldSymIt->get().getType(),
+            std::distance(dataTyScope->getSymbols().begin(), fieldSymIt));
     if (!val) {
       // Error already reported
       return std::nullopt;
@@ -245,7 +246,7 @@ HIRBuilder::get(const source::TupleDestructuration &srcNode,
     }
 
     // Pass the type of the retrieve elemt of the tuple
-    auto val = get(elem, *tupleTy->getTypes()[idx]);
+    auto val = get(elem, *tupleTy->getTypes()[idx], idx);
     if (!val) {
       // Error already reported
       return std::nullopt;

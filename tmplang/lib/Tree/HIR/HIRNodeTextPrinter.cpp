@@ -231,6 +231,8 @@ public:
       const AggregateDestructurationElem &aggreDesElem) {
     OS << ' ';
     traverseType(aggreDesElem.getType());
+    printIdentifier(" idx: ");
+    OS << aggreDesElem.getIdxOfAggregateAccess();
     return true;
   }
 

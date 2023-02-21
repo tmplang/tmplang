@@ -159,9 +159,9 @@ class AggregateDestructurationElem : public Node {
 public:
   AggregateDestructurationElem(
       const source::AggregateDestructurationElem &srcNode, const Type &elemTy,
-      std::unique_ptr<ExprMatchCaseLhsVal> value)
+      unsigned idx, std::unique_ptr<ExprMatchCaseLhsVal> value)
       : Node(Kind::AggregateDestructurationElem, srcNode), ElemTy(elemTy),
-        Value(std::move(value)) {}
+        IdxOfAggregateType(idx), Value(std::move(value)) {}
 
   static bool classof(const Node *node) {
     return node->getKind() == Kind::AggregateDestructurationElem;
@@ -169,9 +169,11 @@ public:
 
   const Type &getType() const { return ElemTy; }
   const ExprMatchCaseLhsVal &getValue() const;
+  unsigned getIdxOfAggregateAccess() const { return IdxOfAggregateType; }
 
 private:
   const Type &ElemTy;
+  const unsigned IdxOfAggregateType;
   std::unique_ptr<ExprMatchCaseLhsVal> Value;
 };
 
