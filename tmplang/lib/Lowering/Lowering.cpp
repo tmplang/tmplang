@@ -2,6 +2,7 @@
 
 #include <llvm/Support/Debug.h>
 #include <mlir/Conversion/ArithToLLVM/ArithToLLVM.h>
+#include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
 #include <mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -344,7 +345,8 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
   }
 
   // Load the required dialects for lowering to LLVM
-  ctx->loadDialect<mlir::arith::ArithDialect, mlir::func::FuncDialect>();
+  ctx->loadDialect<mlir::cf::ControlFlowDialect, mlir::arith::ArithDialect,
+                   mlir::func::FuncDialect>();
 
   // Build pass manager and run pipeline
   mlir::PassManager pm(ctx.get());
@@ -373,8 +375,10 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
   pm.addPass(createConvertTmplangToFuncPass());
   pm.addPass(createConvertTmplangToLLVMPass());
 
-  // Lower arith pass to LLVM (func is done on TmplangToLLVM)
+  // Lower arithmetic and control flow pass to LLVM (func is done on
+  // TmplangToLLVM)
   pm.addPass(mlir::createArithToLLVMConversionPass());
+  pm.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
 
   if (mlir::failed(pm.run(&*mod))) {
     // FIXME: Use proper diagnostics

@@ -4,6 +4,8 @@
 #include <mlir/Conversion/LLVMCommon/ConversionTarget.h>
 #include <mlir/Conversion/LLVMCommon/Pattern.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/LLVMIR/LLVMTypes.h>
@@ -100,6 +102,46 @@ struct AggregateDataAccessOpLowering
   }
 };
 
+struct MatchOpLowering : public TmplangToLLVMConversion<MatchOp> {
+  using TmplangToLLVMConversion<MatchOp>::TmplangToLLVMConversion;
+
+  mlir::LogicalResult
+  matchAndRewrite(MatchOp matchOp, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    // Get the next position of MatchOp so we can split the block at that
+    // position. This split allow us to add a block argument corresponding
+    // to (all) yield values from all MatchOp branches.
+    mlir::Block::iterator nextOp = std::next(rewriter.getInsertionPoint());
+    auto *newBlock = rewriter.splitBlock(rewriter.getInsertionBlock(), nextOp);
+    newBlock->addArgument(matchOp.getResult().getType(), matchOp->getLoc());
+
+    // Rewrite all yield's for a inconditional branch to the new splited block
+    matchOp.getBody().walk([&](tmplang::MatchYieldOp yield) {
+      rewriter.setInsertionPoint(yield);
+      rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(yield, newBlock,
+                                                      yield.getResults());
+      return mlir::WalkResult::advance();
+    });
+
+    // Replace all uses of the match op with the new argument of the block
+    matchOp->replaceAllUsesWith(newBlock->getArguments());
+
+    // Insert an inconditional branch to the starting block of the MatchOp,
+    // which is the entry point of the MatchOp
+    rewriter.setInsertionPointAfter(matchOp);
+    rewriter.create<mlir::cf::BranchOp>(matchOp->getLoc(),
+                                        &*matchOp.getBody().begin());
+
+    // Inline the whole body region of the MatchOp before the newblock
+    rewriter.inlineRegionBefore(matchOp.getBody(), newBlock);
+
+    // Finally, remove the MatchOp
+    rewriter.eraseOp(matchOp);
+
+    return mlir::success();
+  }
+};
+
 } // namespace
 
 ////===----------------------------------------------------------------------===//
@@ -117,13 +159,17 @@ struct ConvertTmplangToLLVMPass
     populateTmplangToLLVMConversionPatterns(getContext(), typeConverter);
 
     mlir::LLVMConversionTarget target(getContext());
-    target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+    target
+        .addLegalDialect<mlir::LLVM::LLVMDialect, mlir::cf::ControlFlowDialect,
+                         mlir::arith::ArithDialect>();
     target
         .addIllegalDialect<mlir::func::FuncDialect, tmplang::TmplangDialect>();
 
     mlir::RewritePatternSet patterns(&getContext());
     mlir::populateFuncToLLVMConversionPatterns(typeConverter, patterns);
-    patterns.add<AggregateDataAccessOpLowering, TupleOpLowering>(typeConverter);
+    patterns
+        .add<AggregateDataAccessOpLowering, TupleOpLowering, MatchOpLowering>(
+            typeConverter);
 
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target,
                                                   std::move(patterns)))) {

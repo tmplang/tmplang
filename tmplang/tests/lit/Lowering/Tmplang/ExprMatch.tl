@@ -1,4 +1,4 @@
-// RUN: not tmplangc --dump-mlir=lower %s 2>&1 | FileCheck %s
+// RUN: tmplangc --dump-mlir=lower %s 2>&1 | FileCheck %s
 
 data Dummy =
  bar : i32,
