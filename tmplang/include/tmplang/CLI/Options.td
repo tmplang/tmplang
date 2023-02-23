@@ -11,6 +11,12 @@ def v : Flag<["-"], "v">, Group<General_Group>, Alias<version>;
 def help : Flag<["--"], "help">, Group<General_Group>, HelpText<"print help">;
 def h : Flag<["-"], "h">, Group<General_Group>, Alias<help>;
 
+// Output options
+def Output_Group : OptionGroup<"<output group>">, HelpText<"Output options">;
+def output: JoinedOrSeparate<["--"], "output">, Group<Output_Group>,
+              HelpText<"output name of the generated assembly file">;
+def o : JoinedOrSeparate<["-"], "o">, Group<Output_Group>, Alias<output>;
+
 // Dump options
 def dump_src: CommaJoined<["--"], "dump-src=">, Group<Dump_Group>,
               HelpText<"multi options: color|addr|loc|all|simple">;

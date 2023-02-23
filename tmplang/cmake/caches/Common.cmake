@@ -9,8 +9,8 @@ set(LLVM_ENABLE_PROJECTS     "mlir"   CACHE STRING "" FORCE)
 # Use optimized tablegen
 set(LLVM_OPTIMIZED_TABLEGEN  ON   CACHE BOOL "" FORCE)
 
-# Do not build any target
-set (LLVM_TARGETS_TO_BUILD   ""   CACHE STRING "" FORCE)
+# Build a few common targets
+set (LLVM_TARGETS_TO_BUILD   "AArch64;ARM;WebAssembly;X86"   CACHE STRING "" FORCE)
 
 # Always use ccache 
 set(LLVM_CCACHE_BUILD        ON   CACHE BOOL "" FORCE)
