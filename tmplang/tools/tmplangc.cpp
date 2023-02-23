@@ -182,6 +182,10 @@ int main(int argc, const char *argv[]) {
   if (auto *dumpSrcArg = parsedCompilerArgs->getLastArg(OPT_dump_src)) {
     return DumpSrc(*dumpSrcArg, printer, *srcCompilationUnit, *sm);
   }
+  StringRef maximumPhase = parsedCompilerArgs->getLastArgValue(OPT_max_phase);
+  if (maximumPhase == "syntax") {
+    return 0;
+  }
 
   hir::HIRContext ctx;
   auto hirCompilationUnit = hir::buildHIR(*srcCompilationUnit, ctx);
@@ -205,9 +209,10 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  auto *arg = parsedCompilerArgs->getLastArg(OPT_dump_mlir);
+  auto *dumpMLIRArg = parsedCompilerArgs->getLastArg(OPT_dump_mlir);
   std::optional<MLIRPrintingOpsCfg> mlirDumpCfg =
-      arg ? ParseDumpMLIRArg(*arg, printer) : MLIRPrintingOpsCfg::None;
+      dumpMLIRArg ? ParseDumpMLIRArg(*dumpMLIRArg, printer)
+                  : MLIRPrintingOpsCfg::None;
   if (!mlirDumpCfg) {
     // Errors already reported
     return 1;
@@ -219,6 +224,9 @@ int main(int argc, const char *argv[]) {
   if (!mlirMod) {
     printer.errs() << "MLIR lowering to LLVM failed!\n";
     return 1;
+  }
+  if (dumpMLIRArg || maximumPhase == "compilation") {
+    return 0;
   }
 
   int result = 1;
