@@ -195,7 +195,7 @@ void CodeGenFunction::EmitCXXGlobalVarDeclInit(const VarDecl &D,
   // For example, in the above CUDA code, the static local variable s has a
   // "shared" address space qualifier, but the constructor of StructWithCtor
   // expects "this" in the "generic" address space.
-  unsigned ExpectedAddrSpace = getContext().getTargetAddressSpace(T);
+  unsigned ExpectedAddrSpace = getTypes().getTargetAddressSpace(T);
   unsigned ActualAddrSpace = GV->getAddressSpace();
   llvm::Constant *DeclPtr = GV;
   if (ActualAddrSpace != ExpectedAddrSpace) {
@@ -562,7 +562,7 @@ CodeGenModule::EmitCXXGlobalVarDeclInitFunc(const VarDecl *D,
       Priority = 400;
 
     if (Priority != -1)
-      AddGlobalCtor(Fn, Priority, COMDATKey);
+      AddGlobalCtor(Fn, Priority, ~0U, COMDATKey);
     else
       EmitPointerToInitFunc(D, Addr, Fn, ISA);
   } else if (auto *IPA = D->getAttr<InitPriorityAttr>()) {
@@ -588,8 +588,16 @@ CodeGenModule::EmitCXXGlobalVarDeclInitFunc(const VarDecl *D,
     // SelectAny globals will be comdat-folded. Put the initializer into a
     // COMDAT group associated with the global, so the initializers get folded
     // too.
-
-    AddGlobalCtor(Fn, 65535, COMDATKey);
+    I = DelayedCXXInitPosition.find(D);
+    // CXXGlobalInits.size() is the lex order number for the next deferred
+    // VarDecl. Use it when the current VarDecl is non-deferred. Although this
+    // lex order number is shared between current VarDecl and some following
+    // VarDecls, their order of insertion into `llvm.global_ctors` is the same
+    // as the lexing order and the following stable sort would preserve such
+    // order.
+    unsigned LexOrder =
+        I == DelayedCXXInitPosition.end() ? CXXGlobalInits.size() : I->second;
+    AddGlobalCtor(Fn, 65535, LexOrder, COMDATKey);
     if (COMDATKey && (getTriple().isOSBinFormatELF() ||
                       getTarget().getCXXABI().isMicrosoft())) {
       // When COMDAT is used on ELF or in the MS C++ ABI, the key must be in
@@ -632,7 +640,12 @@ void CodeGenModule::EmitCXXThreadLocalInitFunc() {
 
 /* Build the initializer for a C++20 module:
    This is arranged to be run only once regardless of how many times the module
-   might be included transitively.  This arranged by using a control variable.
+   might be included transitively.  This arranged by using a guard variable.
+
+   If there are no initalizers at all (and also no imported modules) we reduce
+   this to an empty function (since the Itanium ABI requires that this function
+   be available to a caller, which might be produced by a different
+   implementation).
 
    First we call any initializers for imported modules.
    We then call initializers for the Global Module Fragment (if present)
@@ -644,13 +657,10 @@ void CodeGenModule::EmitCXXModuleInitFunc(Module *Primary) {
   while (!CXXGlobalInits.empty() && !CXXGlobalInits.back())
     CXXGlobalInits.pop_back();
 
-  // We create the function, even if it is empty, since an importer of this
-  // module will refer to it unconditionally (for the current implementation
-  // there is no way for the importer to know that an importee does not need
-  // an initializer to be run).
-
+  // As noted above, we create the function, even if it is empty.
   // Module initializers for imported modules are emitted first.
-  // Collect the modules that we import
+
+  // Collect all the modules that we import
   SmallVector<Module *> AllImports;
   // Ones that we export
   for (auto I : Primary->Exports)
@@ -677,7 +687,6 @@ void CodeGenModule::EmitCXXModuleInitFunc(Module *Primary) {
         FTy, llvm::Function::ExternalLinkage, FnName.str(), &getModule());
     ModuleInits.push_back(Fn);
   }
-  AllImports.clear();
 
   // Add any initializers with specified priority; this uses the same  approach
   // as EmitCXXGlobalInitFunc().
@@ -695,13 +704,11 @@ void CodeGenModule::EmitCXXModuleInitFunc(Module *Primary) {
       for (; I < PrioE; ++I)
         ModuleInits.push_back(I->second);
     }
-    PrioritizedCXXGlobalInits.clear();
   }
 
   // Now append the ones without specified priority.
-  for (auto F : CXXGlobalInits)
+  for (auto *F : CXXGlobalInits)
     ModuleInits.push_back(F);
-  CXXGlobalInits.clear();
 
   llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, false);
   const CGFunctionInfo &FI = getTypes().arrangeNullaryFunction();
@@ -711,7 +718,6 @@ void CodeGenModule::EmitCXXModuleInitFunc(Module *Primary) {
   // each init is run just once (even though a module might be imported
   // multiple times via nested use).
   llvm::Function *Fn;
-  llvm::GlobalVariable *Guard = nullptr;
   {
     SmallString<256> InitFnName;
     llvm::raw_svector_ostream Out(InitFnName);
@@ -721,18 +727,26 @@ void CodeGenModule::EmitCXXModuleInitFunc(Module *Primary) {
         FTy, llvm::Twine(InitFnName), FI, SourceLocation(), false,
         llvm::GlobalVariable::ExternalLinkage);
 
-    Guard = new llvm::GlobalVariable(getModule(), Int8Ty, /*isConstant=*/false,
-                                     llvm::GlobalVariable::InternalLinkage,
-                                     llvm::ConstantInt::get(Int8Ty, 0),
-                                     InitFnName.str() + "__in_chrg");
+    // If we have a completely empty initializer then we do not want to create
+    // the guard variable.
+    ConstantAddress GuardAddr = ConstantAddress::invalid();
+    if (!AllImports.empty() || !PrioritizedCXXGlobalInits.empty() ||
+        !CXXGlobalInits.empty()) {
+      // Create the guard var.
+      llvm::GlobalVariable *Guard = new llvm::GlobalVariable(
+          getModule(), Int8Ty, /*isConstant=*/false,
+          llvm::GlobalVariable::InternalLinkage,
+          llvm::ConstantInt::get(Int8Ty, 0), InitFnName.str() + "__in_chrg");
+      CharUnits GuardAlign = CharUnits::One();
+      Guard->setAlignment(GuardAlign.getAsAlign());
+      GuardAddr = ConstantAddress(Guard, Int8Ty, GuardAlign);
+    }
+    CodeGenFunction(*this).GenerateCXXGlobalInitFunc(Fn, ModuleInits,
+                                                     GuardAddr);
   }
-  CharUnits GuardAlign = CharUnits::One();
-  Guard->setAlignment(GuardAlign.getAsAlign());
 
-  CodeGenFunction(*this).GenerateCXXGlobalInitFunc(
-      Fn, ModuleInits, ConstantAddress(Guard, Int8Ty, GuardAlign));
-  // We allow for the case that a module object is added to  a linked binary
-  // without a specific call to the the initializer.  This also ensure that
+  // We allow for the case that a module object is added to a linked binary
+  // without a specific call to the the initializer.  This also ensures that
   // implementation partition initializers are called when the partition
   // is not imported as an interface.
   AddGlobalCtor(Fn);
@@ -751,6 +765,10 @@ void CodeGenModule::EmitCXXModuleInitFunc(Module *Primary) {
     Fn->addFnAttr("device-init");
   }
 
+  // We are done with the inits.
+  AllImports.clear();
+  PrioritizedCXXGlobalInits.clear();
+  CXXGlobalInits.clear();
   ModuleInits.clear();
 }
 
@@ -836,7 +854,7 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
 
       // Prepend the module inits to the highest priority set.
       if (!ModuleInits.empty()) {
-        for (auto F : ModuleInits)
+        for (auto *F : ModuleInits)
           LocalCXXGlobalInits.push_back(F);
         ModuleInits.clear();
       }
@@ -854,7 +872,7 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
       CXXGlobalInits.empty())
     return;
 
-  for (auto F : CXXGlobalInits)
+  for (auto *F : CXXGlobalInits)
     ModuleInits.push_back(F);
   CXXGlobalInits.clear();
 

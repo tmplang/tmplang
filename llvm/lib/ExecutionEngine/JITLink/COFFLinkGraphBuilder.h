@@ -46,7 +46,6 @@ protected:
   const object::COFFObjectFile &getObject() const { return Obj; }
 
   virtual Error addRelocations() = 0;
-  virtual Symbol &createDLLImportEntry(StringRef StubName, Symbol &Target) = 0;
 
   Error graphifySections();
   Error graphifySymbols();
@@ -116,7 +115,7 @@ private:
     jitlink::Linkage Linkage;
     orc::ExecutorAddrDiff Size;
   };
-  std::vector<Optional<ComdatExportRequest>> PendingComdatExports;
+  std::vector<std::optional<ComdatExportRequest>> PendingComdatExports;
 
   // This represents a pending request to create a weak external symbol with a
   // name.

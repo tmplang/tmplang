@@ -36,6 +36,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/WorkList.h"
 #include "llvm/ADT/ArrayRef.h"
 #include <cassert>
+#include <optional>
 #include <utility>
 
 namespace clang {
@@ -360,13 +361,13 @@ public:
   void processSwitch(SwitchNodeBuilder& builder);
 
   /// Called by CoreEngine.  Used to notify checkers that processing a
-  /// function has begun. Called for both inlined and and top-level functions.
+  /// function has begun. Called for both inlined and top-level functions.
   void processBeginOfFunction(NodeBuilderContext &BC,
                               ExplodedNode *Pred, ExplodedNodeSet &Dst,
                               const BlockEdge &L);
 
   /// Called by CoreEngine.  Used to notify checkers that processing a
-  /// function has ended. Called for both inlined and and top-level functions.
+  /// function has ended. Called for both inlined and top-level functions.
   void processEndOfFunction(NodeBuilderContext& BC,
                             ExplodedNode *Pred,
                             const ReturnStmt *RS = nullptr);
@@ -617,20 +618,25 @@ public:
     return svalBuilder.evalBinOp(ST, Op, LHS, RHS, T);
   }
 
-  /// Retreives which element is being constructed in a non POD type array.
-  static Optional<unsigned>
+  /// Retreives which element is being constructed in a non-POD type array.
+  static std::optional<unsigned>
   getIndexOfElementToConstruct(ProgramStateRef State, const CXXConstructExpr *E,
                                const LocationContext *LCtx);
 
+  /// Retreives which element is being destructed in a non-POD type array.
+  static std::optional<unsigned>
+  getPendingArrayDestruction(ProgramStateRef State,
+                             const LocationContext *LCtx);
+
   /// Retreives the size of the array in the pending ArrayInitLoopExpr.
-  static Optional<unsigned> getPendingInitLoop(ProgramStateRef State,
-                                               const CXXConstructExpr *E,
-                                               const LocationContext *LCtx);
+  static std::optional<unsigned>
+  getPendingInitLoop(ProgramStateRef State, const CXXConstructExpr *E,
+                     const LocationContext *LCtx);
 
   /// By looking at a certain item that may be potentially part of an object's
   /// ConstructionContext, retrieve such object's location. A particular
   /// statement can be transparently passed as \p Item in most cases.
-  static Optional<SVal>
+  static std::optional<SVal>
   getObjectUnderConstruction(ProgramStateRef State,
                              const ConstructionContextItem &Item,
                              const LocationContext *LC);
@@ -727,6 +733,7 @@ public:
   /// A multi-dimensional array is also a continuous memory location in a
   /// row major order, so for arr[0][0] Idx is 0 and for arr[2][2] Idx is 8.
   SVal computeObjectUnderConstruction(const Expr *E, ProgramStateRef State,
+                                      const NodeBuilderContext *BldrCtx,
                                       const LocationContext *LCtx,
                                       const ConstructionContext *CC,
                                       EvalCallOptions &CallOpts,
@@ -743,13 +750,13 @@ public:
 
   /// A convenient wrapper around computeObjectUnderConstruction
   /// and updateObjectsUnderConstruction.
-  std::pair<ProgramStateRef, SVal>
-  handleConstructionContext(const Expr *E, ProgramStateRef State,
-                            const LocationContext *LCtx,
-                            const ConstructionContext *CC,
-                            EvalCallOptions &CallOpts, unsigned Idx = 0) {
+  std::pair<ProgramStateRef, SVal> handleConstructionContext(
+      const Expr *E, ProgramStateRef State, const NodeBuilderContext *BldrCtx,
+      const LocationContext *LCtx, const ConstructionContext *CC,
+      EvalCallOptions &CallOpts, unsigned Idx = 0) {
 
-    SVal V = computeObjectUnderConstruction(E, State, LCtx, CC, CallOpts, Idx);
+    SVal V = computeObjectUnderConstruction(E, State, BldrCtx, LCtx, CC,
+                                            CallOpts, Idx);
     State = updateObjectsUnderConstruction(V, E, State, LCtx, CC, CallOpts);
 
     return std::make_pair(State, V);
@@ -824,6 +831,27 @@ private:
   bool shouldInlineArrayConstruction(const ProgramStateRef State,
                                      const CXXConstructExpr *CE,
                                      const LocationContext *LCtx);
+
+  /// Checks whether our policies allow us to inline a non-POD type array
+  /// destruction.
+  /// \param Size The size of the array.
+  bool shouldInlineArrayDestruction(uint64_t Size);
+
+  /// Prepares the program state for array destruction. If no error happens
+  /// the function binds a 'PendingArrayDestruction' entry to the state, which
+  /// it returns along with the index. If any error happens (we fail to read
+  /// the size, the index would be -1, etc.) the function will return the
+  /// original state along with an index of 0. The actual element count of the
+  /// array can be accessed by the optional 'ElementCountVal' parameter. \param
+  /// State The program state. \param Region The memory region where the array
+  /// is stored. \param ElementTy The type an element in the array. \param LCty
+  /// The location context. \param ElementCountVal A pointer to an optional
+  /// SVal. If specified, the size of the array will be returned in it. It can
+  /// be Unknown.
+  std::pair<ProgramStateRef, uint64_t> prepareStateForArrayDestruction(
+      const ProgramStateRef State, const MemRegion *Region,
+      const QualType &ElementTy, const LocationContext *LCtx,
+      SVal *ElementCountVal = nullptr);
 
   /// Checks whether we construct an array of non-POD type, and decides if the
   /// constructor should be inkoved once again.
@@ -924,6 +952,16 @@ private:
                                   const CXXConstructExpr *E,
                                   const LocationContext *LCtx);
 
+  /// Assuming we destruct an array of non-POD types, this method allows us
+  /// to store which element is to be destructed next.
+  static ProgramStateRef setPendingArrayDestruction(ProgramStateRef State,
+                                                    const LocationContext *LCtx,
+                                                    unsigned Idx);
+
+  static ProgramStateRef
+  removePendingArrayDestruction(ProgramStateRef State,
+                                const LocationContext *LCtx);
+
   /// Sets the size of the array in a pending ArrayInitLoopExpr.
   static ProgramStateRef setPendingInitLoop(ProgramStateRef State,
                                             const CXXConstructExpr *E,
@@ -933,6 +971,11 @@ private:
   static ProgramStateRef removePendingInitLoop(ProgramStateRef State,
                                                const CXXConstructExpr *E,
                                                const LocationContext *LCtx);
+
+  static ProgramStateRef
+  removeStateTraitsUsedForArrayEvaluation(ProgramStateRef State,
+                                          const CXXConstructExpr *E,
+                                          const LocationContext *LCtx);
 
   /// Store the location of a C++ object corresponding to a statement
   /// until the statement is actually encountered. For example, if a DeclStmt

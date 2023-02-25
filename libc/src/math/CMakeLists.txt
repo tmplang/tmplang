@@ -47,7 +47,6 @@ add_entrypoint_object(
   HDRS
     fmaf.h
   DEPENDS
-    libc.src.__support.FPUtil.fputil
     libc.src.__support.FPUtil.fma
   COMPILE_OPTIONS
     -O3
@@ -60,11 +59,19 @@ add_entrypoint_object(
   HDRS
     fma.h
   DEPENDS
-    libc.src.__support.FPUtil.fputil
     libc.src.__support.FPUtil.fma
   COMPILE_OPTIONS
     -O3
 )
+
+add_math_entrypoint_object(acosf)
+
+add_math_entrypoint_object(asin)
+add_math_entrypoint_object(asinf)
+
+add_math_entrypoint_object(atanf)
+
+add_math_entrypoint_object(atanhf)
 
 add_math_entrypoint_object(ceil)
 add_math_entrypoint_object(ceilf)
@@ -81,6 +88,8 @@ add_math_entrypoint_object(coshf)
 add_math_entrypoint_object(expf)
 
 add_math_entrypoint_object(exp2f)
+
+add_math_entrypoint_object(exp10f)
 
 add_math_entrypoint_object(expm1f)
 
@@ -122,6 +131,7 @@ add_math_entrypoint_object(ldexp)
 add_math_entrypoint_object(ldexpf)
 add_math_entrypoint_object(ldexpl)
 
+add_math_entrypoint_object(log10)
 add_math_entrypoint_object(log10f)
 
 add_math_entrypoint_object(log1pf)
@@ -161,6 +171,8 @@ add_math_entrypoint_object(nearbyintl)
 add_math_entrypoint_object(nextafter)
 add_math_entrypoint_object(nextafterf)
 add_math_entrypoint_object(nextafterl)
+
+add_math_entrypoint_object(pow)
 
 add_math_entrypoint_object(remainder)
 add_math_entrypoint_object(remainderf)

@@ -10,9 +10,7 @@
 #include "../utils/OptionsUtils.h"
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace modernize {
+namespace clang::tidy::modernize {
 
 namespace {
 // Identical to hasAnyName, except it does not take template specifiers into
@@ -134,22 +132,25 @@ void UseEmplaceCheck::registerMatchers(MatchFinder *Finder) {
   // + match for emplace calls that should be replaced with insertion
   auto CallPushBack = cxxMemberCallExpr(
       hasDeclaration(functionDecl(hasName("push_back"))),
-      on(hasType(cxxRecordDecl(hasAnyName(ContainersWithPushBack)))));
+      on(hasType(hasCanonicalType(
+          hasDeclaration(cxxRecordDecl(hasAnyName(ContainersWithPushBack)))))));
 
-  auto CallPush = cxxMemberCallExpr(
-      hasDeclaration(functionDecl(hasName("push"))),
-      on(hasType(cxxRecordDecl(hasAnyName(ContainersWithPush)))));
+  auto CallPush =
+      cxxMemberCallExpr(hasDeclaration(functionDecl(hasName("push"))),
+                        on(hasType(hasCanonicalType(hasDeclaration(
+                            cxxRecordDecl(hasAnyName(ContainersWithPush)))))));
 
   auto CallPushFront = cxxMemberCallExpr(
       hasDeclaration(functionDecl(hasName("push_front"))),
-      on(hasType(cxxRecordDecl(hasAnyName(ContainersWithPushFront)))));
+      on(hasType(hasCanonicalType(hasDeclaration(
+          cxxRecordDecl(hasAnyName(ContainersWithPushFront)))))));
 
   auto CallEmplacy = cxxMemberCallExpr(
       hasDeclaration(
           functionDecl(hasAnyNameIgnoringTemplates(EmplacyFunctions))),
-      on(hasType(cxxRecordDecl(has(typedefNameDecl(
+      on(hasType(hasCanonicalType(hasDeclaration(has(typedefNameDecl(
           hasName("value_type"), hasType(type(hasUnqualifiedDesugaredType(
-                                     recordType().bind("value_type"))))))))));
+                                     recordType().bind("value_type")))))))))));
 
   // We can't replace push_backs of smart pointer because
   // if emplacement fails (f.e. bad_alloc in vector) we will have leak of
@@ -371,6 +372,4 @@ void UseEmplaceCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
                 utils::options::serializeStringList(EmplacyFunctions));
 }
 
-} // namespace modernize
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::modernize

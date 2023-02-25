@@ -16,6 +16,7 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringMap.h"
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -49,8 +50,16 @@ struct FullDependencies {
   /// determined that the differences are benign for this compilation.
   std::vector<ModuleID> ClangModuleDeps;
 
-  /// The command line of the TU (excluding the compiler executable).
-  std::vector<std::string> CommandLine;
+  /// The sequence of commands required to build the translation unit. Commands
+  /// should be executed in order.
+  ///
+  /// FIXME: If we add support for multi-arch builds in clang-scan-deps, we
+  /// should make the dependencies between commands explicit to enable parallel
+  /// builds of each architecture.
+  std::vector<Command> Commands;
+
+  /// Deprecated driver command-line. This will be removed in a future version.
+  std::vector<std::string> DriverCommandLine;
 };
 
 struct FullDependenciesResult {
@@ -76,7 +85,7 @@ public:
   /// occurred, dependency file contents otherwise.
   llvm::Expected<std::string>
   getDependencyFile(const std::vector<std::string> &CommandLine, StringRef CWD,
-                    llvm::Optional<StringRef> ModuleName = None);
+                    std::optional<StringRef> ModuleName = std::nullopt);
 
   /// Collect the full module dependency graph for the input, ignoring any
   /// modules which have already been seen. If \p ModuleName isn't empty, this
@@ -97,7 +106,13 @@ public:
   getFullDependencies(const std::vector<std::string> &CommandLine,
                       StringRef CWD, const llvm::StringSet<> &AlreadySeen,
                       LookupModuleOutputCallback LookupModuleOutput,
-                      llvm::Optional<StringRef> ModuleName = None);
+                      std::optional<StringRef> ModuleName = std::nullopt);
+
+  llvm::Expected<FullDependenciesResult> getFullDependenciesLegacyDriverCommand(
+      const std::vector<std::string> &CommandLine, StringRef CWD,
+      const llvm::StringSet<> &AlreadySeen,
+      LookupModuleOutputCallback LookupModuleOutput,
+      std::optional<StringRef> ModuleName = std::nullopt);
 
 private:
   DependencyScanningWorker Worker;
@@ -106,8 +121,14 @@ private:
 class FullDependencyConsumer : public DependencyConsumer {
 public:
   FullDependencyConsumer(const llvm::StringSet<> &AlreadySeen,
-                         LookupModuleOutputCallback LookupModuleOutput)
-      : AlreadySeen(AlreadySeen), LookupModuleOutput(LookupModuleOutput) {}
+                         LookupModuleOutputCallback LookupModuleOutput,
+                         bool EagerLoadModules)
+      : AlreadySeen(AlreadySeen), LookupModuleOutput(LookupModuleOutput),
+        EagerLoadModules(EagerLoadModules) {}
+
+  void handleBuildCommand(Command Cmd) override {
+    Commands.push_back(std::move(Cmd));
+  }
 
   void handleDependencyOutputOpts(const DependencyOutputOptions &) override {}
 
@@ -132,18 +153,22 @@ public:
     return LookupModuleOutput(ID, Kind);
   }
 
-  FullDependenciesResult getFullDependencies(
+  FullDependenciesResult getFullDependenciesLegacyDriverCommand(
       const std::vector<std::string> &OriginalCommandLine) const;
+
+  FullDependenciesResult takeFullDependencies();
 
 private:
   std::vector<std::string> Dependencies;
   std::vector<PrebuiltModuleDep> PrebuiltModuleDeps;
   llvm::MapVector<std::string, ModuleDeps, llvm::StringMap<unsigned>>
       ClangModuleDeps;
+  std::vector<Command> Commands;
   std::string ContextHash;
   std::vector<std::string> OutputPaths;
   const llvm::StringSet<> &AlreadySeen;
   LookupModuleOutputCallback LookupModuleOutput;
+  bool EagerLoadModules;
 };
 
 } // end namespace dependencies

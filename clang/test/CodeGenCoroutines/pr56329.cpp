@@ -1,6 +1,8 @@
 // Test for PR56919. Tests the we won't contain the resumption of final suspend point.
 //
 // RUN: %clang_cc1 -triple %itanium_abi_triple -std=c++20 %s -O3 -S -emit-llvm -o - | FileCheck %s
+// This test is expected to fail on PowerPC.
+// XFAIL: target=powerpc{{.*}}
 
 #include "Inputs/coroutine.h"
 
@@ -114,4 +116,4 @@ Task Outer() {
 // CHECK: musttail call
 // CHECK: musttail call
 // CHECK-NEXT: ret void
-// CHEKC-NEXT: }
+// CHECK-NEXT: }

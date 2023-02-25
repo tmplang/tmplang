@@ -205,11 +205,45 @@ template <class... Types>
 #include <__compare/common_comparison_category.h>
 #include <__compare/synth_three_way.h>
 #include <__config>
+#include <__functional/invoke.h>
 #include <__functional/unwrap_ref.h>
+#include <__fwd/array.h>
 #include <__memory/allocator_arg_t.h>
 #include <__memory/uses_allocator.h>
-#include <__tuple>
+#include <__type_traits/apply_cv.h>
+#include <__type_traits/common_reference.h>
+#include <__type_traits/common_type.h>
+#include <__type_traits/conditional.h>
+#include <__type_traits/conjunction.h>
+#include <__type_traits/copy_cvref.h>
+#include <__type_traits/disjunction.h>
+#include <__type_traits/is_arithmetic.h>
+#include <__type_traits/is_assignable.h>
+#include <__type_traits/is_constructible.h>
+#include <__type_traits/is_convertible.h>
+#include <__type_traits/is_copy_assignable.h>
+#include <__type_traits/is_copy_constructible.h>
+#include <__type_traits/is_default_constructible.h>
+#include <__type_traits/is_empty.h>
+#include <__type_traits/is_final.h>
+#include <__type_traits/is_implicitly_default_constructible.h>
+#include <__type_traits/is_move_assignable.h>
+#include <__type_traits/is_move_constructible.h>
+#include <__type_traits/is_nothrow_assignable.h>
+#include <__type_traits/is_nothrow_constructible.h>
+#include <__type_traits/is_nothrow_copy_assignable.h>
+#include <__type_traits/is_nothrow_copy_constructible.h>
+#include <__type_traits/is_nothrow_default_constructible.h>
+#include <__type_traits/is_nothrow_move_assignable.h>
+#include <__type_traits/is_reference.h>
+#include <__type_traits/is_same.h>
+#include <__type_traits/is_swappable.h>
+#include <__type_traits/lazy.h>
 #include <__type_traits/maybe_const.h>
+#include <__type_traits/nat.h>
+#include <__type_traits/negation.h>
+#include <__type_traits/remove_cvref.h>
+#include <__type_traits/remove_reference.h>
 #include <__utility/forward.h>
 #include <__utility/integer_sequence.h>
 #include <__utility/move.h>
@@ -217,18 +251,11 @@ template <class... Types>
 #include <__utility/piecewise_construct.h>
 #include <__utility/swap.h>
 #include <cstddef>
-#include <type_traits>
 #include <version>
 
-#ifndef _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
-#  include <exception>
-#  include <iosfwd>
-#  include <new>
-#  include <typeinfo>
-#  include <utility>
-#endif
-
 // standard-mandated includes
+
+// [tuple.syn]
 #include <compare>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
@@ -308,7 +335,7 @@ public:
     template <class _Tp,
               class = __enable_if_t<
                   _And<
-                      _IsNotSame<__uncvref_t<_Tp>, __tuple_leaf>,
+                      _IsNotSame<__remove_cvref_t<_Tp>, __tuple_leaf>,
                       is_constructible<_Hp, _Tp>
                     >::value
                 >
@@ -387,7 +414,7 @@ public:
     template <class _Tp,
               class = __enable_if_t<
                   _And<
-                    _IsNotSame<__uncvref_t<_Tp>, __tuple_leaf>,
+                    _IsNotSame<__remove_cvref_t<_Tp>, __tuple_leaf>,
                     is_constructible<_Hp, _Tp>
                   >::value
                 >
@@ -674,7 +701,7 @@ public:
 
     // tuple(U&& ...) constructors (including allocator_arg_t variants)
     template <class ..._Up> struct _IsThisTuple : false_type { };
-    template <class _Up> struct _IsThisTuple<_Up> : is_same<__uncvref_t<_Up>, tuple> { };
+    template <class _Up> struct _IsThisTuple<_Up> : is_same<__remove_cvref_t<_Up>, tuple> { };
 
     template <class ..._Up>
     struct _EnableUTypesCtor : _And<
@@ -769,7 +796,7 @@ public:
 
     // tuple(const tuple<U...>&) constructors (including allocator_arg_t variants)
 
-    template <class _OtherTuple, class _DecayedOtherTuple = __uncvref_t<_OtherTuple>, class = void>
+    template <class _OtherTuple, class _DecayedOtherTuple = __remove_cvref_t<_OtherTuple>, class = void>
     struct _EnableCtorFromUTypesTuple : false_type {};
 
     template <class _OtherTuple, class... _Up>
@@ -921,7 +948,7 @@ public:
 
     // tuple(const pair<U1, U2>&) constructors (including allocator_arg_t variants)
 
-    template <template <class...> class Pred, class _Pair, class _DecayedPair = __uncvref_t<_Pair>, class _Tuple = tuple>
+    template <template <class...> class Pred, class _Pair, class _DecayedPair = __remove_cvref_t<_Pair>, class _Tuple = tuple>
     struct _CtorPredicateFromPair : false_type{};
 
     template <template <class...> class Pred, class _Pair, class _Up1, class _Up2, class _Tp1, class _Tp2>
@@ -936,7 +963,7 @@ public:
     template <class _Pair>
     struct _NothrowConstructibleFromPair : _CtorPredicateFromPair<is_nothrow_constructible, _Pair>{};
 
-    template <class _Pair, class _DecayedPair = __uncvref_t<_Pair>, class _Tuple = tuple>
+    template <class _Pair, class _DecayedPair = __remove_cvref_t<_Pair>, class _Tuple = tuple>
     struct _BothImplicitlyConvertible : false_type{};
 
     template <class _Pair, class _Up1, class _Up2, class _Tp1, class _Tp2>
@@ -1169,7 +1196,7 @@ public:
 #endif // _LIBCPP_STD_VER > 20
 
     template <template<class...> class Pred, bool _Const,
-              class _Pair, class _DecayedPair = __uncvref_t<_Pair>, class _Tuple = tuple>
+              class _Pair, class _DecayedPair = __remove_cvref_t<_Pair>, class _Tuple = tuple>
     struct _AssignPredicateFromPair : false_type {};
 
     template <template<class...> class Pred, bool _Const,
@@ -1403,7 +1430,7 @@ template <size_t _Nx>
 inline _LIBCPP_INLINE_VISIBILITY
 constexpr size_t __find_idx(size_t __i, const bool (&__matches)[_Nx]) {
   return __i == _Nx ? __not_found :
-      __find_idx_return(__i, __find_idx(__i + 1, __matches), __matches[__i]);
+      __find_detail::__find_idx_return(__i, __find_detail::__find_idx(__i + 1, __matches), __matches[__i]);
 }
 
 template <class _T1, class ..._Args>
@@ -1639,7 +1666,7 @@ struct __tuple_cat_return_1<tuple<_Types...>, true, _Tuple0>
 {
   using type _LIBCPP_NODEBUG = typename __tuple_cat_type<
       tuple<_Types...>,
-      typename __make_tuple_types<__uncvref_t<_Tuple0> >::type
+      typename __make_tuple_types<__remove_cvref_t<_Tuple0> >::type
     >::type;
 };
 
@@ -1648,9 +1675,9 @@ struct __tuple_cat_return_1<tuple<_Types...>, true, _Tuple0, _Tuple1, _Tuples...
     : public __tuple_cat_return_1<
                  typename __tuple_cat_type<
                      tuple<_Types...>,
-                     typename __make_tuple_types<__uncvref_t<_Tuple0> >::type
+                     typename __make_tuple_types<__remove_cvref_t<_Tuple0> >::type
                  >::type,
-                 __tuple_like<typename remove_reference<_Tuple1>::type>::value,
+                 __tuple_like_ext<__libcpp_remove_reference_t<_Tuple1> >::value,
                  _Tuple1, _Tuples...>
 {
 };
@@ -1660,7 +1687,7 @@ template <class ..._Tuples> struct __tuple_cat_return;
 template <class _Tuple0, class ..._Tuples>
 struct __tuple_cat_return<_Tuple0, _Tuples...>
     : public __tuple_cat_return_1<tuple<>,
-         __tuple_like<typename remove_reference<_Tuple0>::type>::value, _Tuple0,
+         __tuple_like_ext<__libcpp_remove_reference_t<_Tuple0> >::value, _Tuple0,
                                                                      _Tuples...>
 {
 };
@@ -1684,7 +1711,7 @@ struct __tuple_cat_return_ref_imp;
 template <class ..._Types, size_t ..._I0, class _Tuple0>
 struct __tuple_cat_return_ref_imp<tuple<_Types...>, __tuple_indices<_I0...>, _Tuple0>
 {
-    typedef _LIBCPP_NODEBUG typename remove_reference<_Tuple0>::type _T0;
+    typedef _LIBCPP_NODEBUG __libcpp_remove_reference_t<_Tuple0> _T0;
     typedef tuple<_Types..., typename __apply_cv<_Tuple0,
                           typename tuple_element<_I0, _T0>::type>::type&&...> type;
 };
@@ -1695,9 +1722,8 @@ struct __tuple_cat_return_ref_imp<tuple<_Types...>, __tuple_indices<_I0...>,
     : public __tuple_cat_return_ref_imp<
          tuple<_Types..., typename __apply_cv<_Tuple0,
                typename tuple_element<_I0,
-                  typename remove_reference<_Tuple0>::type>::type>::type&&...>,
-         typename __make_tuple_indices<tuple_size<typename
-                                 remove_reference<_Tuple1>::type>::value>::type,
+                  __libcpp_remove_reference_t<_Tuple0> >::type>::type&&...>,
+         typename __make_tuple_indices<tuple_size<__libcpp_remove_reference_t<_Tuple1> >::value>::type,
          _Tuple1, _Tuples...>
 {
 };
@@ -1706,7 +1732,7 @@ template <class _Tuple0, class ..._Tuples>
 struct __tuple_cat_return_ref
     : public __tuple_cat_return_ref_imp<tuple<>,
                typename __make_tuple_indices<
-                        tuple_size<typename remove_reference<_Tuple0>::type>::value
+                        tuple_size<__libcpp_remove_reference_t<_Tuple0> >::value
                >::type, _Tuple0, _Tuples...>
 {
 };
@@ -1734,8 +1760,8 @@ struct __tuple_cat<tuple<_Types...>, __tuple_indices<_I0...>, __tuple_indices<_J
     operator()(tuple<_Types...> __t, _Tuple0&& __t0, _Tuple1&& __t1, _Tuples&& ...__tpls)
     {
         (void)__t; // avoid unused parameter warning on GCC when _I0 is empty
-        typedef _LIBCPP_NODEBUG typename remove_reference<_Tuple0>::type _T0;
-        typedef _LIBCPP_NODEBUG typename remove_reference<_Tuple1>::type _T1;
+        typedef _LIBCPP_NODEBUG __libcpp_remove_reference_t<_Tuple0> _T0;
+        typedef _LIBCPP_NODEBUG __libcpp_remove_reference_t<_Tuple1> _T1;
         return __tuple_cat<
             tuple<_Types...,
                   typename __apply_cv<_Tuple0, typename tuple_element<
@@ -1755,7 +1781,7 @@ inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_SINCE_CXX14
 typename __tuple_cat_return<_Tuple0, _Tuples...>::type
 tuple_cat(_Tuple0&& __t0, _Tuples&&... __tpls)
 {
-    typedef _LIBCPP_NODEBUG typename remove_reference<_Tuple0>::type _T0;
+    typedef _LIBCPP_NODEBUG __libcpp_remove_reference_t<_Tuple0> _T0;
     return __tuple_cat<tuple<>, __tuple_indices<>,
                   typename __make_tuple_indices<tuple_size<_T0>::value>::type>()
                   (tuple<>(), _VSTD::forward<_Tuple0>(__t0),
@@ -1824,5 +1850,14 @@ _LIBCPP_NOEXCEPT_RETURN(
 #endif // !defined(_LIBCPP_CXX03_LANG)
 
 _LIBCPP_END_NAMESPACE_STD
+
+#if !defined(_LIBCPP_REMOVE_TRANSITIVE_INCLUDES) && _LIBCPP_STD_VER <= 20
+#  include <exception>
+#  include <iosfwd>
+#  include <new>
+#  include <type_traits>
+#  include <typeinfo>
+#  include <utility>
+#endif
 
 #endif // _LIBCPP_TUPLE

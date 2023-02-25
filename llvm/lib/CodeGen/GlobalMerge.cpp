@@ -225,8 +225,8 @@ bool GlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
   llvm::stable_sort(
       Globals, [&DL](const GlobalVariable *GV1, const GlobalVariable *GV2) {
         // We don't support scalable global variables.
-        return DL.getTypeAllocSize(GV1->getValueType()).getFixedSize() <
-               DL.getTypeAllocSize(GV2->getValueType()).getFixedSize();
+        return DL.getTypeAllocSize(GV1->getValueType()).getFixedValue() <
+               DL.getTypeAllocSize(GV2->getValueType()).getFixedValue();
       });
 
   // If we want to just blindly group all globals together, do so.
@@ -620,9 +620,8 @@ bool GlobalMerge::doInitialization(Module &M) {
   LLVM_DEBUG({
       dbgs() << "Number of GV that must be kept:  " <<
                 MustKeepGlobalVariables.size() << "\n";
-      for (auto KeptGV = MustKeepGlobalVariables.begin();
-           KeptGV != MustKeepGlobalVariables.end(); KeptGV++)
-        dbgs() << "Kept: " << **KeptGV << "\n";
+      for (const GlobalVariable *KeptGV : MustKeepGlobalVariables)
+        dbgs() << "Kept: " << *KeptGV << "\n";
   });
   // Grab all non-const globals.
   for (auto &GV : M.globals()) {

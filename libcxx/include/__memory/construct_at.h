@@ -15,9 +15,12 @@
 #include <__iterator/access.h>
 #include <__memory/addressof.h>
 #include <__memory/voidify.h>
+#include <__type_traits/enable_if.h>
+#include <__type_traits/is_array.h>
+#include <__utility/declval.h>
 #include <__utility/forward.h>
 #include <__utility/move.h>
-#include <type_traits>
+#include <new>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -29,7 +32,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 #if _LIBCPP_STD_VER > 17
 
-template <class _Tp, class... _Args, class = decltype(::new(declval<void*>()) _Tp(declval<_Args>()...))>
+template <class _Tp, class... _Args, class = decltype(::new(std::declval<void*>()) _Tp(std::declval<_Args>()...))>
 _LIBCPP_HIDE_FROM_ABI constexpr _Tp* construct_at(_Tp* __location, _Args&&... __args) {
   _LIBCPP_ASSERT(__location != nullptr, "null pointer given to construct_at");
   return ::new (_VSTD::__voidify(*__location)) _Tp(_VSTD::forward<_Args>(__args)...);
@@ -37,7 +40,7 @@ _LIBCPP_HIDE_FROM_ABI constexpr _Tp* construct_at(_Tp* __location, _Args&&... __
 
 #endif
 
-template <class _Tp, class... _Args, class = decltype(::new(declval<void*>()) _Tp(declval<_Args>()...))>
+template <class _Tp, class... _Args, class = decltype(::new(std::declval<void*>()) _Tp(std::declval<_Args>()...))>
 _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR _Tp* __construct_at(_Tp* __location, _Args&&... __args) {
 #if _LIBCPP_STD_VER > 17
   return std::construct_at(__location, std::forward<_Args>(__args)...);

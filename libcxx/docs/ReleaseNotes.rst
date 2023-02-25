@@ -1,5 +1,5 @@
 =========================================
-Libc++ 15.0.0 Release Notes
+Libc++ 17.0.0 (In-Progress) Release Notes
 =========================================
 
 .. contents::
@@ -8,11 +8,17 @@ Libc++ 15.0.0 Release Notes
 
 Written by the `Libc++ Team <https://libcxx.llvm.org>`_
 
+.. warning::
+
+   These are in-progress notes for the upcoming libc++ 17 release.
+   Release notes for previous releases can be found on
+   `the Download Page <https://releases.llvm.org/download.html>`_.
+
 Introduction
 ============
 
 This document contains the release notes for the libc++ C++ Standard Library,
-part of the LLVM Compiler Infrastructure, release 16.0.0. Here we describe the
+part of the LLVM Compiler Infrastructure, release 17.0.0. Here we describe the
 status of libc++ in some detail, including major improvements from the previous
 release and new feature work. For the general LLVM release notes, see `the LLVM
 documentation <https://llvm.org/docs/ReleaseNotes.html>`_. All LLVM releases may
@@ -26,39 +32,11 @@ main Libc++ web page, this document applies to the *next* release, not
 the current one. To see the release notes for a specific release, please
 see the `releases page <https://llvm.org/releases/>`_.
 
-What's New in Libc++ 16.0.0?
+What's New in Libc++ 17.0.0?
 ============================
 
 Implemented Papers
 ------------------
-
-- P1004R2 - Making ``std::vector`` constexpr
-- P0627R6 - Function to mark unreachable code
-- P1165R1 - Make stateful allocator propagation more consistent for ``operator+(basic_string)``
-- P0674R1 - Support arrays in ``make_shared`` and ``allocate_shared``
-- P0980R1 - Making ``std::string`` constexpr
-- P2216R3 - ``std::format`` improvements
-- P0174R2 - Deprecating Vestigial Library Parts in C++17
-- N4190 - Removing ``auto_ptr``, ``random_shuffle()``, And Old ``<functional>`` Stuff
-- P0154R1 - Hardware inference size
-- P0618R0 - Deprecating ``<codecvt>``
-- P2418R2 - Add support for ``std::generator``-like types to ``std::format``
-- LWG3659 - Consider ``ATOMIC_FLAG_INIT`` undeprecation
-- P1423R3 - ``char8_t`` backward compatibility remediation
-- P2508R1 - Exposing ``std::basic-format-string``
-
-- Marked the following papers as "Complete" (note that some of those might have
-  been implemented in a previous release but not marked as such):
-
-    - P1207R4 - Movability of Single-pass Iterators
-    - P1474R1 - Helpful pointers for ``ContiguousIterator``
-    - P1522R1 - Iterator Difference Type and Integer Overflow
-    - P1523R1 - Views and Size Types
-    - P1456R1 - Move-only views
-    - P1870R1 - ``forwarding-range`` is too subtle
-    - P1878R1 - Constraining Readable Types
-    - P1970R2 - Consistency for ``size()`` functions: Add ``ranges::ssize``
-    - P1983R0 - Wording for GB301, US296, US292, US291, and US283
 
 Improvements and New Features
 -----------------------------
@@ -114,11 +92,12 @@ Deprecations and Removals
 Upcoming Deprecations and Removals
 ----------------------------------
 
+- The ``_LIBCPP_AVAILABILITY_CUSTOM_VERBOSE_ABORT_PROVIDED`` macro will not be honored anymore in LLVM 18.
+  Please see the updated documentation about the safe libc++ mode and in particular the ``_LIBCPP_VERBOSE_ABORT``
+  macro for details.
+
 API Changes
 -----------
-- The comparison operators on ``thread::id`` are now defined as free-standing
-  functions instead of as hidden friends, in conformance with the C++ standard.
-  Also see `issue 56187 <https://github.com/llvm/llvm-project/issues/56187>`_.
 
 ABI Affecting Changes
 ---------------------

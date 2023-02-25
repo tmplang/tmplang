@@ -101,6 +101,24 @@ bool hasBranchWeightMD(const Instruction &I) {
   return isBranchWeightMD(ProfileData);
 }
 
+bool hasValidBranchWeightMD(const Instruction &I) {
+  return getValidBranchWeightMDNode(I);
+}
+
+MDNode *getBranchWeightMDNode(const Instruction &I) {
+  auto *ProfileData = I.getMetadata(LLVMContext::MD_prof);
+  if (!isBranchWeightMD(ProfileData))
+    return nullptr;
+  return ProfileData;
+}
+
+MDNode *getValidBranchWeightMDNode(const Instruction &I) {
+  auto *ProfileData = getBranchWeightMDNode(I);
+  if (ProfileData && ProfileData->getNumOperands() == 1 + I.getNumSuccessors())
+    return ProfileData;
+  return nullptr;
+}
+
 bool extractBranchWeights(const MDNode *ProfileData,
                           SmallVectorImpl<uint32_t> &Weights) {
   if (!isBranchWeightMD(ProfileData))
@@ -118,7 +136,8 @@ bool extractBranchWeights(const Instruction &I, uint64_t &TrueVal,
                           uint64_t &FalseVal) {
   assert((I.getOpcode() == Instruction::Br ||
           I.getOpcode() == Instruction::Select) &&
-         "Looking for branch weights on something besides branch or select");
+         "Looking for branch weights on something besides branch, select, or "
+         "switch");
 
   SmallVector<uint32_t, 2> Weights;
   auto *ProfileData = I.getMetadata(LLVMContext::MD_prof);
@@ -149,14 +168,20 @@ bool extractProfTotalWeight(const MDNode *ProfileData, uint64_t &TotalVal) {
       TotalVal += V->getValue().getZExtValue();
     }
     return true;
-  } else if (ProfDataName->getString().equals("VP") &&
-             ProfileData->getNumOperands() > 3) {
+  }
+
+  if (ProfDataName->getString().equals("VP") &&
+      ProfileData->getNumOperands() > 3) {
     TotalVal = mdconst::dyn_extract<ConstantInt>(ProfileData->getOperand(2))
                    ->getValue()
                    .getZExtValue();
     return true;
   }
   return false;
+}
+
+bool extractProfTotalWeight(const Instruction &I, uint64_t &TotalVal) {
+  return extractProfTotalWeight(I.getMetadata(LLVMContext::MD_prof), TotalVal);
 }
 
 } // namespace llvm

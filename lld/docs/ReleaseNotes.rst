@@ -68,18 +68,8 @@ Breaking changes
 COFF Improvements
 -----------------
 
-* ...
-
 MinGW Improvements
 ------------------
-
-* The ``--disable-reloc-section`` option is now supported.
-  (`D127478 <https://reviews.llvm.org/D127478>`_)
-* The ``--exclude-symbols`` option is now supported.
-  (`D130118 <https://reviews.llvm.org/D130118>`_)
-
-* Support for an entirely new object file directive, ``-exclude-symbols:``,
-  has been implemented. (`D130120 <https://reviews.llvm.org/D130120>`_)
 
 MachO Improvements
 ------------------

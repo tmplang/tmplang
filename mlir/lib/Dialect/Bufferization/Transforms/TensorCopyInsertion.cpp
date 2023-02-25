@@ -6,16 +6,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/Bufferization/Transforms/TensorCopyInsertion.h"
-
-#include "PassDetail.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Bufferization/Transforms/Bufferize.h"
 #include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
 #include "mlir/Dialect/Bufferization/Transforms/OneShotModuleBufferize.h"
-#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
+#include "mlir/Dialect/Bufferization/Transforms/Transforms.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+
+namespace mlir {
+namespace bufferization {
+#define GEN_PASS_DEF_TENSORCOPYINSERTION
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h.inc"
+} // namespace bufferization
+} // namespace mlir
 
 using namespace mlir;
 using namespace mlir::bufferization;
@@ -42,15 +48,14 @@ resolveUsesInRepetitiveRegions(Operation *op,
   AnalysisState state(options);
 
   // Look for repetitive ops (loops).
-  op->walk([&](RegionBranchOpInterface regionBranchOp) {
-    // Skip non-bufferizable ops.
-    auto bufferizableOp = options.dynCastBufferizableOp(regionBranchOp);
-    if (!bufferizableOp)
+  op->walk([&](BufferizableOpInterface bufferizableOp) {
+    // Skip filtered ops.
+    if (!options.isOpAllowed(bufferizableOp.getOperation()))
       return WalkResult::advance();
 
-    // Find all operands that are also used inside of a repetitve region of this
-    // op.
-    for (OpOperand &opOperand : regionBranchOp->getOpOperands()) {
+    // Find all operands that are also used inside of a repetitive region of
+    // this op.
+    for (OpOperand &opOperand : bufferizableOp->getOpOperands()) {
       Value operand = opOperand.get();
       // Skip non-tensor operands.
       if (!operand.getType().isa<TensorType>())
@@ -63,11 +68,11 @@ resolveUsesInRepetitiveRegions(Operation *op,
       SmallVector<OpOperand *> usesInsideRegion;
       for (OpOperand &use : operand.getUses()) {
         Operation *owner = use.getOwner();
-        if (!regionBranchOp->isProperAncestor(owner))
+        if (!bufferizableOp->isProperAncestor(owner))
           continue;
-        for (Region &r : regionBranchOp->getRegions()) {
+        for (Region &r : bufferizableOp->getRegions()) {
           if (r.findAncestorOpInRegion(*owner) &&
-              regionBranchOp.isRepetitiveRegion(r.getRegionNumber())) {
+              bufferizableOp.isRepetitiveRegion(r.getRegionNumber())) {
             usesInsideRegion.push_back(&use);
             break;
           }
@@ -78,9 +83,9 @@ resolveUsesInRepetitiveRegions(Operation *op,
         continue;
 
       // Insert a tensor copy and replace all uses inside of repetitive regions.
-      rewriter.setInsertionPoint(regionBranchOp);
+      rewriter.setInsertionPoint(bufferizableOp);
       auto tensorCopy = rewriter.create<AllocTensorOp>(
-          regionBranchOp->getLoc(), operand.getType().cast<TensorType>(),
+          bufferizableOp->getLoc(), operand.getType().cast<TensorType>(),
           /*dynamicSizes=*/ValueRange(),
           /*copy=*/operand, /*memory_space=*/IntegerAttr());
       for (OpOperand *use : usesInsideRegion)
@@ -92,7 +97,8 @@ resolveUsesInRepetitiveRegions(Operation *op,
 }
 
 LogicalResult mlir::bufferization::insertTensorCopies(
-    Operation *op, const OneShotBufferizationOptions &options) {
+    Operation *op, const OneShotBufferizationOptions &options,
+    BufferizationStatistics *statistics) {
   // Preprocessing: Resolve currently unsupported bufferization cases.
   resolveUsesInRepetitiveRegions(op, options);
 
@@ -101,10 +107,10 @@ LogicalResult mlir::bufferization::insertTensorCopies(
   // analysis depending on whether function boundary bufferization is enabled or
   // not.
   if (options.bufferizeFunctionBoundaries) {
-    if (failed(analyzeModuleOp(cast<ModuleOp>(op), state)))
+    if (failed(analyzeModuleOp(cast<ModuleOp>(op), state, statistics)))
       return failure();
   } else {
-    if (failed(analyzeOp(op, state)))
+    if (failed(analyzeOp(op, state, statistics)))
       return failure();
   }
 
@@ -155,45 +161,4 @@ mlir::bufferization::insertTensorCopies(Operation *op,
   });
 
   return failure(result.wasInterrupted());
-}
-
-namespace {
-struct TensorCopyInsertionPass
-    : TensorCopyInsertionBase<TensorCopyInsertionPass> {
-  TensorCopyInsertionPass() : options(llvm::None) {}
-  TensorCopyInsertionPass(const OneShotBufferizationOptions &options)
-      : options(options) {}
-
-  void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<bufferization::BufferizationDialect>();
-  }
-
-  void runOnOperation() override {
-    if (options) {
-      if (failed(insertTensorCopies(getOperation(), *options)))
-        signalPassFailure();
-    } else {
-      OneShotBufferizationOptions options;
-      options.allowReturnAllocs = allowReturnAllocs;
-      options.bufferizeFunctionBoundaries = bufferizeFunctionBoundaries;
-      options.createDeallocs = createDeallocs;
-      if (mustInferMemorySpace)
-        options.defaultMemorySpace = None;
-      if (failed(insertTensorCopies(getOperation(), options)))
-        signalPassFailure();
-    }
-  }
-
-private:
-  Optional<OneShotBufferizationOptions> options;
-};
-} // namespace
-
-std::unique_ptr<Pass> mlir::bufferization::createTensorCopyInsertionPass() {
-  return std::make_unique<TensorCopyInsertionPass>();
-}
-
-std::unique_ptr<Pass> mlir::bufferization::createTensorCopyInsertionPass(
-    const OneShotBufferizationOptions &options) {
-  return std::make_unique<TensorCopyInsertionPass>(options);
 }

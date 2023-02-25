@@ -11,6 +11,8 @@
 #include "llvm/ExecutionEngine/Orc/Shared/OrcRTBridge.h"
 #include "llvm/Support/WindowsError.h"
 
+#include <algorithm>
+
 #if defined(LLVM_ON_UNIX) && !defined(__ANDROID__)
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -62,6 +64,7 @@ void InProcessMemoryMapper::initialize(MemoryMapper::AllocInfo &AI,
   ExecutorAddr MinAddr(~0ULL);
   ExecutorAddr MaxAddr(0);
 
+  // FIXME: Release finalize lifetime segments.
   for (auto &Segment : AI.Segments) {
     auto Base = AI.MappingBase + Segment.Offset;
     auto Size = Segment.ContentSize + Segment.ZeroFillSize;
@@ -75,11 +78,12 @@ void InProcessMemoryMapper::initialize(MemoryMapper::AllocInfo &AI,
     std::memset((Base + Segment.ContentSize).toPtr<void *>(), 0,
                 Segment.ZeroFillSize);
 
-    if (auto EC = sys::Memory::protectMappedMemory({Base.toPtr<void *>(), Size},
-                                                   Segment.Prot)) {
+    if (auto EC = sys::Memory::protectMappedMemory(
+            {Base.toPtr<void *>(), Size},
+            toSysMemoryProtectionFlags(Segment.AG.getMemProt()))) {
       return OnInitialized(errorCodeToError(EC));
     }
-    if (Segment.Prot & sys::Memory::MF_EXEC)
+    if ((Segment.AG.getMemProt() & MemProt::Exec) == MemProt::Exec)
       sys::Memory::InvalidateInstructionCache(Base.toPtr<void *>(), Size);
   }
 
@@ -108,7 +112,7 @@ void InProcessMemoryMapper::deinitialize(
   {
     std::lock_guard<std::mutex> Lock(Mutex);
 
-    for (auto Base : Bases) {
+    for (auto Base : llvm::reverse(Bases)) {
 
       if (Error Err = shared::runDeallocActions(
               Allocations[Base].DeinitializationActions)) {
@@ -290,7 +294,7 @@ void SharedMemoryMapper::reserve(size_t NumBytes,
 
 char *SharedMemoryMapper::prepare(ExecutorAddr Addr, size_t ContentSize) {
   auto R = Reservations.upper_bound(Addr);
-  assert(R != Reservations.begin() && "Attempt to prepare unknown range");
+  assert(R != Reservations.begin() && "Attempt to prepare unreserved range");
   R--;
 
   ExecutorAddrDiff Offset = Addr - R->first;
@@ -300,9 +304,11 @@ char *SharedMemoryMapper::prepare(ExecutorAddr Addr, size_t ContentSize) {
 
 void SharedMemoryMapper::initialize(MemoryMapper::AllocInfo &AI,
                                     OnInitializedFunction OnInitialized) {
-  auto Reservation = Reservations.find(AI.MappingBase);
-  assert(Reservation != Reservations.end() &&
-         "Attempt to initialize unreserved range");
+  auto Reservation = Reservations.upper_bound(AI.MappingBase);
+  assert(Reservation != Reservations.begin() && "Attempt to initialize unreserved range");
+  Reservation--;
+
+  auto AllocationOffset = AI.MappingBase - Reservation->first;
 
   tpctypes::SharedMemoryFinalizeRequest FR;
 
@@ -311,13 +317,12 @@ void SharedMemoryMapper::initialize(MemoryMapper::AllocInfo &AI,
   FR.Segments.reserve(AI.Segments.size());
 
   for (auto Segment : AI.Segments) {
-    char *Base =
-        static_cast<char *>(Reservation->second.LocalAddr) + Segment.Offset;
+    char *Base = static_cast<char *>(Reservation->second.LocalAddr) +
+                 AllocationOffset + Segment.Offset;
     std::memset(Base + Segment.ContentSize, 0, Segment.ZeroFillSize);
 
     tpctypes::SharedMemorySegFinalizeRequest SegReq;
-    SegReq.Prot = tpctypes::toWireProtectionFlags(
-        static_cast<sys::Memory::ProtectionFlags>(Segment.Prot));
+    SegReq.AG = Segment.AG;
     SegReq.Addr = AI.MappingBase + Segment.Offset;
     SegReq.Size = Segment.ContentSize + Segment.ZeroFillSize;
 
@@ -336,7 +341,7 @@ void SharedMemoryMapper::initialize(MemoryMapper::AllocInfo &AI,
 
         OnInitialized(std::move(Result));
       },
-      SAs.Instance, AI.MappingBase, std::move(FR));
+      SAs.Instance, Reservation->first, std::move(FR));
 }
 
 void SharedMemoryMapper::deinitialize(
@@ -407,23 +412,23 @@ void SharedMemoryMapper::release(ArrayRef<ExecutorAddr> Bases,
 }
 
 SharedMemoryMapper::~SharedMemoryMapper() {
-  std::vector<ExecutorAddr> ReservationAddrs;
-  if (!Reservations.empty()) {
-    std::lock_guard<std::mutex> Lock(Mutex);
-    {
-      ReservationAddrs.reserve(Reservations.size());
-      for (const auto &R : Reservations) {
-        ReservationAddrs.push_back(R.first);
-      }
-    }
-  }
+  std::lock_guard<std::mutex> Lock(Mutex);
+  for (const auto &R : Reservations) {
 
-  std::promise<MSVCPError> P;
-  auto F = P.get_future();
-  release(ReservationAddrs, [&](Error Err) { P.set_value(std::move(Err)); });
-  // FIXME: Release can actually fail. The error should be propagated.
-  // Meanwhile, a better option is to explicitly call release().
-  cantFail(F.get());
+#if defined(LLVM_ON_UNIX) && !defined(__ANDROID__)
+
+    munmap(R.second.LocalAddr, R.second.Size);
+
+#elif defined(_WIN32)
+
+    UnmapViewOfFile(R.second.LocalAddr);
+
+#else
+
+    (void)R;
+
+#endif
+  }
 }
 
 } // namespace orc

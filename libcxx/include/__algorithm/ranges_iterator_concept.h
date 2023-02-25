@@ -12,7 +12,7 @@
 #include <__config>
 #include <__iterator/concepts.h>
 #include <__iterator/iterator_traits.h>
-#include <type_traits>
+#include <__type_traits/remove_cvref.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -26,7 +26,7 @@ namespace ranges {
 
 template <class _IterMaybeQualified>
 consteval auto __get_iterator_concept() {
-  using _Iter = __uncvref_t<_IterMaybeQualified>;
+  using _Iter = __remove_cvref_t<_IterMaybeQualified>;
 
   if constexpr (contiguous_iterator<_Iter>)
     return contiguous_iterator_tag();

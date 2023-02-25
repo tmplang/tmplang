@@ -11,17 +11,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Conversion/ControlFlowToSPIRV/ControlFlowToSPIRVPass.h"
-#include "../PassDetail.h"
+
 #include "mlir/Conversion/ControlFlowToSPIRV/ControlFlowToSPIRV.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
 #include "mlir/Dialect/SPIRV/Transforms/SPIRVConversion.h"
+
+namespace mlir {
+#define GEN_PASS_DEF_CONVERTCONTROLFLOWTOSPIRV
+#include "mlir/Conversion/Passes.h.inc"
+} // namespace mlir
 
 using namespace mlir;
 
 namespace {
 /// A pass converting MLIR ControlFlow operations into the SPIR-V dialect.
 class ConvertControlFlowToSPIRVPass
-    : public ConvertControlFlowToSPIRVBase<ConvertControlFlowToSPIRVPass> {
+    : public impl::ConvertControlFlowToSPIRVBase<
+          ConvertControlFlowToSPIRVPass> {
   void runOnOperation() override;
 };
 } // namespace
@@ -34,8 +40,8 @@ void ConvertControlFlowToSPIRVPass::runOnOperation() {
   std::unique_ptr<ConversionTarget> target =
       SPIRVConversionTarget::get(targetAttr);
 
-  SPIRVTypeConverter::Options options;
-  options.emulateNon32BitScalarTypes = this->emulateNon32BitScalarTypes;
+  SPIRVConversionOptions options;
+  options.emulateLT32BitScalarTypes = this->emulateLT32BitScalarTypes;
   SPIRVTypeConverter typeConverter(targetAttr, options);
 
   RewritePatternSet patterns(context);

@@ -40,26 +40,6 @@ Non-comprehensive list of changes in this release
 Update on required toolchains to build LLVM
 -------------------------------------------
 
-LLVM is now built with C++17 by default. This means C++17 can be used in
-the code base.
-
-The previous "soft" toolchain requirements have now been changed to "hard".
-This means that the the following versions are now required to build LLVM
-and there is no way to suppress this error.
-
-* GCC >= 7.1
-* Clang >= 5.0
-* Apple Clang >= 9.3
-* Visual Studio 2019 >= 16.7
-
-In LLVM 15.x these requirements will be "soft" requirements and the version
-check can be skipped by passing ``-DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON``
-to CMake.
-
-With the release of LLVM 16.x these requirements will be hard and LLVM developers
-can start using C++17 features, making it impossible to build with older
-versions of these toolchains.
-
 Changes to the LLVM IR
 ----------------------
 
@@ -106,11 +86,8 @@ Changes to building LLVM
 Changes to TableGen
 -------------------
 
-Changes to Loop Optimizations
------------------------------
-
-* Loop interchange legality and cost model improvements
-
+Changes to Interprocedural Optimizations
+----------------------------------------
 
 Changes to the AArch64 Backend
 ------------------------------
@@ -149,6 +126,9 @@ Changes to the Hexagon Backend
 ------------------------------
 
 * ...
+
+Changes to the LoongArch Backend
+--------------------------------
 
 Changes to the MIPS Backend
 ---------------------------
@@ -216,17 +196,6 @@ Changes to the WebAssembly Backend
 Changes to the SystemZ Backend
 ------------------------------
 
-* Support z16 processor name.
-* Machine scheduler description for z16.
-* Add support for inline assembly address operands ("p") as well as for SystemZ
-  specific address operands ("ZQ", "ZR", "ZS" and "ZT").
-* Efficient handling of small memcpy/memset operations up to 32 bytes.
-* Tuning of the inliner.
-* Fixing emission of library calls so that narrow integer arguments are sign or
-  zero extended per the SystemZ ABI.
-* Support added for libunwind.
-* Various minor improvements and bugfixes.
-
 Changes to the X86 Backend
 --------------------------
 
@@ -256,64 +225,6 @@ Changes to the OCaml bindings
 Changes to the C API
 --------------------
 
-* Add ``LLVMGetCastOpcode`` function to aid users of ``LLVMBuildCast`` in
-  resolving the best cast operation given a source value and destination type.
-  This function is a direct wrapper of ``CastInst::getCastOpcode``.
-
-* Add ``LLVMGetAggregateElement`` function as a wrapper for
-  ``Constant::getAggregateElement``, which can be used to fetch an element of a
-  constant struct, array or vector, independently of the underlying
-  representation. The ``LLVMGetElementAsConstant`` function is deprecated in
-  favor of the new function, which works on all constant aggregates, rather than
-  only instances of ``ConstantDataSequential``.
-
-* The following functions for creating constant expressions have been removed,
-  because the underlying constant expressions are no longer supported. Instead,
-  an instruction should be created using the ``LLVMBuildXYZ`` APIs, which will
-  constant fold the operands if possible and create an instruction otherwise:
-
-  * ``LLVMConstExtractValue``
-  * ``LLVMConstInsertValue``
-  * ``LLVMConstUDiv``
-  * ``LLVMConstExactUDiv``
-  * ``LLVMConstSDiv``
-  * ``LLVMConstExactSDiv``
-  * ``LLVMConstURem``
-  * ``LLVMConstSRem``
-  * ``LLVMConstFAdd``
-  * ``LLVMConstFSub``
-  * ``LLVMConstFMul``
-  * ``LLVMConstFDiv``
-  * ``LLVMConstFRem``
-
-* Add ``LLVMDeleteInstruction`` function which allows deleting instructions that
-  are not inserted into a basic block.
-
-* As part of the opaque pointer migration, the following APIs are deprecated and
-  will be removed in the next release:
-
-  * ``LLVMBuildLoad`` -> ``LLVMBuildLoad2``
-  * ``LLVMBuildCall`` -> ``LLVMBuildCall2``
-  * ``LLVMBuildInvoke`` -> ``LLVMBuildInvoke2``
-  * ``LLVMBuildGEP`` -> ``LLVMBuildGEP2``
-  * ``LLVMBuildInBoundsGEP`` -> ``LLVMBuildInBoundsGEP2``
-  * ``LLVMBuildStructGEP`` -> ``LLVMBuildStructGEP2``
-  * ``LLVMBuildPtrDiff`` -> ``LLVMBuildPtrDiff2``
-  * ``LLVMConstGEP`` -> ``LLVMConstGEP2``
-  * ``LLVMConstInBoundsGEP`` -> ``LLVMConstInBoundsGEP2``
-  * ``LLVMAddAlias`` -> ``LLVMAddAlias2``
-
-* Refactor compression namespaces across the project, making way for a possible
-  introduction of alternatives to zlib compression in the llvm toolchain.
-  Changes are as follows:
-
-  * Relocate the ``llvm::zlib`` namespace to ``llvm::compression::zlib``.
-  * Remove crc32 from zlib compression namespace, people should use the ``llvm::crc32`` instead.
-
-Changes to the Go bindings
---------------------------
-
-
 Changes to the FastISel infrastructure
 --------------------------------------
 
@@ -326,13 +237,8 @@ Changes to the DAG infrastructure
 Changes to the Metadata Info
 ---------------------------------
 
-* Add Module Flags Metadata ``stack-protector-guard-symbol`` which specify a
-  symbol for addressing the stack-protector guard.
-
 Changes to the Debug Info
 ---------------------------------
-
-During this release ...
 
 Changes to the LLVM tools
 ---------------------------------
@@ -398,7 +304,6 @@ Changes to LLDB
 
 Changes to Sanitizers
 ---------------------
-
 
 Other Changes
 -------------

@@ -82,14 +82,6 @@ LogicalResult LLVM::detail::handleMultidimensionalVectors(
     std::function<Value(Type, ValueRange)> createOperand,
     ConversionPatternRewriter &rewriter) {
   auto resultNDVectorType = op->getResult(0).getType().cast<VectorType>();
-
-  SmallVector<Type> operand1DVectorTypes;
-  for (Value operand : op->getOperands()) {
-    auto operandNDVectorType = operand.getType().cast<VectorType>();
-    auto operandTypeInfo =
-        extractNDVectorTypeInfo(operandNDVectorType, typeConverter);
-    operand1DVectorTypes.push_back(operandTypeInfo.llvm1DVectorTy);
-  }
   auto resultTypeInfo =
       extractNDVectorTypeInfo(resultNDVectorType, typeConverter);
   auto result1DVectorTy = resultTypeInfo.llvm1DVectorTy;
@@ -113,7 +105,8 @@ LogicalResult LLVM::detail::handleMultidimensionalVectors(
 
 LogicalResult LLVM::detail::vectorOneToOneRewrite(
     Operation *op, StringRef targetOp, ValueRange operands,
-    LLVMTypeConverter &typeConverter, ConversionPatternRewriter &rewriter) {
+    ArrayRef<NamedAttribute> targetAttrs, LLVMTypeConverter &typeConverter,
+    ConversionPatternRewriter &rewriter) {
   assert(!operands.empty());
 
   // Cannot convert ops if their operands are not of LLVM type.
@@ -122,13 +115,14 @@ LogicalResult LLVM::detail::vectorOneToOneRewrite(
 
   auto llvmNDVectorTy = operands[0].getType();
   if (!llvmNDVectorTy.isa<LLVM::LLVMArrayType>())
-    return oneToOneRewrite(op, targetOp, operands, typeConverter, rewriter);
+    return oneToOneRewrite(op, targetOp, operands, targetAttrs, typeConverter,
+                           rewriter);
 
-  auto callback = [op, targetOp, &rewriter](Type llvm1DVectorTy,
-                                            ValueRange operands) {
+  auto callback = [op, targetOp, targetAttrs, &rewriter](Type llvm1DVectorTy,
+                                                         ValueRange operands) {
     return rewriter
         .create(op->getLoc(), rewriter.getStringAttr(targetOp), operands,
-                llvm1DVectorTy, op->getAttrs())
+                llvm1DVectorTy, targetAttrs)
         ->getResult(0);
   };
 

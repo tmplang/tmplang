@@ -68,6 +68,7 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -375,6 +376,11 @@ static bool collectSRATypes(DenseMap<uint64_t, Type *> &Types, GlobalValue *GV,
       auto It = Types.try_emplace(Offset.getZExtValue(), Ty).first;
       if (Ty != It->second)
         return false;
+
+      // Scalable types not currently supported.
+      if (isa<ScalableVectorType>(Ty))
+        return false;
+
       continue;
     }
 
@@ -877,7 +883,7 @@ OptimizeGlobalAddressOfAllocation(GlobalVariable *GV, CallInst *CI,
   if (!isa<UndefValue>(InitVal)) {
     IRBuilder<> Builder(CI->getNextNode());
     // TODO: Use alignment above if align!=1
-    Builder.CreateMemSet(NewGV, InitVal, AllocSize, None);
+    Builder.CreateMemSet(NewGV, InitVal, AllocSize, std::nullopt);
   }
 
   // Update users of the allocation to use the new global instead.
@@ -1376,8 +1382,8 @@ static bool isPointerValueDeadOnEntryToFunction(
           // and the number of bits loaded in L is less than or equal to
           // the number of bits stored in S.
           return DT.dominates(S, L) &&
-                 DL.getTypeStoreSize(LTy).getFixedSize() <=
-                     DL.getTypeStoreSize(STy).getFixedSize();
+                 DL.getTypeStoreSize(LTy).getFixedValue() <=
+                     DL.getTypeStoreSize(STy).getFixedValue();
         }))
       return false;
   }
@@ -1816,11 +1822,14 @@ hasOnlyColdCalls(Function &F,
         Function *CalledFn = CI->getCalledFunction();
         if (!CalledFn)
           return false;
-        if (!CalledFn->hasLocalLinkage())
-          return false;
         // Skip over intrinsics since they won't remain as function calls.
+        // Important to do this check before the linkage check below so we
+        // won't bail out on debug intrinsics, possibly making the generated
+        // code dependent on the presence of debug info.
         if (CalledFn->getIntrinsicID() != Intrinsic::not_intrinsic)
           continue;
+        if (!CalledFn->hasLocalLinkage())
+          return false;
         // Check if it's valid to use coldcc calling convention.
         if (!hasChangeableCC(CalledFn) || CalledFn->isVarArg() ||
             CalledFn->hasAddressTaken())
@@ -2460,7 +2469,7 @@ optimizeGlobalsInModule(Module &M, const DataLayout &DL,
   SmallPtrSet<const Comdat *, 8> NotDiscardableComdats;
   bool Changed = false;
   bool LocalChange = true;
-  Optional<uint32_t> FirstNotFullyEvaluatedPriority;
+  std::optional<uint32_t> FirstNotFullyEvaluatedPriority;
 
   while (LocalChange) {
     LocalChange = false;

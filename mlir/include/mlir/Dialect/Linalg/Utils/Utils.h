@@ -13,7 +13,8 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "llvm/ADT/MapVector.h"
-#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/StringSet.h"
+#include <optional>
 
 namespace mlir {
 class AffineExpr;
@@ -41,9 +42,11 @@ bool hasOnlyScalarElementwiseOp(Region &r);
 /// Check if a LinalgOp is an element-wise operation.
 bool isElementwise(LinalgOp op);
 
-/// Check if `permutation` is a permutation of the range
-/// `[0, permutation.size())`.
-bool isPermutation(ArrayRef<int64_t> permutation);
+/// Check if iterator type has "parallel" semantics.
+bool isParallelIterator(utils::IteratorType iteratorType);
+
+/// Check if iterator type  has "reduction" semantics.
+bool isReductionIterator(utils::IteratorType iteratorType);
 
 /// Helper function that creates a memref::DimOp or tensor::DimOp depending on
 /// the type of `source`.
@@ -93,25 +96,6 @@ void getUpperBoundForIndex(Value value, AffineMap &boundMap,
 /// (boundsMap = affine.map<() -> (42)>)
 FailureOr<int64_t> getConstantUpperBoundForIndex(Value value);
 
-/// Create an ExtractSliceOp and, if `source` is defined by an ExtractSliceOp,
-/// fold it by adding the offsets.
-///
-/// Example:
-/// ```
-/// %0 = tensor.extract_slice %arg0[3, 4][3, 32][1, 1] : tensor<64x64xf32> to
-///                                                        tensor<3x32xf32>
-/// %1 = tensor.extract_slice %0[0, 5][3, 4][1, 1] : tensor<3x32xf32> to
-///                                                    tensor<3x4xf32>
-/// ```
-/// folds into:
-/// ```
-/// %1 = tensor.extract_slice %arg0[3, 9][3, 4][1, 1] : tensor<64x64xf32> to
-///                                                       tensor<3x4xf32>
-/// ```
-tensor::ExtractSliceOp makeComposedExtractSliceOp(
-    OpBuilder &b, Location loc, Value source, ArrayRef<OpFoldResult> offsets,
-    ArrayRef<OpFoldResult> sizes, ArrayRef<OpFoldResult> strides);
-
 /// Create a tensor::PadOp that pads `source` to the size of the statically
 /// sized `type` whose static sizes are assumed to be greater than the dynamic
 /// `source` size. The padding introduces trailing `pad` values until the target
@@ -151,8 +135,12 @@ GenericOp makeMemRefCopyOp(OpBuilder &b, Location loc, Value from, Value to);
 /// and offset is 0. Strictly speaking the offset 0 is not required in general,
 /// but non-zero offsets are not handled by SPIR-V backend at this point (and
 /// potentially cannot be handled).
-Optional<SmallVector<ReassociationIndices>>
+std::optional<SmallVector<ReassociationIndices>>
 getReassociationMapForFoldingUnitDims(ArrayRef<OpFoldResult> mixedSizes);
+
+/// Return the identity numeric value associated to the give op. Return
+/// std::nullopt if there is no known neutral element.
+std::optional<Attribute> getNeutralElement(Operation *op);
 
 //===----------------------------------------------------------------------===//
 // Fusion / Tiling utilities
@@ -206,13 +194,6 @@ SmallVector<Value> insertSlicesBack(OpBuilder &builder, Location loc,
                                     LinalgOp op, ValueRange operands,
                                     ValueRange results);
 
-/// Turns an OpFoldResult into a value, creating an index-typed constant if
-/// necessary.
-Value materializeOpFoldResult(ImplicitLocOpBuilder &builder,
-                              OpFoldResult opFoldResult);
-Value materializeOpFoldResult(OpBuilder &b, Location loc,
-                              OpFoldResult opFoldResult);
-
 /// A struct containg offsets-sizes-strides arguments of the tiled shape.
 struct SliceParameters {
   SmallVector<OpFoldResult> offsets;
@@ -242,8 +223,8 @@ computeSliceParameters(OpBuilder &builder, Location loc, Value valueToTile,
 /// number of values in `ivs`.
 ///
 /// Some of the `valuesToTile` won't be affected by tiling. For these values,
-/// llvm::None will be returned.
-SmallVector<Optional<SliceParameters>>
+/// std::nullopt will be returned.
+SmallVector<std::optional<SliceParameters>>
 computeAllSliceParameters(OpBuilder &builder, Location loc, LinalgOp linalgOp,
                           ValueRange valuesToTile, ArrayRef<OpFoldResult> ivs,
                           ArrayRef<OpFoldResult> tileSizes,
@@ -416,7 +397,7 @@ public:
   LogicalResult
   tileRootOp(OpBuilder &b, ArrayRef<int64_t> tileSizes,
              ArrayRef<int64_t> tileInterchange,
-             Optional<LinalgLoopDistributionOptions> tileDistribution);
+             std::optional<LinalgLoopDistributionOptions> tileDistribution);
 
   /// Fuse the producer of `consumerOpOperand` into the tile loop nest. Returns
   /// the fused producer or fails if fusion is not possible.
@@ -465,14 +446,6 @@ private:
   DenseMap<Operation *, SmallVector<int64_t>> tiledRootAndFusedOpsLoops;
 };
 
-/// Tiles `consumerOp` and fuses its dependencies if possible. Uses the
-/// `tileSizes`, `tileInterchange`, and `tileDistribution` parameters to control
-/// the tiling.
-FailureOr<TileLoopNest> tileConsumerAndFuseProducers(
-    OpBuilder &b, LinalgOp consumerOp, ArrayRef<int64_t> tileSizes,
-    ArrayRef<int64_t> tileInterchange,
-    const Optional<LinalgLoopDistributionOptions> &tileDistribution);
-
 //===----------------------------------------------------------------------===//
 // Generic op region utilities
 //===----------------------------------------------------------------------===//
@@ -494,7 +467,7 @@ struct RegionMatcher {
   ///     linalg.yield %0: <scalar-type>
   /// }
   /// ```
-  static Optional<BinaryOpKind> matchAsScalarBinaryOp(GenericOp op);
+  static std::optional<BinaryOpKind> matchAsScalarBinaryOp(GenericOp op);
 };
 
 //===----------------------------------------------------------------------===//
@@ -508,12 +481,30 @@ struct RegionMatcher {
 template <typename LoopTy>
 struct GenerateLoopNest {
   static void doit(OpBuilder &b, Location loc, ArrayRef<Range> loopRanges,
-                   LinalgOp linalgOp, ArrayRef<Attribute> iteratorTypes,
+                   LinalgOp linalgOp,
+                   ArrayRef<utils::IteratorType> iteratorTypes,
                    function_ref<scf::ValueVector(OpBuilder &, Location,
                                                  ValueRange, ValueRange)>
                        bodyBuilderFn,
                    ArrayRef<linalg::ProcInfo> procInfo = {});
 };
+
+/// Returns an attribute list that excludes pre-defined attributes.
+template <typename OpTy>
+SmallVector<NamedAttribute> getPrunedAttributeList(OpTy op) {
+  llvm::StringSet<> elidedAttrs;
+  elidedAttrs.insert(op.getAttributeNames().begin(),
+                     op.getAttributeNames().end());
+  if (isa<linalg::LinalgOp>(op.getOperation()))
+    elidedAttrs.insert(LinalgDialect::kMemoizedIndexingMapsAttrName);
+  SmallVector<NamedAttribute> attrs;
+  for (auto attr : op->getAttrs()) {
+    if (elidedAttrs.count(attr.getName()))
+      continue;
+    attrs.push_back(attr);
+  }
+  return attrs;
+}
 
 } // namespace linalg
 } // namespace mlir

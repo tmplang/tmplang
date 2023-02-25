@@ -83,8 +83,8 @@ struct GSS {
     const ForestNode *Payload = nullptr;
 
     llvm::ArrayRef<const Node *> parents() const {
-      return llvm::makeArrayRef(reinterpret_cast<const Node *const *>(this + 1),
-                                ParentCount);
+      return llvm::ArrayRef(reinterpret_cast<const Node *const *>(this + 1),
+                            ParentCount);
     };
     // Parents are stored as a trailing array of Node*.
   };
@@ -130,8 +130,8 @@ struct ParseParams {
 // A rule `_ := StartSymbol` must exit for the chosen start symbol.
 //
 // If the parsing fails, we model it as an opaque node in the forest.
-const ForestNode &glrParse(const ParseParams &Params, SymbolID StartSymbol,
-                           const Language &Lang);
+ForestNode &glrParse(const ParseParams &Params, SymbolID StartSymbol,
+                     const Language &Lang);
 
 // Shift a token onto all OldHeads, placing the results into NewHeads.
 //

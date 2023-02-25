@@ -75,6 +75,7 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <optional>
 #include <type_traits>
 
 using namespace lldb;
@@ -3112,11 +3113,11 @@ public:
   static constexpr const char *kLoadDependentFilesExecOnly = "Executable only";
 
   std::vector<std::string> GetLoadDependentFilesChoices() {
-    std::vector<std::string> load_depentents_options;
-    load_depentents_options.push_back(kLoadDependentFilesExecOnly);
-    load_depentents_options.push_back(kLoadDependentFilesYes);
-    load_depentents_options.push_back(kLoadDependentFilesNo);
-    return load_depentents_options;
+    std::vector<std::string> load_dependents_options;
+    load_dependents_options.push_back(kLoadDependentFilesExecOnly);
+    load_dependents_options.push_back(kLoadDependentFilesYes);
+    load_dependents_options.push_back(kLoadDependentFilesNo);
+    return load_dependents_options;
   }
 
   LoadDependentFiles GetLoadDependentFiles() {
@@ -5908,7 +5909,7 @@ public:
       if (m_frame_block != frame_block) {
         m_frame_block = frame_block;
 
-        VariableList *locals = frame->GetVariableList(true);
+        VariableList *locals = frame->GetVariableList(true, nullptr);
         if (locals) {
           const DynamicValueType use_dynamic = eDynamicDontRunTarget;
           for (const VariableSP &local_sp : *locals) {
@@ -7024,7 +7025,7 @@ public:
 
           StreamString lineStream;
 
-          llvm::Optional<size_t> column;
+          std::optional<size_t> column;
           if (is_pc_line && m_sc.line_entry.IsValid() && m_sc.line_entry.column)
             column = m_sc.line_entry.column - 1;
           m_file_sp->DisplaySourceLines(curr_line + 1, column, 0, 0,

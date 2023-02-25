@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "PassDetail.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Affine/Utils.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -19,6 +18,13 @@
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Support/Debug.h"
+
+namespace mlir {
+namespace memref {
+#define GEN_PASS_DEF_NORMALIZEMEMREFS
+#include "mlir/Dialect/MemRef/Transforms/Passes.h.inc"
+} // namespace memref
+} // namespace mlir
 
 #define DEBUG_TYPE "normalize-memrefs"
 
@@ -32,7 +38,8 @@ namespace {
 /// such functions as normalizable. Also, if a normalizable function is known
 /// to call a non-normalizable function, we treat that function as
 /// non-normalizable as well. We assume external functions to be normalizable.
-struct NormalizeMemRefs : public NormalizeMemRefsBase<NormalizeMemRefs> {
+struct NormalizeMemRefs
+    : public memref::impl::NormalizeMemRefsBase<NormalizeMemRefs> {
   void runOnOperation() override;
   void normalizeFuncOpMemRefs(func::FuncOp funcOp, ModuleOp moduleOp);
   bool areMemRefsNormalizable(func::FuncOp funcOp);
@@ -113,7 +120,8 @@ void NormalizeMemRefs::setCalleesAndCallersNonNormalizable(
                    << " calls or is called by non-normalizable function\n");
   normalizableFuncs.erase(funcOp);
   // Caller of the function.
-  Optional<SymbolTable::UseRange> symbolUses = funcOp.getSymbolUses(moduleOp);
+  std::optional<SymbolTable::UseRange> symbolUses =
+      funcOp.getSymbolUses(moduleOp);
   for (SymbolTable::SymbolUse symbolUse : *symbolUses) {
     // TODO: Extend this for ops that are FunctionOpInterface. This would
     // require creating an OpInterface for FunctionOpInterface ops.
@@ -157,10 +165,7 @@ bool NormalizeMemRefs::areMemRefsNormalizable(func::FuncOp funcOp) {
   if (funcOp
           .walk([&](memref::AllocOp allocOp) -> WalkResult {
             Value oldMemRef = allocOp.getResult();
-            if (!oldMemRef.getType()
-                     .cast<MemRefType>()
-                     .getLayout()
-                     .isIdentity() &&
+            if (!allocOp.getType().getLayout().isIdentity() &&
                 !isMemRefNormalizable(oldMemRef.getUsers()))
               return WalkResult::interrupt();
             return WalkResult::advance();
@@ -173,11 +178,9 @@ bool NormalizeMemRefs::areMemRefsNormalizable(func::FuncOp funcOp) {
             for (unsigned resIndex :
                  llvm::seq<unsigned>(0, callOp.getNumResults())) {
               Value oldMemRef = callOp.getResult(resIndex);
-              if (oldMemRef.getType().isa<MemRefType>())
-                if (!oldMemRef.getType()
-                         .cast<MemRefType>()
-                         .getLayout()
-                         .isIdentity() &&
+              if (auto oldMemRefType =
+                      oldMemRef.getType().dyn_cast<MemRefType>())
+                if (!oldMemRefType.getLayout().isIdentity() &&
                     !isMemRefNormalizable(oldMemRef.getUsers()))
                   return WalkResult::interrupt();
             }
@@ -188,8 +191,8 @@ bool NormalizeMemRefs::areMemRefsNormalizable(func::FuncOp funcOp) {
 
   for (unsigned argIndex : llvm::seq<unsigned>(0, funcOp.getNumArguments())) {
     BlockArgument oldMemRef = funcOp.getArgument(argIndex);
-    if (oldMemRef.getType().isa<MemRefType>())
-      if (!oldMemRef.getType().cast<MemRefType>().getLayout().isIdentity() &&
+    if (auto oldMemRefType = oldMemRef.getType().dyn_cast<MemRefType>())
+      if (!oldMemRefType.getLayout().isIdentity() &&
           !isMemRefNormalizable(oldMemRef.getUsers()))
         return false;
   }
@@ -254,7 +257,8 @@ void NormalizeMemRefs::updateFunctionSignature(func::FuncOp funcOp,
   llvm::SmallDenseSet<func::FuncOp, 8> funcOpsToUpdate;
   // We iterate over all symbolic uses of the function and update the return
   // type at the caller site.
-  Optional<SymbolTable::UseRange> symbolUses = funcOp.getSymbolUses(moduleOp);
+  std::optional<SymbolTable::UseRange> symbolUses =
+      funcOp.getSymbolUses(moduleOp);
   for (SymbolTable::SymbolUse symbolUse : *symbolUses) {
     Operation *userOp = symbolUse.getUser();
     OpBuilder builder(userOp);
@@ -362,7 +366,7 @@ void NormalizeMemRefs::normalizeFuncOpMemRefs(func::FuncOp funcOp,
     }
     // Fetch a new memref type after normalizing the old memref to have an
     // identity map layout.
-    MemRefType newMemRefType = normalizeMemRefType(memrefType, b,
+    MemRefType newMemRefType = normalizeMemRefType(memrefType,
                                                    /*numSymbolicOperands=*/0);
     if (newMemRefType == memrefType || funcOp.isExternal()) {
       // Either memrefType already had an identity map or the map couldn't be
@@ -470,7 +474,7 @@ void NormalizeMemRefs::normalizeFuncOpMemRefs(func::FuncOp funcOp,
       }
       // Computing a new memref type after normalizing the old memref to have an
       // identity map layout.
-      MemRefType newMemRefType = normalizeMemRefType(memrefType, b,
+      MemRefType newMemRefType = normalizeMemRefType(memrefType,
                                                      /*numSymbolicOperands=*/0);
       resultTypes.push_back(newMemRefType);
     }
@@ -509,7 +513,7 @@ Operation *NormalizeMemRefs::createOpResultsNormalized(func::FuncOp funcOp,
       continue;
     }
     // Fetch a new memref type after normalizing the old memref.
-    MemRefType newMemRefType = normalizeMemRefType(memrefType, b,
+    MemRefType newMemRefType = normalizeMemRefType(memrefType,
                                                    /*numSymbolicOperands=*/0);
     if (newMemRefType == memrefType) {
       // Either memrefType already had an identity map or the map couldn't

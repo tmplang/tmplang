@@ -6,10 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/CommonFolders.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/IR/Builders.h"
+#include <optional>
 
 using namespace mlir;
 using namespace mlir::math;
@@ -25,8 +26,8 @@ using namespace mlir::math;
 // AbsFOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::AbsFOp::fold(ArrayRef<Attribute> operands) {
-  return constFoldUnaryOp<FloatAttr>(operands,
+OpFoldResult math::AbsFOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<FloatAttr>(adaptor.getOperands(),
                                      [](const APFloat &a) { return abs(a); });
 }
 
@@ -34,8 +35,8 @@ OpFoldResult math::AbsFOp::fold(ArrayRef<Attribute> operands) {
 // AbsIOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::AbsIOp::fold(ArrayRef<Attribute> operands) {
-  return constFoldUnaryOp<IntegerAttr>(operands,
+OpFoldResult math::AbsIOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<IntegerAttr>(adaptor.getOperands(),
                                        [](const APInt &a) { return a.abs(); });
 }
 
@@ -43,9 +44,9 @@ OpFoldResult math::AbsIOp::fold(ArrayRef<Attribute> operands) {
 // AtanOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::AtanOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::AtanOp::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         switch (a.getSizeInBits(a.getSemantics())) {
         case 64:
           return APFloat(atan(a.convertToDouble()));
@@ -61,9 +62,10 @@ OpFoldResult math::AtanOp::fold(ArrayRef<Attribute> operands) {
 // Atan2Op folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::Atan2Op::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::Atan2Op::fold(FoldAdaptor adaptor) {
   return constFoldBinaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a, const APFloat &b) -> Optional<APFloat> {
+      adaptor.getOperands(),
+      [](const APFloat &a, const APFloat &b) -> std::optional<APFloat> {
         if (a.isZero() && b.isZero())
           return llvm::APFloat::getNaN(a.getSemantics());
 
@@ -83,20 +85,21 @@ OpFoldResult math::Atan2Op::fold(ArrayRef<Attribute> operands) {
 // CeilOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::CeilOp::fold(ArrayRef<Attribute> operands) {
-  return constFoldUnaryOp<FloatAttr>(operands, [](const APFloat &a) {
-    APFloat result(a);
-    result.roundToIntegral(llvm::RoundingMode::TowardPositive);
-    return result;
-  });
+OpFoldResult math::CeilOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) {
+        APFloat result(a);
+        result.roundToIntegral(llvm::RoundingMode::TowardPositive);
+        return result;
+      });
 }
 
 //===----------------------------------------------------------------------===//
 // CopySignOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::CopySignOp::fold(ArrayRef<Attribute> operands) {
-  return constFoldBinaryOp<FloatAttr>(operands,
+OpFoldResult math::CopySignOp::fold(FoldAdaptor adaptor) {
+  return constFoldBinaryOp<FloatAttr>(adaptor.getOperands(),
                                       [](const APFloat &a, const APFloat &b) {
                                         APFloat result(a);
                                         result.copySign(b);
@@ -105,42 +108,100 @@ OpFoldResult math::CopySignOp::fold(ArrayRef<Attribute> operands) {
 }
 
 //===----------------------------------------------------------------------===//
+// CosOp folder
+//===----------------------------------------------------------------------===//
+
+OpFoldResult math::CosOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOpConditional<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
+        switch (a.getSizeInBits(a.getSemantics())) {
+        case 64:
+          return APFloat(cos(a.convertToDouble()));
+        case 32:
+          return APFloat(cosf(a.convertToFloat()));
+        default:
+          return {};
+        }
+      });
+}
+
+//===----------------------------------------------------------------------===//
+// SinOp folder
+//===----------------------------------------------------------------------===//
+
+OpFoldResult math::SinOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOpConditional<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
+        switch (a.getSizeInBits(a.getSemantics())) {
+        case 64:
+          return APFloat(sin(a.convertToDouble()));
+        case 32:
+          return APFloat(sinf(a.convertToFloat()));
+        default:
+          return {};
+        }
+      });
+}
+
+//===----------------------------------------------------------------------===//
 // CountLeadingZerosOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::CountLeadingZerosOp::fold(ArrayRef<Attribute> operands) {
-  return constFoldUnaryOp<IntegerAttr>(operands, [](const APInt &a) {
-    return APInt(a.getBitWidth(), a.countLeadingZeros());
-  });
+OpFoldResult math::CountLeadingZerosOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<IntegerAttr>(
+      adaptor.getOperands(), [](const APInt &a) {
+        return APInt(a.getBitWidth(), a.countLeadingZeros());
+      });
 }
 
 //===----------------------------------------------------------------------===//
 // CountTrailingZerosOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::CountTrailingZerosOp::fold(ArrayRef<Attribute> operands) {
-  return constFoldUnaryOp<IntegerAttr>(operands, [](const APInt &a) {
-    return APInt(a.getBitWidth(), a.countTrailingZeros());
-  });
+OpFoldResult math::CountTrailingZerosOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<IntegerAttr>(
+      adaptor.getOperands(), [](const APInt &a) {
+        return APInt(a.getBitWidth(), a.countTrailingZeros());
+      });
 }
 
 //===----------------------------------------------------------------------===//
 // CtPopOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::CtPopOp::fold(ArrayRef<Attribute> operands) {
-  return constFoldUnaryOp<IntegerAttr>(operands, [](const APInt &a) {
-    return APInt(a.getBitWidth(), a.countPopulation());
-  });
+OpFoldResult math::CtPopOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<IntegerAttr>(
+      adaptor.getOperands(), [](const APInt &a) {
+        return APInt(a.getBitWidth(), a.countPopulation());
+      });
+}
+
+//===----------------------------------------------------------------------===//
+// ErfOp folder
+//===----------------------------------------------------------------------===//
+
+OpFoldResult math::ErfOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOpConditional<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
+        switch (a.getSizeInBits(a.getSemantics())) {
+        case 64:
+          return APFloat(erf(a.convertToDouble()));
+        case 32:
+          return APFloat(erff(a.convertToFloat()));
+        default:
+          return {};
+        }
+      });
 }
 
 //===----------------------------------------------------------------------===//
 // IPowIOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::IPowIOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::IPowIOp::fold(FoldAdaptor adaptor) {
   return constFoldBinaryOpConditional<IntegerAttr>(
-      operands, [](const APInt &base, const APInt &power) -> Optional<APInt> {
+      adaptor.getOperands(),
+      [](const APInt &base, const APInt &power) -> std::optional<APInt> {
         unsigned width = base.getBitWidth();
         auto zeroValue = APInt::getZero(width);
         APInt oneValue{width, 1ULL, /*isSigned=*/true};
@@ -188,9 +249,9 @@ OpFoldResult math::IPowIOp::fold(ArrayRef<Attribute> operands) {
 // LogOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::LogOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::LogOp::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         if (a.isNegative())
           return {};
 
@@ -208,9 +269,9 @@ OpFoldResult math::LogOp::fold(ArrayRef<Attribute> operands) {
 // Log2Op folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::Log2Op::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::Log2Op::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         if (a.isNegative())
           return {};
 
@@ -228,9 +289,9 @@ OpFoldResult math::Log2Op::fold(ArrayRef<Attribute> operands) {
 // Log10Op folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::Log10Op::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::Log10Op::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         if (a.isNegative())
           return {};
 
@@ -249,9 +310,9 @@ OpFoldResult math::Log10Op::fold(ArrayRef<Attribute> operands) {
 // Log1pOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::Log1pOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::Log1pOp::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         switch (a.getSizeInBits(a.getSemantics())) {
         case 64:
           if ((a + APFloat(1.0)).isNegative())
@@ -271,9 +332,10 @@ OpFoldResult math::Log1pOp::fold(ArrayRef<Attribute> operands) {
 // PowFOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::PowFOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::PowFOp::fold(FoldAdaptor adaptor) {
   return constFoldBinaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a, const APFloat &b) -> Optional<APFloat> {
+      adaptor.getOperands(),
+      [](const APFloat &a, const APFloat &b) -> std::optional<APFloat> {
         if (a.getSizeInBits(a.getSemantics()) == 64 &&
             b.getSizeInBits(b.getSemantics()) == 64)
           return APFloat(pow(a.convertToDouble(), b.convertToDouble()));
@@ -290,9 +352,9 @@ OpFoldResult math::PowFOp::fold(ArrayRef<Attribute> operands) {
 // SqrtOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::SqrtOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::SqrtOp::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         if (a.isNegative())
           return {};
 
@@ -311,9 +373,9 @@ OpFoldResult math::SqrtOp::fold(ArrayRef<Attribute> operands) {
 // ExpOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::ExpOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::ExpOp::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         switch (a.getSizeInBits(a.getSemantics())) {
         case 64:
           return APFloat(exp(a.convertToDouble()));
@@ -329,9 +391,9 @@ OpFoldResult math::ExpOp::fold(ArrayRef<Attribute> operands) {
 // Exp2Op folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::Exp2Op::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::Exp2Op::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         switch (a.getSizeInBits(a.getSemantics())) {
         case 64:
           return APFloat(exp2(a.convertToDouble()));
@@ -347,9 +409,9 @@ OpFoldResult math::Exp2Op::fold(ArrayRef<Attribute> operands) {
 // ExpM1Op folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::ExpM1Op::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::ExpM1Op::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         switch (a.getSizeInBits(a.getSemantics())) {
         case 64:
           return APFloat(expm1(a.convertToDouble()));
@@ -365,9 +427,9 @@ OpFoldResult math::ExpM1Op::fold(ArrayRef<Attribute> operands) {
 // TanOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::TanOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::TanOp::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         switch (a.getSizeInBits(a.getSemantics())) {
         case 64:
           return APFloat(tan(a.convertToDouble()));
@@ -383,14 +445,76 @@ OpFoldResult math::TanOp::fold(ArrayRef<Attribute> operands) {
 // TanhOp folder
 //===----------------------------------------------------------------------===//
 
-OpFoldResult math::TanhOp::fold(ArrayRef<Attribute> operands) {
+OpFoldResult math::TanhOp::fold(FoldAdaptor adaptor) {
   return constFoldUnaryOpConditional<FloatAttr>(
-      operands, [](const APFloat &a) -> Optional<APFloat> {
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
         switch (a.getSizeInBits(a.getSemantics())) {
         case 64:
           return APFloat(tanh(a.convertToDouble()));
         case 32:
           return APFloat(tanhf(a.convertToFloat()));
+        default:
+          return {};
+        }
+      });
+}
+
+//===----------------------------------------------------------------------===//
+// RoundEvenOp folder
+//===----------------------------------------------------------------------===//
+
+OpFoldResult math::RoundEvenOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) {
+        APFloat result(a);
+        result.roundToIntegral(llvm::RoundingMode::NearestTiesToEven);
+        return result;
+      });
+}
+
+//===----------------------------------------------------------------------===//
+// FloorOp folder
+//===----------------------------------------------------------------------===//
+
+OpFoldResult math::FloorOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOp<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) {
+        APFloat result(a);
+        result.roundToIntegral(llvm::RoundingMode::TowardNegative);
+        return result;
+      });
+}
+
+//===----------------------------------------------------------------------===//
+// RoundOp folder
+//===----------------------------------------------------------------------===//
+
+OpFoldResult math::RoundOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOpConditional<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
+        switch (a.getSizeInBits(a.getSemantics())) {
+        case 64:
+          return APFloat(round(a.convertToDouble()));
+        case 32:
+          return APFloat(roundf(a.convertToFloat()));
+        default:
+          return {};
+        }
+      });
+}
+
+//===----------------------------------------------------------------------===//
+// TruncOp folder
+//===----------------------------------------------------------------------===//
+
+OpFoldResult math::TruncOp::fold(FoldAdaptor adaptor) {
+  return constFoldUnaryOpConditional<FloatAttr>(
+      adaptor.getOperands(), [](const APFloat &a) -> std::optional<APFloat> {
+        switch (a.getSizeInBits(a.getSemantics())) {
+        case 64:
+          return APFloat(trunc(a.convertToDouble()));
+        case 32:
+          return APFloat(truncf(a.convertToFloat()));
         default:
           return {};
         }

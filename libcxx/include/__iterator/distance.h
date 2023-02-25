@@ -17,7 +17,8 @@
 #include <__ranges/access.h>
 #include <__ranges/concepts.h>
 #include <__ranges/size.h>
-#include <type_traits>
+#include <__type_traits/decay.h>
+#include <__type_traits/remove_cvref.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -75,7 +76,7 @@ struct __fn {
   template<class _Ip, sized_sentinel_for<decay_t<_Ip>> _Sp>
   _LIBCPP_HIDE_FROM_ABI
   constexpr iter_difference_t<_Ip> operator()(_Ip&& __first, _Sp __last) const {
-    if constexpr (sized_sentinel_for<_Sp, __uncvref_t<_Ip>>) {
+    if constexpr (sized_sentinel_for<_Sp, __remove_cvref_t<_Ip>>) {
       return __last - __first;
     } else {
       return __last - decay_t<_Ip>(__first);
