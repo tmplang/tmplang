@@ -71,7 +71,7 @@ def SubprogramOp : Tmplang_Op<"subprogram",
   let hasCustomAssemblyFormat = 1;
 }
 
-def ConstantOp : Tmplang_Op<"constant", [NoSideEffect]> {
+def ConstantOp : Tmplang_Op<"constant", [NoMemoryEffect]> {
   let summary = "constant operation";
 
   let description = [{
@@ -94,7 +94,7 @@ def ConstantOp : Tmplang_Op<"constant", [NoSideEffect]> {
   bit hasCustomAssemblyFormat = 1;
 }
 
-def TupleOp : Tmplang_Op<"tuple", [NoSideEffect]> {
+def TupleOp : Tmplang_Op<"tuple", [NoMemoryEffect]> {
   let summary = "tuple operation";
 
   let description = [{
@@ -117,7 +117,7 @@ def TupleOp : Tmplang_Op<"tuple", [NoSideEffect]> {
 //===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
-def ReturnOp : Tmplang_Op<"return", [NoSideEffect, HasParent<"SubprogramOp">,
+def ReturnOp : Tmplang_Op<"return", [NoMemoryEffect, HasParent<"SubprogramOp">,
                                      Terminator]> {
   let summary = "return operation";
 
@@ -158,7 +158,7 @@ def ReturnOp : Tmplang_Op<"return", [NoSideEffect, HasParent<"SubprogramOp">,
 //===----------------------------------------------------------------------===//
 // AggregateDataAccess
 //===----------------------------------------------------------------------===//
-def AggregateDataAccessOp : Tmplang_Op<"aggregateDataAccess", [NoSideEffect]> {
+def AggregateDataAccessOp : Tmplang_Op<"aggregateDataAccess", [NoMemoryEffect]> {
   let summary = "aggregate data access operation";
 
   let description = [{
