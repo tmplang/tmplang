@@ -42,7 +42,7 @@ public:
   }
 
   const Expr &getVal() const { return *Val; }
-  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  const std::optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
   void setComma(SpecificToken<TK_Comma> comma) { Comma = comma; }
 
   static bool classof(const Node *node) {
@@ -51,7 +51,7 @@ public:
 
 private:
   std::unique_ptr<Expr> Val;
-  Optional<SpecificToken<TK_Comma>> Comma;
+  std::optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class ExprTuple final : public Expr {

@@ -6,7 +6,6 @@
 
 // We include these two headers because they cannot be practically forward
 // declared, and are effectively language features.
-#include <llvm/ADT/None.h>
 #include <llvm/Support/Casting.h>
 
 #if defined(__clang_major__)
@@ -26,7 +25,6 @@ template <typename T, typename R> class StringSwitch;
 
 template <typename T> class ArrayRef;
 template <typename T> class MutableArrayRef;
-template <typename T> class Optional;
 template <typename T, unsigned N> class SmallVector;
 template <typename T> class SmallVectorImpl;
 
@@ -45,8 +43,7 @@ class raw_string_ostream;
   using llvm::Twine;                                                           \
   using llvm::StringSwitch;                                                    \
                                                                                \
-  using llvm::Optional;                                                        \
-  using llvm::None;                                                            \
+  using std::nullopt;                                                          \
                                                                                \
   using llvm::MutableArrayRef;                                                 \
   using llvm::ArrayRef;                                                        \

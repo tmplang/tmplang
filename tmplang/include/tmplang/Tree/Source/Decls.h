@@ -19,7 +19,7 @@ public:
   const Type &getType() const { return *ParamType; }
   StringRef getName() const override { return Identifier.getLexeme(); }
   const auto &getIdentifier() const { return Identifier; }
-  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  const std::optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return ParamType->getBeginLoc();
@@ -37,7 +37,7 @@ public:
 private:
   RAIIType ParamType;
   SpecificToken<TK_Identifier> Identifier;
-  Optional<SpecificToken<TK_Comma>> Comma;
+  std::optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class SubprogramDecl final : public Decl {
@@ -60,13 +60,13 @@ public:
   StringRef getName() const override { return Identifier.getLexeme(); }
   const auto &getFuncType() const { return FuncType; }
   const auto &getIdentifier() const { return Identifier; }
-  const Optional<SpecificToken<TK_Colon>> &getColon() const { return Colon; }
+  const std::optional<SpecificToken<TK_Colon>> &getColon() const { return Colon; }
   const auto &getLKeyBracket() const { return B.LKeyBracket; }
   const auto &getRKeyBracket() const { return B.RKeyBracket; }
   const Block &getBlock() const { return B; }
-  Optional<SpecificToken<TK_RArrow>> getArrow() const {
+  std::optional<SpecificToken<TK_RArrow>> getArrow() const {
     return OptArrowAndType ? OptArrowAndType->Arrow
-                           : Optional<SpecificToken<TK_RArrow>>{};
+                           : std::optional<SpecificToken<TK_RArrow>>{};
   }
 
   tmplang::SourceLocation getBeginLoc() const override {
@@ -86,9 +86,9 @@ public:
   /// fn foo {}
   SubprogramDecl(SpecificToken<TK_FnType, TK_ProcType> funcType,
                  SpecificToken<TK_Identifier> identifier, Block block,
-                 Optional<SpecificToken<TK_Colon>> colon,
+                 std::optional<SpecificToken<TK_Colon>> colon,
                  SmallVector<source::ParamDecl, 4> paramList,
-                 Optional<ArrowAndType> arrowAndType = llvm::None)
+                 std::optional<ArrowAndType> arrowAndType = nullopt)
       : Decl(Kind::SubprogramDecl), FuncType(std::move(funcType)),
         Identifier(std::move(identifier)), Colon(std::move(colon)),
         ParamList(std::move(paramList)),
@@ -101,9 +101,9 @@ public:
 private:
   SpecificToken<TK_FnType, TK_ProcType> FuncType;
   SpecificToken<TK_Identifier> Identifier;
-  Optional<SpecificToken<TK_Colon>> Colon;
+  std::optional<SpecificToken<TK_Colon>> Colon;
   SmallVector<source::ParamDecl, 4> ParamList;
-  Optional<ArrowAndType> OptArrowAndType;
+  std::optional<ArrowAndType> OptArrowAndType;
   Block B;
 };
 
@@ -113,7 +113,7 @@ public:
   const auto &getIdentifier() const { return Identifier; }
   const auto &getColon() const { return Colon; }
   const Type &getType() const { return *Ty; }
-  const Optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
+  const std::optional<SpecificToken<TK_Comma>> &getComma() const { return Comma; }
 
   void setComma(SpecificToken<TK_Comma> comma) { Comma = std::move(comma); }
 
@@ -140,7 +140,7 @@ private:
   SpecificToken<TK_Identifier> Identifier;
   SpecificToken<TK_Colon> Colon;
   RAIIType Ty;
-  Optional<SpecificToken<TK_Comma>> Comma;
+  std::optional<SpecificToken<TK_Comma>> Comma;
 };
 
 class DataDecl final : public Decl {

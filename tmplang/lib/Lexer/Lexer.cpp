@@ -75,7 +75,7 @@ Token Lexer::next() {
     return next();
   }
 
-  Optional<TokenKind> simpleTokenMatched;
+  std::optional<TokenKind> simpleTokenMatched;
   switch (State.CurrentInput.front()) {
   case '(':
     simpleTokenMatched = TK_LParentheses;
