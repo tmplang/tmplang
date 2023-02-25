@@ -1,6 +1,7 @@
 #ifndef TMPLANG_TREE_HIR_SYMBOL_H
 #define TMPLANG_TREE_HIR_SYMBOL_H
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/StringRef.h>
