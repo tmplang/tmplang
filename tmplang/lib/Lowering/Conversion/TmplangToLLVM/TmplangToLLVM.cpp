@@ -95,7 +95,7 @@ struct AggregateDataAccessOpLowering
   matchAndRewrite(AggregateDataAccessOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
-        op, adaptor.getOperands()[0], op.idx().getSExtValue());
+        op, adaptor.getOperands()[0], op.getIdx().getSExtValue());
     return mlir::success();
   }
 };
