@@ -1,9 +1,9 @@
 #include <tmplang/Lowering/Lowering.h>
 
 #include <llvm/Support/Debug.h>
-#include <mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h>
+#include <mlir/Conversion/ArithToLLVM/ArithToLLVM.h>
 #include <mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -16,7 +16,7 @@
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
 #include <tmplang/ADT/LLVM.h>
-#include <tmplang/Lowering/Conversion/TmplangToArithmetic/TmplangToArithmetic.h>
+#include <tmplang/Lowering/Conversion/TmplangToArith/TmplangToArith.h>
 #include <tmplang/Lowering/Conversion/TmplangToFunc/TmplangToFunc.h>
 #include <tmplang/Lowering/Conversion/TmplangToLLVM/TmplangToLLVM.h>
 #include <tmplang/Lowering/Dialect/IR/Ops.h>
@@ -255,7 +255,7 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
   }
 
   // Load the required dialects for lowering to LLVM
-  ctx->loadDialect<mlir::arith::ArithmeticDialect, mlir::func::FuncDialect>();
+  ctx->loadDialect<mlir::arith::ArithDialect, mlir::func::FuncDialect>();
 
   // Build pass manager and run pipeline
   mlir::PassManager pm(ctx.get());
@@ -280,12 +280,12 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
   pm.addPass(mlir::createCanonicalizerPass());
 
   // Tmplang specific lowering passes
-  pm.addPass(createConvertTmplangToArithmeticPass());
+  pm.addPass(createConvertTmplangToArithPass());
   pm.addPass(createConvertTmplangToFuncPass());
   pm.addPass(createConvertTmplangToLLVMPass());
 
-  // Lower arithmetic pass to LLVM (func is done on TmplangToLLVM)
-  pm.addPass(mlir::arith::createConvertArithmeticToLLVMPass());
+  // Lower arith pass to LLVM (func is done on TmplangToLLVM)
+  pm.addPass(mlir::createArithToLLVMConversionPass());
 
   if (mlir::failed(pm.run(&*mod))) {
     // FIXME: Use proper diagnostics

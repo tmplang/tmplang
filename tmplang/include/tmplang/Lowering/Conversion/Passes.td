@@ -12,8 +12,8 @@ def ConvertTmplangToArithmetic : Pass<"convert-tmplang-to-arithmetic"> {
   let description = [{
     This pass converts supported Tmplang ops to Arithmetic dialect instructions.
   }];
-  let constructor = "tmplang::createConvertTmplangToArithmeticPass()";
-  let dependentDialects = ["mlir::arith::ArithmeticDialect"];
+  let constructor = "tmplang::createConvertTmplangToArithPass()";
+  let dependentDialects = ["mlir::arith::ArithDialect"];
 }
 
 //===----------------------------------------------------------------------===//

@@ -1,6 +1,6 @@
-#include <tmplang/Lowering/Conversion/TmplangToArithmetic/TmplangToArithmetic.h>
+#include <tmplang/Lowering/Conversion/TmplangToArith/TmplangToArith.h>
 
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Support/LogicalResult.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -22,7 +22,7 @@ struct ConstantOpLowering : public mlir::OpRewritePattern<ConstantOp> {
   mlir::LogicalResult
   matchAndRewrite(ConstantOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, op.value(),
+    rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, op.getValue(),
                                                          op.getType());
     return mlir::success();
   }
@@ -36,15 +36,15 @@ struct ConstantOpLowering : public mlir::OpRewritePattern<ConstantOp> {
 
 namespace {
 
-struct ConvertTmplangToArithmeticPass
-    : public ConvertTmplangToArithmeticBase<ConvertTmplangToArithmeticPass> {
-  ConvertTmplangToArithmeticPass() = default;
+struct ConvertTmplangToArithPass
+    : public ConvertTmplangToArithmeticBase<ConvertTmplangToArithPass> {
+  ConvertTmplangToArithPass() = default;
 
   void runOnOperation() override {
     mlir::ConversionTarget target(getContext());
     mlir::RewritePatternSet patterns(&getContext());
 
-    target.addLegalDialect<TmplangDialect, mlir::arith::ArithmeticDialect>();
+    target.addLegalDialect<TmplangDialect, mlir::arith::ArithDialect>();
     target.addIllegalOp<ConstantOp>();
 
     patterns.add<ConstantOpLowering>(&getContext());
@@ -62,6 +62,6 @@ struct ConvertTmplangToArithmeticPass
 // Pattern Creation
 //===----------------------------------------------------------------------===//
 
-std::unique_ptr<mlir::Pass> tmplang::createConvertTmplangToArithmeticPass() {
-  return std::make_unique<ConvertTmplangToArithmeticPass>();
+std::unique_ptr<mlir::Pass> tmplang::createConvertTmplangToArithPass() {
+  return std::make_unique<ConvertTmplangToArithPass>();
 }

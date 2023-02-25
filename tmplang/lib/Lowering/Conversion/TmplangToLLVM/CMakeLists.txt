@@ -15,7 +15,7 @@ add_mlir_conversion_library(TmplangToLLVM
   TmplangMLIRDialect
   MLIRLLVMCommonConversion
   MLIRLLVMDialect
-  MLIRArithmeticDialect
+  MLIRArithDialect
   MLIRTransforms
 
   LINK_COMPONENTS

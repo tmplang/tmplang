@@ -3,7 +3,7 @@
 
 #include <mlir/Pass/PassRegistry.h>
 
-#include "TmplangToArithmetic/TmplangToArithmetic.h"
+#include "TmplangToArith/TmplangToArith.h"
 #include "TmplangToFunc/TmplangToFunc.h"
 #include "TmplangToLLVM/TmplangToLLVM.h"
 
