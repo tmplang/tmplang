@@ -48,8 +48,6 @@ void SubprogramOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   buildWithEntryBlock(builder, state, name, type, visibility, type.getInputs());
 }
 
-mlir::FunctionType SubprogramOp::getFunctionType() { return function_type(); }
-
 mlir::ArrayRef<mlir::Type> SubprogramOp::getArgumentTypes() {
   return getFunctionType().getInputs();
 }
@@ -69,14 +67,17 @@ mlir::ParseResult SubprogramOp::parse(mlir::OpAsmParser &parser,
          std::string &) { return builder.getFunctionType(argTypes, results); };
 
   return mlir::function_interface_impl::parseFunctionOp(
-      parser, result, /*allowVariadic=*/false, buildFuncType);
+      parser, result, /*allowVariadic=*/false,
+      getFunctionTypeAttrName(result.name), buildFuncType,
+      getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
 }
 
 void SubprogramOp::print(mlir::OpAsmPrinter &p) {
   // Dispatch to the FunctionOpInterface provided utility method that prints the
   // function operation.
-  mlir::function_interface_impl::printFunctionOp(p, *this,
-                                                 /*isVariadic=*/false);
+  mlir::function_interface_impl::printFunctionOp(
+      p, *this, /*isVariadic=*/false, getFunctionTypeAttrName(),
+      getArgAttrsAttrName(), getResAttrsAttrName());
 }
 
 //===----------------------------------------------------------------------===//
