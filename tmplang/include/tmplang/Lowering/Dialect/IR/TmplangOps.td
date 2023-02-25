@@ -44,6 +44,8 @@ def SubprogramOp : Tmplang_Op<"subprogram",
   let arguments = (ins
     SymbolNameAttr:$sym_name,
     TypeAttrOf<FunctionType>:$function_type,
+    OptionalAttr<DictArrayAttr>:$arg_attrs,
+    OptionalAttr<DictArrayAttr>:$res_attrs,
     StrAttr:$sym_visibility
   );
 
@@ -59,11 +61,6 @@ def SubprogramOp : Tmplang_Op<"subprogram",
     //===------------------------------------------------------------------===//
     // FunctionOpInterface Methods
     //===------------------------------------------------------------------===//
-
-    /// This function is needed so we can use FunctionOpInterface. It expects
-    /// getFunctionType() to return mlir::FunctionType
-    mlir::FunctionType getFunctionType();
-
     /// Returns the argument types of this function.
     mlir::ArrayRef<mlir::Type> getArgumentTypes();
 
