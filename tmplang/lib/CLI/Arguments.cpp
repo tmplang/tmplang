@@ -12,7 +12,10 @@ using namespace tmplang;
 
 namespace {
 
-#define PREFIX(NAME, VALUE) static const char *const NAME[] = VALUE;
+#define PREFIX(NAME, VALUE)                                                    \
+  static constexpr StringLiteral NAME##_init[] = VALUE;                        \
+  static constexpr ArrayRef<StringLiteral> NAME(NAME##_init,                   \
+                                                std::size(NAME##_init) - 1);
 #include <tmplang/CLI/Options.inc>
 #undef PREFIX
 
@@ -27,8 +30,8 @@ static constexpr llvm::opt::OptTable::Info TmplangInfoTable[] = {
 #undef OPTION
 };
 
-struct TmplLangOptTable : public llvm::opt::OptTable {
-  TmplLangOptTable() : OptTable(TmplangInfoTable) {}
+struct TmplLangOptTable : public llvm::opt::GenericOptTable {
+  TmplLangOptTable() : GenericOptTable(TmplangInfoTable) {}
 };
 
 } // namespace
