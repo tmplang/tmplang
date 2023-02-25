@@ -1,7 +1,6 @@
 #include <Testing.h>
 
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/STLArrayExtras.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/VirtualFileSystem.h>
 #include <llvm/Support/raw_ostream.h>

@@ -131,7 +131,7 @@ int main(int argc, const char *argv[]) {
 
   CLPrinter printer(llvm::outs(), llvm::errs(), argv[0]);
 
-  auto compilerArgs = llvm::makeArrayRef(argv + 1, argv + argc);
+  ArrayRef compilerArgs(argv + 1, argv + argc);
   std::unique_ptr<llvm::opt::InputArgList> parsedCompilerArgs =
       ParseArgs(compilerArgs, printer);
   if (!parsedCompilerArgs) {
