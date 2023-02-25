@@ -596,16 +596,6 @@ std::optional<uint64_t> MarkupFilter::parseFrameNumber(StringRef Str) const {
   return ID;
 }
 
-// Parse a frame number (%i in the spec).
-Optional<uint64_t> MarkupFilter::parseFrameNumber(StringRef Str) const {
-  uint64_t ID;
-  if (Str.getAsInteger(10, ID)) {
-    reportTypeError(Str, "frame number");
-    return None;
-  }
-  return ID;
-}
-
 // Parse a build ID (%x in the spec).
 std::optional<SmallVector<uint8_t>>
 MarkupFilter::parseBuildID(StringRef Str) const {
