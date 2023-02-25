@@ -140,7 +140,7 @@ mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser &parser,
 void ConstantOp::print(mlir::OpAsmPrinter &p) {
   p << ' ';
 
-  llvm::TypeSwitch<mlir::Attribute>(value())
+  llvm::TypeSwitch<mlir::Attribute>(getValue())
       .Case<mlir::ArrayAttr>([&](mlir::ArrayAttr ty) {
         p << '[';
         printInterleaved(
@@ -148,9 +148,9 @@ void ConstantOp::print(mlir::OpAsmPrinter &p) {
         p << ']';
       })
       .Case<mlir::IntegerAttr>(
-          [&](mlir::Attribute) { p.printAttributeWithoutType(valueAttr()); })
+          [&](mlir::Attribute) { p.printAttributeWithoutType(getValueAttr()); })
       .Case<mlir::FloatAttr>(
-          [&](mlir::Attribute) { p.printAttributeWithoutType(valueAttr()); })
+          [&](mlir::Attribute) { p.printAttributeWithoutType(getValueAttr()); })
       .Default([](mlir::Attribute) { llvm_unreachable(""); });
 
   p << " -> ";
@@ -190,6 +190,6 @@ mlir::ParseResult AggregateDataAccessOp::parse(mlir::OpAsmParser &parser,
 }
 
 void AggregateDataAccessOp::print(mlir::OpAsmPrinter &p) {
-  p << '(' << getOperand() << "), " << idx() << " : " << getOperand().getType()
-    << " -> " << result().getType();
+  p << '(' << getOperand() << "), " << getIdx() << " : " << getOperand().getType()
+    << " -> " << getResult().getType();
 }
