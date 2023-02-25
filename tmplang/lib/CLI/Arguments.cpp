@@ -56,8 +56,8 @@ tmplang::ParseArgs(ArrayRef<const char *> rawArgs, CLPrinter &printer) {
   return result;
 }
 
-// Get the first alias found for the given option, or None otherwise
-static Optional<llvm::opt::Option>
+// Get the first alias found for the given option, or nullopt otherwise
+static std::optional<llvm::opt::Option>
 GetFirstAlias(const llvm::opt::OptTable &table, llvm::opt::Option o) {
   for (unsigned i = 0; i <= table.getNumOptions(); ++i) {
     llvm::opt::Option alias = table.getOption(i);
@@ -70,7 +70,7 @@ GetFirstAlias(const llvm::opt::OptTable &table, llvm::opt::Option o) {
       return alias;
     }
   }
-  return None;
+  return nullopt;
 }
 
 // Build the first column of the help output
@@ -80,7 +80,7 @@ static SmallString<80> BuildArg(llvm::opt::Option o,
   llvm::raw_svector_ostream out(result);
 
   // Find a short alias to print it before
-  if (Optional<llvm::opt::Option> alias = GetFirstAlias(table, o)) {
+  if (std::optional<llvm::opt::Option> alias = GetFirstAlias(table, o)) {
     llvm::formatv("{0} [ {1} ]", alias->getPrefixedName(), o.getPrefixedName())
         .format(out);
   } else {

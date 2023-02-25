@@ -23,29 +23,29 @@
 using namespace tmplang;
 
 template <typename PrintConfig_t>
-static Optional<PrintConfig_t> ParseTreeDumpArg(llvm::opt::Arg &arg,
+static std::optional<PrintConfig_t> ParseTreeDumpArg(llvm::opt::Arg &arg,
                                                 CLPrinter &out) {
   if (arg.getNumValues() == 0) {
     out.errs() << "At least one value of the followings is required: "
                   "'color|addr|loc|all|simple'\n";
-    return llvm::None;
+    return nullopt;
   }
 
   PrintConfig_t printCfg = PrintConfig_t::None;
   for (StringRef option : arg.getValues()) {
-    Optional<PrintConfig_t> parsedOption =
-        StringSwitch<Optional<PrintConfig_t>>(option)
+    std::optional<PrintConfig_t> parsedOption =
+        StringSwitch<std::optional<PrintConfig_t>>(option)
             .Case("color", PrintConfig_t::Color)
             .Case("addr", PrintConfig_t::Address)
             .Case("loc", PrintConfig_t::SourceLocation)
             .Case("simple", PrintConfig_t::None)
             .Case("all", PrintConfig_t::All)
-            .Default(llvm::None);
+            .Default(nullopt);
 
     if (!parsedOption) {
       out.errs() << "Invalid value '" << option << "' for flag "
                  << arg.getSpelling() << "\n";
-      return llvm::None;
+      return nullopt;
     }
 
     printCfg |= *parsedOption;
@@ -80,7 +80,7 @@ static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
   return 0;
 }
 
-static Optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
+static std::optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
                                                      CLPrinter &out) {
   constexpr StringLiteral missingDumpOptionMsg =
       "At least one value of the followings is required: "
@@ -88,25 +88,25 @@ static Optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
 
   if (arg.getNumValues() == 0) {
     out.errs() << missingDumpOptionMsg;
-    return llvm::None;
+    return nullopt;
   }
 
   MLIRPrintingOpsCfg printCfg = MLIRPrintingOpsCfg::None;
   for (StringRef option : arg.getValues()) {
-    Optional<MLIRPrintingOpsCfg> parsedOption =
-        StringSwitch<Optional<MLIRPrintingOpsCfg>>(option)
+    std::optional<MLIRPrintingOpsCfg> parsedOption =
+        StringSwitch<std::optional<MLIRPrintingOpsCfg>>(option)
             .Case("lower", MLIRPrintingOpsCfg::Lowering)
             .Case("opt", MLIRPrintingOpsCfg::Optimization)
             .Case("trans", MLIRPrintingOpsCfg::Translation)
             .Case("llvm", MLIRPrintingOpsCfg::LLVM)
             .Case("loc", MLIRPrintingOpsCfg::Location)
             .Case("all", MLIRPrintingOpsCfg::All)
-            .Default(llvm::None);
+            .Default(nullopt);
 
     if (!parsedOption) {
       out.errs() << "Invalid value '" << option << "' for flag "
                  << arg.getSpelling() << "\n";
-      return llvm::None;
+      return nullopt;
     }
 
     printCfg |= *parsedOption;
@@ -115,7 +115,7 @@ static Optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
   // Location is a complemetary option, by itself it does not count
   if (!static_cast<bool>((printCfg & ~MLIRPrintingOpsCfg::Location))) {
     out.errs() << missingDumpOptionMsg;
-    return llvm::None;
+    return nullopt;
   }
 
   return printCfg;
@@ -201,7 +201,7 @@ int main(int argc, const char *argv[]) {
   }
 
   auto *arg = parsedCompilerArgs->getLastArg(OPT_dump_mlir);
-  Optional<MLIRPrintingOpsCfg> mlirDumpCfg =
+  std::optional<MLIRPrintingOpsCfg> mlirDumpCfg =
       arg ? ParseDumpMLIRArg(*arg, printer) : MLIRPrintingOpsCfg::None;
   if (!mlirDumpCfg) {
     // Errors already reported

@@ -6,6 +6,7 @@
 #include <tmplang/Tree/HIR/Symbol.h>
 #include <tmplang/Tree/HIR/Types.h>
 
+#include <optional>
 #include <variant>
 
 namespace tmplang::hir {
@@ -125,9 +126,9 @@ public:
         ->getSymbol();
   }
 
-  Optional<llvm::StringRef> getName() const {
+  std::optional<llvm::StringRef> getName() const {
     return FieldAccessedSym ? FieldAccessedSym->getId()
-                            : Optional<llvm::StringRef>{};
+                            : std::optional<llvm::StringRef>{};
   }
   unsigned getIdxAccess() const { return AccessIdx; }
   const Symbol *getSymbol() const { return FieldAccessedSym; }

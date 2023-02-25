@@ -19,65 +19,65 @@ public:
     consume();
   }
 
-  Optional<source::CompilationUnit> Start();
+  std::optional<source::CompilationUnit> Start();
 
 private:
   std::unique_ptr<source::DataDecl> DataDecl();
-  Optional<Token> missingDataDeclId();
-  Optional<Token> missingDataDeclStartingEq();
+  std::optional<Token> missingDataDeclId();
+  std::optional<Token> missingDataDeclStartingEq();
 
-  Optional<SmallVector<source::DataFieldDecl, 4>> DataFieldDeclList();
-  Optional<Token> missingCommaDataFieldSepRecovery();
+  std::optional<SmallVector<source::DataFieldDecl, 4>> DataFieldDeclList();
+  std::optional<Token> missingCommaDataFieldSepRecovery();
 
-  Optional<source::DataFieldDecl> DataFieldDecl();
-  Optional<Token> missingDataFieldId();
-  Optional<Token> missingDataFieldColonSep();
-  Optional<Token> missingDataFieldType();
+  std::optional<source::DataFieldDecl> DataFieldDecl();
+  std::optional<Token> missingDataFieldId();
+  std::optional<Token> missingDataFieldColonSep();
+  std::optional<Token> missingDataFieldType();
 
   std::unique_ptr<source::SubprogramDecl> SubprogramDecl();
   std::unique_ptr<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
-      Token funcType, Token id, Optional<SpecificToken<TK_Colon>> colon = None,
+      Token funcType, Token id, std::optional<SpecificToken<TK_Colon>> colon = nullopt,
       SmallVector<source::ParamDecl, 4> paramList = {});
-  Optional<Token> missingSubprogramTypeRecovery();
-  Optional<Token> missingSubprogramIdRecovery();
-  Optional<Token> missingReturnTypeArrowRecovery();
+  std::optional<Token> missingSubprogramTypeRecovery();
+  std::optional<Token> missingSubprogramIdRecovery();
+  std::optional<Token> missingReturnTypeArrowRecovery();
 
-  Optional<SmallVector<source::ParamDecl, 4>> ParamList();
-  Optional<Token> missingCommaParamSepRecovery();
+  std::optional<SmallVector<source::ParamDecl, 4>> ParamList();
+  std::optional<Token> missingCommaParamSepRecovery();
 
-  Optional<source::ParamDecl> Param();
-  Optional<Token> missingVariableOnParamRecovery();
+  std::optional<source::ParamDecl> Param();
+  std::optional<Token> missingVariableOnParamRecovery();
 
-  Optional<source::SubprogramDecl::Block> Block();
-  Optional<Token> missingLeftKeyBracketRecovery();
-  Optional<Token> missingRightKeyBracketRecovery();
+  std::optional<source::SubprogramDecl::Block> Block();
+  std::optional<Token> missingLeftKeyBracketRecovery();
+  std::optional<Token> missingRightKeyBracketRecovery();
 
-  Optional<std::vector<source::ExprStmt>> ExprList();
+  std::optional<std::vector<source::ExprStmt>> ExprList();
 
   std::unique_ptr<source::Expr> Expr();
-  Optional<Token> missingSemicolonAfterExpressionRecovery();
+  std::optional<Token> missingSemicolonAfterExpressionRecovery();
 
-  Optional<Token> Identifier();
-  Optional<Token> Number();
+  std::optional<Token> Identifier();
+  std::optional<Token> Number();
   std::unique_ptr<source::ExprAggregateDataAccess>
   ExprAggregateDataAccess(source::ExprAggregateDataAccess::BaseNode baseExpr);
   std::unique_ptr<source::ExprTuple> ExprTuple();
-  Optional<Token> missingCommaBetweenTupleElemsRecovery();
+  std::optional<Token> missingCommaBetweenTupleElemsRecovery();
 
   // Types...
   source::RAIIType Type();
   source::RAIIType NamedType();
   source::RAIIType TupleType();
-  Optional<Token> missingCommaBetweenTypesRecovery();
-  Optional<Token> missingRightParenthesesOfTupleRecovery();
+  std::optional<Token> missingCommaBetweenTypesRecovery();
+  std::optional<Token> missingRightParenthesesOfTupleRecovery();
 
   // Simple token parsing. This function is useful in conjuntion with
   // parseOrRecover so it can recieve the address
-  template <TokenKind... Kinds> Optional<Token> ParseToken() {
+  template <TokenKind... Kinds> std::optional<Token> ParseToken() {
     if (tk().isOneOf(Kinds...)) {
       return consume();
     }
-    return None;
+    return nullopt;
   }
 
   // Utility functions
@@ -98,9 +98,9 @@ private:
   Token getRecoveryToken(TokenKind kind);
   Token getRecoveryToken(StringRef id, TokenKind kind);
 
-  template <Optional<Token> (Parser::*parsingFunc)(),
-            Optional<Token> (Parser::*recoveryFunc)() = nullptr>
-  Optional<Token> parseOrTryRecover(bool emitUnexpectedTokenDiag = true) {
+  template <std::optional<Token> (Parser::*parsingFunc)(),
+            std::optional<Token> (Parser::*recoveryFunc)() = nullptr>
+  std::optional<Token> parseOrTryRecover(bool emitUnexpectedTokenDiag = true) {
     // Try the normal path, parse as it is expected
     if (auto parsedToken = (this->*parsingFunc)()) {
       return *parsedToken;
@@ -108,7 +108,7 @@ private:
 
     // If there is no recovery function, do not recover
     if (recoveryFunc == nullptr) {
-      return None;
+      return nullopt;
     }
 
     // Try to perform the actual recovery
@@ -123,7 +123,7 @@ private:
           .print(Out, SM);
     }
 
-    return None;
+    return nullopt;
   }
 
 private:
@@ -143,7 +143,7 @@ private:
 
 /// Start = Function_Definition*;
 ///       | EOF;
-Optional<source::CompilationUnit> Parser::Start() {
+std::optional<source::CompilationUnit> Parser::Start() {
   std::vector<std::unique_ptr<source::Decl>> decls;
   while (true) {
     if (tk().is(TokenKind::TK_EOF)) {
@@ -155,7 +155,7 @@ Optional<source::CompilationUnit> Parser::Start() {
       auto fieldDecl = DataDecl();
       if (!fieldDecl) {
         // Nothing to do, already reported
-        return None;
+        return nullopt;
       }
       decls.push_back(std::move(fieldDecl));
       continue;
@@ -165,7 +165,7 @@ Optional<source::CompilationUnit> Parser::Start() {
       auto subprogram = SubprogramDecl();
       if (!subprogram) {
         // Nothing to do, already reported
-        return None;
+        return nullopt;
       }
       decls.push_back(std::move(subprogram));
       continue;
@@ -174,7 +174,7 @@ Optional<source::CompilationUnit> Parser::Start() {
     // FIXME: This should be: found X when Y was expected
     Diagnostic(DiagId::err_found_unknown_token, tk().getSpan(), NoHint())
         .print(Out, SM);
-    return None;
+    return nullopt;
   }
 
   return source::CompilationUnit(std::move(decls),
@@ -182,7 +182,7 @@ Optional<source::CompilationUnit> Parser::Start() {
 }
 
 std::unique_ptr<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
-    Token funcType, Token id, Optional<SpecificToken<TK_Colon>> colon,
+    Token funcType, Token id, std::optional<SpecificToken<TK_Colon>> colon,
     SmallVector<source::ParamDecl, 4> paramList) {
   if (auto arrow = parseOrTryRecover<&Parser::ParseToken<TK_RArrow>,
                                      &Parser::missingReturnTypeArrowRecovery>(
@@ -253,13 +253,13 @@ std::unique_ptr<source::DataDecl> Parser::DataDecl() {
                                             std::move(*semicolon));
 }
 
-Optional<Token> Parser::missingDataDeclId() {
+std::optional<Token> Parser::missingDataDeclId() {
   // data   =
   //      ^___ id here
 
   const bool missingId = prevTk().is(TK_Data) && tk().is(TK_Eq);
   if (!missingId) {
-    return None;
+    return nullopt;
   }
 
   constexpr StringLiteral placeHolder = "<data_decl_identifier>";
@@ -270,14 +270,14 @@ Optional<Token> Parser::missingDataDeclId() {
   return getRecoveryToken(placeHolder, TK_Identifier);
 }
 
-Optional<Token> Parser::missingDataDeclStartingEq() {
+std::optional<Token> Parser::missingDataDeclStartingEq() {
   // data Dummy
   //            ^___ '=' id here
   //   a : i32;
 
   const bool missingId = prevTk().is(TK_Identifier) && tk().is(TK_Identifier);
   if (!missingId) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_eq_of_data_decl, prevTk().getSpan(),
@@ -287,38 +287,38 @@ Optional<Token> Parser::missingDataDeclStartingEq() {
   return getRecoveryToken(TK_Eq);
 }
 
-Optional<source::DataFieldDecl> Parser::DataFieldDecl() {
-  Optional<Token> id = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>,
+std::optional<source::DataFieldDecl> Parser::DataFieldDecl() {
+  std::optional<Token> id = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>,
                                          &Parser::missingDataFieldId>();
   if (!id) {
-    return None;
+    return nullopt;
   }
 
-  Optional<Token> colon =
+  std::optional<Token> colon =
       parseOrTryRecover<&Parser::ParseToken<TK_Colon>,
                         &Parser::missingDataFieldColonSep>();
   if (!colon) {
-    return None;
+    return nullopt;
   }
 
   auto ty = Type();
   if (!ty) {
     // Nothing to report here, reported on Type
-    return None;
+    return nullopt;
   }
 
   return source::DataFieldDecl(std::move(*id), *std::move(colon),
                                std::move(ty));
 }
 
-Optional<Token> Parser::missingDataFieldId() {
+std::optional<Token> Parser::missingDataFieldId() {
   // data Foo =
   //    : i32;
   //  ^___ id here
 
   const bool missingId = prevTk().is(TK_Eq) && tk().is(TK_Colon);
   if (!missingId) {
-    return None;
+    return nullopt;
   }
 
   constexpr StringLiteral placeHolder = "<data_field_identifier>";
@@ -330,7 +330,7 @@ Optional<Token> Parser::missingDataFieldId() {
   return getRecoveryToken(placeHolder, TK_Identifier);
 }
 
-Optional<Token> Parser::missingDataFieldColonSep() {
+std::optional<Token> Parser::missingDataFieldColonSep() {
   // data Foo =
   //   a  i32;
   //     ^___ colon here
@@ -339,7 +339,7 @@ Optional<Token> Parser::missingDataFieldColonSep() {
       prevTk().is(tmplang::TK_Identifier) &&
       tk().isOneOf(tmplang::TK_Identifier, tmplang::TK_LParentheses);
   if (!missingColon) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_colon_on_data_field, prevTk().getSpan(),
@@ -349,7 +349,7 @@ Optional<Token> Parser::missingDataFieldColonSep() {
   return getRecoveryToken(TK_Colon);
 }
 
-Optional<Token> Parser::missingDataFieldType() {
+std::optional<Token> Parser::missingDataFieldType() {
   // data Foo =
   //   a  i32;
   //     ^___ colon here
@@ -358,7 +358,7 @@ Optional<Token> Parser::missingDataFieldType() {
       prevTk().is(tmplang::TK_Colon) &&
       tk().isOneOf(tmplang::TK_Comma, tmplang::TK_Semicolon);
   if (!missingDataType) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_type_on_data_field, tk().getSpan(),
@@ -371,13 +371,13 @@ Optional<Token> Parser::missingDataFieldType() {
 }
 
 /// DataFieldDeclList = DataFieldDecl (",", DataFieldDecl)*;
-Optional<SmallVector<source::DataFieldDecl, 4>> Parser::DataFieldDeclList() {
+std::optional<SmallVector<source::DataFieldDecl, 4>> Parser::DataFieldDeclList() {
   SmallVector<source::DataFieldDecl, 4> dataFieldDecls;
 
   auto firstParam = DataFieldDecl();
   if (!firstParam) {
     // Nothing to report here, reported on Param
-    return None;
+    return nullopt;
   }
   dataFieldDecls.push_back(std::move(*firstParam));
 
@@ -390,7 +390,7 @@ Optional<SmallVector<source::DataFieldDecl, 4>> Parser::DataFieldDeclList() {
     auto dataField = DataFieldDecl();
     if (!dataField) {
       // Nothing to report here, reported on Param
-      return None;
+      return nullopt;
     }
 
     dataFieldDecls.push_back(std::move(*dataField));
@@ -399,7 +399,7 @@ Optional<SmallVector<source::DataFieldDecl, 4>> Parser::DataFieldDeclList() {
   return dataFieldDecls;
 }
 
-Optional<Token> Parser::missingCommaDataFieldSepRecovery() {
+std::optional<Token> Parser::missingCommaDataFieldSepRecovery() {
   // data Foo =
   //   a : i32
   //          ^___ comma here
@@ -409,7 +409,7 @@ Optional<Token> Parser::missingCommaDataFieldSepRecovery() {
                             // TokenKinds corresponding to end of Type
                             prevTk().isOneOf(TK_Identifier, TK_RParentheses);
   if (!missingComma) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_comma_between_data_fields, tk().getSpan(),
@@ -462,12 +462,12 @@ std::unique_ptr<source::SubprogramDecl> Parser::SubprogramDecl() {
   return ArrowAndEndOfSubprogramFactored(*funcType, *id);
 }
 
-Optional<Token> Parser::missingSubprogramTypeRecovery() {
+std::optional<Token> Parser::missingSubprogramTypeRecovery() {
   const bool potentialStartOfSubprogram =
       tk().is(TK_Identifier) &&
       nextTk().isOneOf(TK_Colon, TK_RArrow, TK_LKeyBracket);
   if (!potentialStartOfSubprogram) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_subprogram_class, tk().getSpan(),
@@ -478,11 +478,11 @@ Optional<Token> Parser::missingSubprogramTypeRecovery() {
   return getRecoveryToken(TK_FnType);
 }
 
-Optional<Token> Parser::missingSubprogramIdRecovery() {
+std::optional<Token> Parser::missingSubprogramIdRecovery() {
   const bool missingId = prevTk().isOneOf(TK_FnType, TK_ProcType) &&
                          tk().isOneOf(TK_Colon, TK_RArrow, TK_LKeyBracket);
   if (!missingId) {
-    return None;
+    return nullopt;
   }
 
   constexpr StringLiteral placeHolder = "<subprogram_identifier>";
@@ -494,11 +494,11 @@ Optional<Token> Parser::missingSubprogramIdRecovery() {
   return getRecoveryToken(placeHolder, TK_Identifier);
 }
 
-Optional<Token> Parser::missingReturnTypeArrowRecovery() {
+std::optional<Token> Parser::missingReturnTypeArrowRecovery() {
   const bool missingArrow =
       tk().isOneOf(/*firstTokensOfType*/ TK_Identifier, TK_LParentheses);
   if (!missingArrow) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_arrow, prevTk().getSpan(),
@@ -509,13 +509,13 @@ Optional<Token> Parser::missingReturnTypeArrowRecovery() {
 }
 
 /// Param_List = Param (",", Param)*;
-Optional<SmallVector<source::ParamDecl, 4>> Parser::ParamList() {
+std::optional<SmallVector<source::ParamDecl, 4>> Parser::ParamList() {
   SmallVector<source::ParamDecl, 4> paramList;
 
   auto firstParam = Param();
   if (!firstParam) {
     // Nothing to report here, reported on Param
-    return None;
+    return nullopt;
   }
   paramList.push_back(std::move(*firstParam));
 
@@ -527,7 +527,7 @@ Optional<SmallVector<source::ParamDecl, 4>> Parser::ParamList() {
     auto param = Param();
     if (!param) {
       // Nothing to report here, reported on Param
-      return None;
+      return nullopt;
     }
 
     paramList.push_back(std::move(*param));
@@ -536,7 +536,7 @@ Optional<SmallVector<source::ParamDecl, 4>> Parser::ParamList() {
   return paramList;
 }
 
-Optional<Token> Parser::missingCommaParamSepRecovery() {
+std::optional<Token> Parser::missingCommaParamSepRecovery() {
   // fn foo: i32 var i32 var ...
   //                ^___ comma here
 
@@ -547,7 +547,7 @@ Optional<Token> Parser::missingCommaParamSepRecovery() {
                             tk().is(TK_Identifier) &&
                             nextTk().is(TK_Identifier);
   if (!missingComma) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_comma, tk().getSpan(),
@@ -558,23 +558,23 @@ Optional<Token> Parser::missingCommaParamSepRecovery() {
 }
 
 /// Param = Type Identifier;
-Optional<source::ParamDecl> Parser::Param() {
+std::optional<source::ParamDecl> Parser::Param() {
   auto type = Type();
   if (!type) {
     // Nothing to report here, reported on Type
-    return None;
+    return nullopt;
   }
 
   auto paramId = parseOrTryRecover<&Parser::Identifier,
                                    &Parser::missingVariableOnParamRecovery>();
   if (!paramId) {
-    return None;
+    return nullopt;
   }
 
   return source::ParamDecl(std::move(type), std::move(*paramId));
 }
 
-Optional<Token> Parser::missingVariableOnParamRecovery() {
+std::optional<Token> Parser::missingVariableOnParamRecovery() {
   constexpr StringLiteral paramId = "<parameter_id>";
 
   Diagnostic(DiagId::err_missing_variable_identifier_after_type, tk().getSpan(),
@@ -585,32 +585,32 @@ Optional<Token> Parser::missingVariableOnParamRecovery() {
 }
 
 /// Block = "{" ExprList "}";
-Optional<source::SubprogramDecl::Block> Parser::Block() {
+std::optional<source::SubprogramDecl::Block> Parser::Block() {
   auto lKeyBracket =
       parseOrTryRecover<&Parser::ParseToken<TK_LKeyBracket>,
                         &Parser::missingLeftKeyBracketRecovery>();
   if (!lKeyBracket) {
-    return None;
+    return nullopt;
   }
 
-  Optional<std::vector<source::ExprStmt>> exprs = ExprList();
+  std::optional<std::vector<source::ExprStmt>> exprs = ExprList();
   if (!exprs) {
     // Errors already reported
-    return None;
+    return nullopt;
   }
 
   auto rKeyBracket =
       parseOrTryRecover<&Parser::ParseToken<TK_RKeyBracket>,
                         &Parser::missingRightKeyBracketRecovery>();
   if (!rKeyBracket) {
-    return None;
+    return nullopt;
   }
 
   return source::SubprogramDecl::Block{
       std::move(*lKeyBracket), std::move(*exprs), std::move(*rKeyBracket)};
 }
 
-Optional<Token> Parser::missingLeftKeyBracketRecovery() {
+std::optional<Token> Parser::missingLeftKeyBracketRecovery() {
   Diagnostic(
       DiagId::err_missing_left_key_brace, prevTk().getSpan(),
       InsertTextAtHint(prevTk().getSpan().End + 1, ToString(TK_LKeyBracket)))
@@ -619,7 +619,7 @@ Optional<Token> Parser::missingLeftKeyBracketRecovery() {
   return getRecoveryToken(TK_LKeyBracket);
 }
 
-Optional<Token> Parser::missingRightKeyBracketRecovery() {
+std::optional<Token> Parser::missingRightKeyBracketRecovery() {
   Diagnostic(
       DiagId::err_missing_right_key_brace, prevTk().getSpan(),
       InsertTextAtHint(prevTk().getSpan().End + 1, ToString(TK_RKeyBracket)))
@@ -709,7 +709,7 @@ source::RAIIType Parser::TupleType() {
       std::move(*rparentheses));
 }
 
-Optional<Token> Parser::missingCommaBetweenTypesRecovery() {
+std::optional<Token> Parser::missingCommaBetweenTypesRecovery() {
   // fn foo: ( ()  i32) var
   // fn foo: (i32  i32) var
   // fn foo: (i32  ()) var
@@ -723,7 +723,7 @@ Optional<Token> Parser::missingCommaBetweenTypesRecovery() {
       tk().isOneOf(TK_Identifier, TK_LParentheses) &&
       (nextTk().isNot(TK_Identifier) && nextTk().isNot(TK_LKeyBracket));
   if (!missingComma) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_comma_prior_tuple_param, tk().getSpan(),
@@ -733,7 +733,7 @@ Optional<Token> Parser::missingCommaBetweenTypesRecovery() {
   return getRecoveryToken(TK_Comma);
 }
 
-Optional<Token> Parser::missingRightParenthesesOfTupleRecovery() {
+std::optional<Token> Parser::missingRightParenthesesOfTupleRecovery() {
   Diagnostic(DiagId::err_missing_right_parenthesis_closing_tuple,
              tk().getSpan(),
              InsertTextAtHint(getStartCurrToken(), ToString(TK_RParentheses)))
@@ -743,7 +743,7 @@ Optional<Token> Parser::missingRightParenthesesOfTupleRecovery() {
 
 /// ExprStmt = Expr ";"
 /// ExprList = ExprStmt*
-Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
+std::optional<std::vector<source::ExprStmt>> Parser::ExprList() {
   std::vector<source::ExprStmt> result;
 
   while (tk().isOneOf(/*firstTokensOfExpr*/ TK_LParentheses, TK_IntegerNumber,
@@ -757,14 +757,14 @@ Optional<std::vector<source::ExprStmt>> Parser::ExprList() {
     auto expr = Expr();
     if (!expr) {
       // Errors already reported
-      return None;
+      return nullopt;
     }
 
     auto semicolon =
         parseOrTryRecover<&Parser::ParseToken<TK_Semicolon>,
                           &Parser::missingSemicolonAfterExpressionRecovery>();
     if (!semicolon) {
-      return None;
+      return nullopt;
     }
 
     result.push_back(source::ExprStmt(std::move(expr), std::move(*semicolon)));
@@ -778,7 +778,7 @@ Parser::ExprAggregateDataAccess(
     source::ExprAggregateDataAccess::BaseNode baseExpr) {
   while (tk().is(TK_Dot)) {
     auto dot = consume();
-    Optional<tmplang::Token> idOrNum = Identifier();
+    std::optional<tmplang::Token> idOrNum = Identifier();
     if (!idOrNum) {
       idOrNum = Number();
       if (!idOrNum) {
@@ -843,7 +843,7 @@ std::unique_ptr<source::Expr> Parser::Expr() {
   return nullptr;
 }
 
-Optional<Token> Parser::missingSemicolonAfterExpressionRecovery() {
+std::optional<Token> Parser::missingSemicolonAfterExpressionRecovery() {
   // 1:
   //   5
   // }  ^___ semicolon here
@@ -854,7 +854,7 @@ Optional<Token> Parser::missingSemicolonAfterExpressionRecovery() {
   //    ^___ semicolon here
   const bool missingSemicolon = tk().isOneOf(TK_RKeyBracket, TK_IntegerNumber);
   if (!missingSemicolon) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(
@@ -866,12 +866,12 @@ Optional<Token> Parser::missingSemicolonAfterExpressionRecovery() {
 }
 
 /// Identifier = [a-zA-Z][a-zA-Z0-9]*;
-Optional<Token> Parser::Identifier() {
-  return tk().is(TK_Identifier) ? consume() : Optional<Token>{};
+std::optional<Token> Parser::Identifier() {
+  return tk().is(TK_Identifier) ? consume() : std::optional<Token>{};
 }
 
-Optional<Token> Parser::Number() {
-  return tk().is(TK_IntegerNumber) ? consume() : Optional<Token>{};
+std::optional<Token> Parser::Number() {
+  return tk().is(TK_IntegerNumber) ? consume() : std::optional<Token>{};
 }
 
 std::unique_ptr<source::ExprTuple> Parser::ExprTuple() {
@@ -916,7 +916,7 @@ std::unique_ptr<source::ExprTuple> Parser::ExprTuple() {
       std::move(lparentheses), std::move(vals), std::move(*rparentheses));
 }
 
-Optional<Token> Parser::missingCommaBetweenTupleElemsRecovery() {
+std::optional<Token> Parser::missingCommaBetweenTupleElemsRecovery() {
   // fn foo: (() 3);
   // fn foo: (5  3);
   // fn foo: (5  ());
@@ -930,7 +930,7 @@ Optional<Token> Parser::missingCommaBetweenTupleElemsRecovery() {
       tk().isOneOf(TK_IntegerNumber, TK_LParentheses) &&
       (nextTk().isNot(TK_IntegerNumber) && nextTk().isNot(TK_LKeyBracket));
   if (!missingComma) {
-    return None;
+    return nullopt;
   }
 
   Diagnostic(DiagId::err_missing_comma_prior_tuple_param, tk().getSpan(),
@@ -979,7 +979,7 @@ Token Parser::getRecoveryToken(StringRef id, TokenKind kind) {
   return Token(id, kind, RecoveryLoc, RecoveryLoc, /*isRecovery=*/true);
 }
 
-Optional<source::CompilationUnit>
+std::optional<source::CompilationUnit>
 tmplang::Parse(tmplang::Lexer &lex, raw_ostream &out, const SourceManager &sm) {
   return Parser(lex, out, sm).Start();
 }

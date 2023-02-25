@@ -16,15 +16,15 @@ public:
       : Ctx(ctx), SymMan(ctx.getSymbolManager()),
         ScopeStack(1, &SymMan.getGlobalScope()) {}
 
-  Optional<CompilationUnit> build(const source::CompilationUnit &);
+  std::optional<CompilationUnit> build(const source::CompilationUnit &);
 
 private:
   std::unique_ptr<Decl> getTopLevelDecl(const source::Decl &);
 
   std::unique_ptr<Decl> get(const source::SubprogramDecl &);
-  Optional<ParamDecl> get(const source::ParamDecl &);
+  std::optional<ParamDecl> get(const source::ParamDecl &);
   std::unique_ptr<Decl> get(const source::DataDecl &);
-  Optional<DataFieldDecl> get(const source::DataFieldDecl &);
+  std::optional<DataFieldDecl> get(const source::DataFieldDecl &);
 
   std::unique_ptr<Expr> get(const source::Expr &);
   std::unique_ptr<ExprIntegerNumber> get(const source::ExprIntegerNumber &);
@@ -143,7 +143,7 @@ static std::unique_ptr<ExprAggregateDataAccess> GetDataAccess(
   assert(createdSymScopeByBaseSym &&
          "All DataType symbols create a symbolic scope for its fields");
 
-  Optional<unsigned> idxOfField;
+  std::optional<unsigned> idxOfField;
   const Symbol *fieldSym = nullptr;
   for (auto idxAndFieldSym :
        llvm::enumerate(createdSymScopeByBaseSym->getSymbols())) {
@@ -263,16 +263,16 @@ Symbol &HIRBuilder::addSymbolToCurrentScope(SymbolKind kind, llvm::StringRef id,
   return sym;
 }
 
-Optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
+std::optional<ParamDecl> HIRBuilder::get(const source::ParamDecl &srcParamDecl) {
   const Type *type = get(srcParamDecl.getType());
   if (!type) {
-    return None;
+    return nullopt;
   }
 
   if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
                              srcParamDecl.getName())) {
     // FIXME: Report error
-    return None;
+    return nullopt;
   }
   Symbol &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
                                         srcParamDecl.getName(), *type);
@@ -413,11 +413,11 @@ std::unique_ptr<Decl> HIRBuilder::get(const source::DataDecl &dataDecl) {
   return std::make_unique<DataDecl>(dataDecl, dataDeclSym, std::move(fields));
 }
 
-Optional<DataFieldDecl>
+std::optional<DataFieldDecl>
 HIRBuilder::get(const source::DataFieldDecl &dataFieldDecl) {
   auto *ty = get(dataFieldDecl.getType());
   if (!ty) {
-    return None;
+    return nullopt;
   }
 
   // FIXME: In reality these should not be stored since they are no Types
@@ -426,7 +426,7 @@ HIRBuilder::get(const source::DataFieldDecl &dataFieldDecl) {
   if (isSymbolInCurrentScope(SymbolKind::UnreferenciableDataFieldDecl,
                              dataFieldDecl.getName())) {
     // FIXME: Report error
-    return None;
+    return nullopt;
   }
   Symbol &dataFieldSym = addSymbolToCurrentScope(
       SymbolKind::UnreferenciableDataFieldDecl, dataFieldDecl.getName(), *ty);
@@ -446,7 +446,7 @@ static void AddNamedBuiltinTypes(SymbolManager &sm, HIRContext &ctx) {
   }
 }
 
-Optional<CompilationUnit>
+std::optional<CompilationUnit>
 HIRBuilder::build(const source::CompilationUnit &compUnit) {
   CompilationUnit result(compUnit);
 
@@ -457,7 +457,7 @@ HIRBuilder::build(const source::CompilationUnit &compUnit) {
 
     auto decl = getTopLevelDecl(*srcDecl);
     if (!decl) {
-      return None;
+      return nullopt;
     }
 
     result.addDecl(std::move(decl));
@@ -468,7 +468,7 @@ HIRBuilder::build(const source::CompilationUnit &compUnit) {
 
 } // namespace
 
-Optional<CompilationUnit>
+std::optional<CompilationUnit>
 tmplang::hir::buildHIR(const source::CompilationUnit &compUnit,
                        HIRContext &ctx) {
   return HIRBuilder(ctx).build(compUnit);

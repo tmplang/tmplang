@@ -11,7 +11,7 @@
 
 namespace tmplang {
 
-inline Optional<tmplang::source::CompilationUnit> CleanParse(StringRef code) {
+inline std::optional<tmplang::source::CompilationUnit> CleanParse(StringRef code) {
   auto inMemoryFileSystem = std::make_unique<llvm::vfs::InMemoryFileSystem>();
 
   const char *fileName = "./test";

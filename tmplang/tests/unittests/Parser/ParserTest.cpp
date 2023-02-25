@@ -35,7 +35,7 @@ TEST(ParserTest, Invalid) {
   };
 
   for (const StringLiteral &code : tests) {
-    Optional<source::CompilationUnit> compUnit = CleanParse(code);
+    std::optional<source::CompilationUnit> compUnit = CleanParse(code);
     EXPECT_TRUE(!compUnit || compUnit->didRecoverFromAnError());
   }
 }
