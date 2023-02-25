@@ -10,7 +10,7 @@ llvm_add_library(TmplangLowering
     TmplangMLIRDialect
 
     # Tmplang Conversions
-    TmplangToArithmetic
+    TmplangToArith
     TmplangToFunc
     TmplangToLLVM
 
@@ -18,7 +18,7 @@ llvm_add_library(TmplangLowering
 
     # MLIR Conversions
     MLIRLLVMCommonConversion
-    MLIRArithmeticToLLVM
+    MLIRArithToLLVM
     MLIRLLVMToLLVMIRTranslation
 
     # MLIR Transformations

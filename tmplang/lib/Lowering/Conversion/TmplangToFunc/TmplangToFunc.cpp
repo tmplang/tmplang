@@ -1,6 +1,6 @@
 #include <tmplang/Lowering/Conversion/TmplangToFunc/TmplangToFunc.h>
 
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Support/LogicalResult.h>
@@ -62,7 +62,7 @@ struct ConvertTmplangToFuncPass
     mlir::ConversionTarget target(getContext());
     mlir::RewritePatternSet patterns(&getContext());
 
-    target.addLegalDialect<TmplangDialect, mlir::arith::ArithmeticDialect,
+    target.addLegalDialect<TmplangDialect, mlir::arith::ArithDialect,
                            mlir::func::FuncDialect>();
     target.addIllegalOp<SubprogramOp, ReturnOp>();
 
