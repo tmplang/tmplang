@@ -10,10 +10,10 @@
 
 #include "lldb/Host/Config.h"
 
-
 #include <chrono>
 #include <cstring>
 #include <limits>
+#include <optional>
 #include <thread>
 
 #include "GDBRemoteCommunicationServerLLGS.h"
@@ -70,11 +70,9 @@ enum GDBRemoteServerError {
 // GDBRemoteCommunicationServerLLGS constructor
 GDBRemoteCommunicationServerLLGS::GDBRemoteCommunicationServerLLGS(
     MainLoop &mainloop, const NativeProcessProtocol::Factory &process_factory)
-    : GDBRemoteCommunicationServerCommon("gdb-remote.server",
-                                         "gdb-remote.server.rx_packet"),
-      m_mainloop(mainloop), m_process_factory(process_factory),
-      m_current_process(nullptr), m_continue_process(nullptr),
-      m_stdio_communication("process.stdio") {
+    : GDBRemoteCommunicationServerCommon(), m_mainloop(mainloop),
+      m_process_factory(process_factory), m_current_process(nullptr),
+      m_continue_process(nullptr), m_stdio_communication() {
   RegisterPacketHandlers();
 }
 
@@ -641,7 +639,7 @@ static void WriteRegisterValueInHexFixedWidth(
   }
 }
 
-static llvm::Optional<json::Object>
+static std::optional<json::Object>
 GetRegistersAsJSON(NativeThreadProtocol &thread) {
   Log *log = GetLog(LLDBLog::Thread);
 
@@ -657,7 +655,7 @@ GetRegistersAsJSON(NativeThreadProtocol &thread) {
       reg_ctx.GetExpeditedRegisters(ExpeditedRegs::Minimal);
 #endif
   if (expedited_regs.empty())
-    return llvm::None;
+    return std::nullopt;
 
   for (auto &reg_num : expedited_regs) {
     const RegisterInfo *const reg_info_p =
@@ -755,7 +753,7 @@ GetJSONThreadsInfo(NativeProcessProtocol &process, bool abridged) {
     json::Object thread_obj;
 
     if (!abridged) {
-      if (llvm::Optional<json::Object> registers = GetRegistersAsJSON(thread))
+      if (std::optional<json::Object> registers = GetRegistersAsJSON(thread))
         thread_obj.try_emplace("registers", std::move(*registers));
     }
 
@@ -2309,7 +2307,7 @@ GDBRemoteCommunicationServerLLGS::Handle_P(StringExtractorGDBRemote &packet) {
   // Build the reginfos response.
   StreamGDBRemote response;
 
-  RegisterValue reg_value(makeArrayRef(reg_bytes, reg_size),
+  RegisterValue reg_value(ArrayRef(reg_bytes, reg_size),
                           m_current_process->GetArchitecture().GetByteOrder());
   Status error = reg_context.WriteRegister(reg_info, reg_value);
   if (error.Fail()) {
@@ -2441,7 +2439,7 @@ GDBRemoteCommunicationServerLLGS::Handle_I(StringExtractorGDBRemote &packet) {
     // remote host
     ConnectionStatus status;
     Status error;
-    m_stdio_communication.Write(tmp, read, status, &error);
+    m_stdio_communication.WriteAll(tmp, read, status, &error);
     if (error.Fail()) {
       return SendErrorResponse(0x15);
     }
@@ -3068,19 +3066,24 @@ GDBRemoteCommunicationServerLLGS::BuildTargetXml() {
 
   StreamString response;
 
-  response.Printf("<?xml version=\"1.0\"?>");
-  response.Printf("<target version=\"1.0\">");
+  response.Printf("<?xml version=\"1.0\"?>\n");
+  response.Printf("<target version=\"1.0\">\n");
+  response.IndentMore();
 
-  response.Printf("<architecture>%s</architecture>",
+  response.Indent();
+  response.Printf("<architecture>%s</architecture>\n",
                   m_current_process->GetArchitecture()
                       .GetTriple()
                       .getArchName()
                       .str()
                       .c_str());
 
-  response.Printf("<feature>");
+  response.Indent("<feature>\n");
 
   const int registers_count = reg_context.GetUserRegisterCount();
+  if (registers_count)
+    response.IndentMore();
+
   for (int reg_index = 0; reg_index < registers_count; reg_index++) {
     const RegisterInfo *reg_info =
         reg_context.GetRegisterInfoAtIndex(reg_index);
@@ -3092,7 +3095,9 @@ GDBRemoteCommunicationServerLLGS::BuildTargetXml() {
       continue;
     }
 
-    response.Printf("<reg name=\"%s\" bitsize=\"%" PRIu32 "\" regnum=\"%d\" ",
+    response.Indent();
+    response.Printf("<reg name=\"%s\" bitsize=\"%" PRIu32
+                    "\" regnum=\"%d\" ",
                     reg_info->name, reg_info->byte_size * 8, reg_index);
 
     if (!reg_context.RegisterOffsetIsDynamic())
@@ -3141,11 +3146,15 @@ GDBRemoteCommunicationServerLLGS::BuildTargetXml() {
       response.Printf("\" ");
     }
 
-    response.Printf("/>");
+    response.Printf("/>\n");
   }
 
-  response.Printf("</feature>");
-  response.Printf("</target>");
+  if (registers_count)
+    response.IndentLess();
+
+  response.Indent("</feature>\n");
+  response.IndentLess();
+  response.Indent("</target>\n");
   return MemoryBuffer::getMemBufferCopy(response.GetString(), "target.xml");
 }
 
@@ -3517,19 +3526,17 @@ GDBRemoteCommunicationServerLLGS::Handle_vRun(
               arg.c_str());
   }
 
-  if (!argv.empty()) {
-    m_process_launch_info.GetExecutableFile().SetFile(
-        m_process_launch_info.GetArguments()[0].ref(), FileSpec::Style::native);
-    m_process_launch_error = LaunchProcess();
-    if (m_process_launch_error.Success()) {
-      assert(m_current_process);
-      return SendStopReasonForState(*m_current_process,
-                                    m_current_process->GetState(),
-                                    /*force_synchronous=*/true);
-    }
-    LLDB_LOG(log, "failed to launch exe: {0}", m_process_launch_error);
-  }
-  return SendErrorResponse(8);
+  if (argv.empty())
+    return SendErrorResponse(Status("No arguments"));
+  m_process_launch_info.GetExecutableFile().SetFile(
+      m_process_launch_info.GetArguments()[0].ref(), FileSpec::Style::native);
+  m_process_launch_error = LaunchProcess();
+  if (m_process_launch_error.Fail())
+    return SendErrorResponse(m_process_launch_error);
+  assert(m_current_process);
+  return SendStopReasonForState(*m_current_process,
+                                m_current_process->GetState(),
+                                /*force_synchronous=*/true);
 }
 
 GDBRemoteCommunication::PacketResult
@@ -3651,7 +3658,7 @@ GDBRemoteCommunicationServerLLGS::Handle_qWatchpointSupportInfo(
   auto hw_debug_cap = m_current_process->GetHardwareDebugSupportInfo();
 
   StreamGDBRemote response;
-  if (hw_debug_cap == llvm::None)
+  if (hw_debug_cap == std::nullopt)
     response.Printf("num:0;");
   else
     response.Printf("num:%d;", hw_debug_cap->second);
@@ -4272,7 +4279,7 @@ std::string
 lldb_private::process_gdb_remote::LLGSArgToURL(llvm::StringRef url_arg,
                                                bool reverse_connect) {
   // Try parsing the argument as URL.
-  if (llvm::Optional<URI> url = URI::Parse(url_arg)) {
+  if (std::optional<URI> url = URI::Parse(url_arg)) {
     if (reverse_connect)
       return url_arg.str();
 

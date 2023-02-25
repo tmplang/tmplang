@@ -13,7 +13,8 @@
 #include <__algorithm/copy_n.h>
 #include <__algorithm/fill_n.h>
 #include <__algorithm/min.h>
-#include <__bits>
+#include <__bit/countr.h>
+#include <__bit/popcount.h>
 #include <__config>
 #include <__iterator/iterator_traits.h>
 #include <__memory/construct_at.h>
@@ -54,7 +55,9 @@ class __bit_reference
     friend class __bit_const_reference<_Cp>;
     friend class __bit_iterator<_Cp, false>;
 public:
-    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17
+    using __container = typename _Cp::__self;
+
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_SINCE_CXX20
     __bit_reference(const __bit_reference&) = default;
 
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17 operator bool() const _NOEXCEPT
@@ -86,9 +89,9 @@ public:
     __bit_reference& operator=(const __bit_reference& __x) _NOEXCEPT
         {return operator=(static_cast<bool>(__x));}
 
-    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17 void flip() _NOEXCEPT {*__seg_ ^= __mask_;}
-    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17 __bit_iterator<_Cp, false> operator&() const _NOEXCEPT
-        {return __bit_iterator<_Cp, false>(__seg_, static_cast<unsigned>(__libcpp_ctz(__mask_)));}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_SINCE_CXX20 void flip() _NOEXCEPT {*__seg_ ^= __mask_;}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_SINCE_CXX20 __bit_iterator<_Cp, false> operator&() const _NOEXCEPT
+        {return __bit_iterator<_Cp, false>(__seg_, static_cast<unsigned>(std::__libcpp_ctz(__mask_)));}
 private:
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17
     explicit __bit_reference(__storage_pointer __s, __storage_type __m) _NOEXCEPT
@@ -162,8 +165,8 @@ public:
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR operator bool() const _NOEXCEPT
         {return static_cast<bool>(*__seg_ & __mask_);}
 
-    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17 __bit_iterator<_Cp, true> operator&() const _NOEXCEPT
-        {return __bit_iterator<_Cp, true>(__seg_, static_cast<unsigned>(__libcpp_ctz(__mask_)));}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_SINCE_CXX20 __bit_iterator<_Cp, true> operator&() const _NOEXCEPT
+        {return __bit_iterator<_Cp, true>(__seg_, static_cast<unsigned>(std::__libcpp_ctz(__mask_)));}
 private:
     _LIBCPP_INLINE_VISIBILITY
     _LIBCPP_CONSTEXPR
@@ -1117,16 +1120,16 @@ public:
     typedef bool                                                                                  value_type;
     typedef __bit_iterator                                                                        pointer;
 #ifndef _LIBCPP_ABI_BITSET_VECTOR_BOOL_CONST_SUBSCRIPT_RETURN_BOOL
-    typedef typename conditional<_IsConst, __bit_const_reference<_Cp>, __bit_reference<_Cp> >::type reference;
+    typedef __conditional_t<_IsConst, __bit_const_reference<_Cp>, __bit_reference<_Cp> > reference;
 #else
-    using reference = typename conditional<_IsConst, bool, __bit_reference<_Cp> >::type;
+    using reference = __conditional_t<_IsConst, bool, __bit_reference<_Cp> >;
 #endif
     typedef random_access_iterator_tag                                                            iterator_category;
 
 private:
     typedef typename _Cp::__storage_type                                           __storage_type;
-    typedef typename conditional<_IsConst, typename _Cp::__const_storage_pointer,
-                                           typename _Cp::__storage_pointer>::type  __storage_pointer;
+    typedef __conditional_t<_IsConst, typename _Cp::__const_storage_pointer, typename _Cp::__storage_pointer>
+        __storage_pointer;
     static const unsigned __bits_per_word = _Cp::__bits_per_word;
 
     __storage_pointer __seg_;
@@ -1160,9 +1163,9 @@ public:
         return *this;
     }
 
-    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17 reference operator*() const _NOEXCEPT {
-        return typename conditional<_IsConst, __bit_const_reference<_Cp>, __bit_reference<_Cp> >
-                ::type(__seg_, __storage_type(1) << __ctz_);
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_SINCE_CXX20 reference operator*() const _NOEXCEPT {
+        return __conditional_t<_IsConst, __bit_const_reference<_Cp>, __bit_reference<_Cp> >(
+            __seg_, __storage_type(1) << __ctz_);
     }
 
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17 __bit_iterator& operator++()

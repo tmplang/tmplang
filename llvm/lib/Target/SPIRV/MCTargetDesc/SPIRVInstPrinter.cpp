@@ -60,7 +60,10 @@ void SPIRVInstPrinter::printOpConstantVarOps(const MCInst *MI,
 }
 
 void SPIRVInstPrinter::recordOpExtInstImport(const MCInst *MI) {
-  // TODO: insert {Reg, Set} into ExtInstSetIDs map.
+  Register Reg = MI->getOperand(0).getReg();
+  auto Name = getSPIRVStringOperand(*MI, 1);
+  auto Set = getExtInstSetFromString(Name);
+  ExtInstSetIDs.insert({Reg, Set});
 }
 
 void SPIRVInstPrinter::printInst(const MCInst *MI, uint64_t Address,
@@ -77,13 +80,13 @@ void SPIRVInstPrinter::printInst(const MCInst *MI, uint64_t Address,
     printOpExtInst(MI, OS);
   } else {
     // Print any extra operands for variadic instructions.
-    MCInstrDesc MCDesc = MII.get(OpCode);
+    const MCInstrDesc &MCDesc = MII.get(OpCode);
     if (MCDesc.isVariadic()) {
       const unsigned NumFixedOps = MCDesc.getNumOperands();
       const unsigned LastFixedIndex = NumFixedOps - 1;
       const int FirstVariableIndex = NumFixedOps;
-      if (NumFixedOps > 0 &&
-          MCDesc.OpInfo[LastFixedIndex].OperandType == MCOI::OPERAND_UNKNOWN) {
+      if (NumFixedOps > 0 && MCDesc.operands()[LastFixedIndex].OperandType ==
+                                 MCOI::OPERAND_UNKNOWN) {
         // For instructions where a custom type (not reg or immediate) comes as
         // the last operand before the variable_ops. This is usually a StringImm
         // operand, but there are a few other cases.
@@ -182,7 +185,7 @@ void SPIRVInstPrinter::printInst(const MCInst *MI, uint64_t Address,
 void SPIRVInstPrinter::printOpExtInst(const MCInst *MI, raw_ostream &O) {
   // The fixed operands have already been printed, so just need to decide what
   // type of ExtInst operands to print based on the instruction set and number.
-  MCInstrDesc MCDesc = MII.get(MI->getOpcode());
+  const MCInstrDesc &MCDesc = MII.get(MI->getOpcode());
   unsigned NumFixedOps = MCDesc.getNumOperands();
   const auto NumOps = MI->getNumOperands();
   if (NumOps == NumFixedOps)
@@ -197,7 +200,7 @@ void SPIRVInstPrinter::printOpExtInst(const MCInst *MI, raw_ostream &O) {
 void SPIRVInstPrinter::printOpDecorate(const MCInst *MI, raw_ostream &O) {
   // The fixed operands have already been printed, so just need to decide what
   // type of decoration operands to print based on the Decoration type.
-  MCInstrDesc MCDesc = MII.get(MI->getOpcode());
+  const MCInstrDesc &MCDesc = MII.get(MI->getOpcode());
   unsigned NumFixedOps = MCDesc.getNumOperands();
 
   if (NumFixedOps != MI->getNumOperands()) {
@@ -306,7 +309,10 @@ void SPIRVInstPrinter::printStringImm(const MCInst *MI, unsigned OpNo,
 
 void SPIRVInstPrinter::printExtension(const MCInst *MI, unsigned OpNo,
                                       raw_ostream &O) {
-  llvm_unreachable("Unimplemented printExtension");
+  auto SetReg = MI->getOperand(2).getReg();
+  auto Set = ExtInstSetIDs[SetReg];
+  auto Op = MI->getOperand(OpNo).getImm();
+  O << getExtInstName(Set, Op);
 }
 
 template <OperandCategory::OperandCategory category>

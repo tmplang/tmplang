@@ -13,9 +13,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace bugprone {
+namespace clang::tidy::bugprone {
 
 namespace {
 // Check if the given type is related to std::enable_if.
@@ -113,9 +111,8 @@ void ForwardingReferenceOverloadCheck::check(
 
   // Every parameter after the first must have a default value.
   const auto *Ctor = Result.Nodes.getNodeAs<CXXConstructorDecl>("ctor");
-  for (auto *Iter = Ctor->param_begin() + 1; Iter != Ctor->param_end();
-       ++Iter) {
-    if (!(*Iter)->hasDefaultArg())
+  for (const auto *Param : llvm::drop_begin(Ctor->parameters())) {
+    if (!Param->hasDefaultArg())
       return;
   }
   bool EnabledCopy = false, DisabledCopy = false, EnabledMove = false,
@@ -146,6 +143,4 @@ void ForwardingReferenceOverloadCheck::check(
   }
 }
 
-} // namespace bugprone
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::bugprone

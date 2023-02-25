@@ -317,8 +317,7 @@ bool PHITransAddr::PHITranslateValue(BasicBlock *CurBB, BasicBlock *PredBB,
   assert(DT || !MustDominate);
   assert(Verify() && "Invalid PHITransAddr!");
   if (DT && DT->isReachableFromEntry(PredBB))
-    Addr =
-        PHITranslateSubExpr(Addr, CurBB, PredBB, MustDominate ? DT : nullptr);
+    Addr = PHITranslateSubExpr(Addr, CurBB, PredBB, DT);
   else
     Addr = nullptr;
   assert(Verify() && "Invalid PHITransAddr!");
@@ -406,7 +405,7 @@ InsertPHITranslatedSubExpr(Value *InVal, BasicBlock *CurBB,
     }
 
     GetElementPtrInst *Result = GetElementPtrInst::Create(
-        GEP->getSourceElementType(), GEPOps[0], makeArrayRef(GEPOps).slice(1),
+        GEP->getSourceElementType(), GEPOps[0], ArrayRef(GEPOps).slice(1),
         InVal->getName() + ".phi.trans.insert", PredBB->getTerminator());
     Result->setDebugLoc(Inst->getDebugLoc());
     Result->setIsInBounds(GEP->isInBounds());

@@ -78,7 +78,8 @@ bool objdump::UniversalHeaders;
 static bool ArchiveMemberOffsets;
 bool objdump::IndirectSymbols;
 bool objdump::DataInCode;
-bool objdump::FunctionStarts;
+FunctionStartsMode objdump::FunctionStartsType =
+    objdump::FunctionStartsMode::None;
 bool objdump::LinkOptHints;
 bool objdump::InfoPlist;
 bool objdump::ChainedFixups;
@@ -93,6 +94,8 @@ static std::vector<std::string> ArchFlags;
 
 static bool ArchAll = false;
 static std::string ThumbTripleName;
+
+static StringRef ordinalName(const object::MachOObjectFile *, int);
 
 void objdump::parseMachOOptions(const llvm::opt::InputArgList &InputArgs) {
   FirstPrivateHeader = InputArgs.hasArg(OBJDUMP_private_header);
@@ -110,7 +113,15 @@ void objdump::parseMachOOptions(const llvm::opt::InputArgList &InputArgs) {
   ArchiveMemberOffsets = InputArgs.hasArg(OBJDUMP_archive_member_offsets);
   IndirectSymbols = InputArgs.hasArg(OBJDUMP_indirect_symbols);
   DataInCode = InputArgs.hasArg(OBJDUMP_data_in_code);
-  FunctionStarts = InputArgs.hasArg(OBJDUMP_function_starts);
+  if (const opt::Arg *A = InputArgs.getLastArg(OBJDUMP_function_starts_EQ)) {
+    FunctionStartsType = StringSwitch<FunctionStartsMode>(A->getValue())
+                             .Case("addrs", FunctionStartsMode::Addrs)
+                             .Case("names", FunctionStartsMode::Names)
+                             .Case("both", FunctionStartsMode::Both)
+                             .Default(FunctionStartsMode::None);
+    if (FunctionStartsType == FunctionStartsMode::None)
+      invalidArgValue(A);
+  }
   LinkOptHints = InputArgs.hasArg(OBJDUMP_link_opt_hints);
   InfoPlist = InputArgs.hasArg(OBJDUMP_info_plist);
   ChainedFixups = InputArgs.hasArg(OBJDUMP_chained_fixups);
@@ -244,19 +255,19 @@ static uint64_t DumpDataInCode(const uint8_t *bytes, uint64_t Length,
   case MachO::DICE_KIND_DATA:
     if (Length >= 4) {
       if (ShowRawInsn)
-        dumpBytes(makeArrayRef(bytes, 4), outs());
+        dumpBytes(ArrayRef(bytes, 4), outs());
       Value = bytes[3] << 24 | bytes[2] << 16 | bytes[1] << 8 | bytes[0];
       outs() << "\t.long " << Value;
       Size = 4;
     } else if (Length >= 2) {
       if (ShowRawInsn)
-        dumpBytes(makeArrayRef(bytes, 2), outs());
+        dumpBytes(ArrayRef(bytes, 2), outs());
       Value = bytes[1] << 8 | bytes[0];
       outs() << "\t.short " << Value;
       Size = 2;
     } else {
       if (ShowRawInsn)
-        dumpBytes(makeArrayRef(bytes, 2), outs());
+        dumpBytes(ArrayRef(bytes, 2), outs());
       Value = bytes[0];
       outs() << "\t.byte " << Value;
       Size = 1;
@@ -268,14 +279,14 @@ static uint64_t DumpDataInCode(const uint8_t *bytes, uint64_t Length,
     break;
   case MachO::DICE_KIND_JUMP_TABLE8:
     if (ShowRawInsn)
-      dumpBytes(makeArrayRef(bytes, 1), outs());
+      dumpBytes(ArrayRef(bytes, 1), outs());
     Value = bytes[0];
     outs() << "\t.byte " << format("%3u", Value) << "\t@ KIND_JUMP_TABLE8\n";
     Size = 1;
     break;
   case MachO::DICE_KIND_JUMP_TABLE16:
     if (ShowRawInsn)
-      dumpBytes(makeArrayRef(bytes, 2), outs());
+      dumpBytes(ArrayRef(bytes, 2), outs());
     Value = bytes[1] << 8 | bytes[0];
     outs() << "\t.short " << format("%5u", Value & 0xffff)
            << "\t@ KIND_JUMP_TABLE16\n";
@@ -284,7 +295,7 @@ static uint64_t DumpDataInCode(const uint8_t *bytes, uint64_t Length,
   case MachO::DICE_KIND_JUMP_TABLE32:
   case MachO::DICE_KIND_ABS_JUMP_TABLE32:
     if (ShowRawInsn)
-      dumpBytes(makeArrayRef(bytes, 4), outs());
+      dumpBytes(ArrayRef(bytes, 4), outs());
     Value = bytes[3] << 24 | bytes[2] << 16 | bytes[1] << 8 | bytes[0];
     outs() << "\t.long " << Value;
     if (Kind == MachO::DICE_KIND_JUMP_TABLE32)
@@ -1078,12 +1089,39 @@ static void PrintFunctionStarts(MachOObjectFile *O) {
     }
   }
 
+  DenseMap<uint64_t, StringRef> SymbolNames;
+  if (FunctionStartsType == FunctionStartsMode::Names ||
+      FunctionStartsType == FunctionStartsMode::Both) {
+    for (SymbolRef Sym : O->symbols()) {
+      if (Expected<uint64_t> Addr = Sym.getAddress()) {
+        if (Expected<StringRef> Name = Sym.getName()) {
+          SymbolNames[*Addr] = *Name;
+        }
+      }
+    }
+  }
+
   for (uint64_t S : FunctionStarts) {
     uint64_t Addr = BaseSegmentAddress + S;
-    if (O->is64Bit())
-      outs() << format("%016" PRIx64, Addr) << "\n";
-    else
-      outs() << format("%08" PRIx32, static_cast<uint32_t>(Addr)) << "\n";
+    if (FunctionStartsType == FunctionStartsMode::Names) {
+      auto It = SymbolNames.find(Addr);
+      if (It != SymbolNames.end())
+        outs() << It->second << "\n";
+    } else {
+      if (O->is64Bit())
+        outs() << format("%016" PRIx64, Addr);
+      else
+        outs() << format("%08" PRIx32, static_cast<uint32_t>(Addr));
+
+      if (FunctionStartsType == FunctionStartsMode::Both) {
+        auto It = SymbolNames.find(Addr);
+        if (It != SymbolNames.end())
+          outs() << " " << It->second;
+        else
+          outs() << " ?";
+      }
+      outs() << "\n";
+    }
   }
 }
 
@@ -1186,15 +1224,6 @@ static void PrintLinkOptHints(MachOObjectFile *O) {
   }
 }
 
-static void printMachOChainedFixups(object::MachOObjectFile *Obj) {
-  Error Err = Error::success();
-  for (const object::MachOChainedFixupEntry &Entry : Obj->fixupTable(Err)) {
-    (void)Entry;
-  }
-  if (Err)
-    reportError(std::move(Err), Obj->getFileName());
-}
-
 static SmallVector<std::string> GetSegmentNames(object::MachOObjectFile *O) {
   SmallVector<std::string> Ret;
   for (const MachOObjectFile::LoadCommandInfo &Command : O->load_commands()) {
@@ -1253,9 +1282,8 @@ static constexpr std::array<StringRef, 13> PointerFormats{
     "DYLD_CHAINED_PTR_ARM64E_USERLAND24",
 };
 
-static void
-PrintChainedFixupsSegment(const MachOObjectFile::ChainedFixupsSegment &Segment,
-                          StringRef SegName) {
+static void PrintChainedFixupsSegment(const ChainedFixupsSegment &Segment,
+                                      StringRef SegName) {
   outs() << "chained starts in segment " << Segment.SegIdx << " (" << SegName
          << ")\n";
   outs() << "  size = " << Segment.Header.size << '\n';
@@ -1280,6 +1308,26 @@ PrintChainedFixupsSegment(const MachOObjectFile::ChainedFixupsSegment &Segment,
       outs() << " (DYLD_CHAINED_PTR_START_NONE)";
     outs() << '\n';
   }
+}
+
+static void PrintChainedFixupTarget(ChainedFixupTarget &Target, size_t Idx,
+                                    int Format, MachOObjectFile *O) {
+  if (Format == MachO::DYLD_CHAINED_IMPORT)
+    outs() << "dyld chained import";
+  else if (Format == MachO::DYLD_CHAINED_IMPORT_ADDEND)
+    outs() << "dyld chained import addend";
+  else if (Format == MachO::DYLD_CHAINED_IMPORT_ADDEND64)
+    outs() << "dyld chained import addend64";
+  // FIXME: otool prints the encoded value as well.
+  outs() << '[' << Idx << "]\n";
+
+  outs() << "  lib_ordinal = " << Target.libOrdinal() << " ("
+         << ordinalName(O, Target.libOrdinal()) << ")\n";
+  outs() << "  weak_import = " << Target.weakImport() << '\n';
+  outs() << "  name_offset = " << Target.nameOffset() << " ("
+         << Target.symbolName() << ")\n";
+  if (Format != MachO::DYLD_CHAINED_IMPORT)
+    outs() << "  addend      = " << (int64_t)Target.addend() << '\n';
 }
 
 static void PrintChainedFixups(MachOObjectFile *O) {
@@ -1311,15 +1359,74 @@ static void PrintChainedFixups(MachOObjectFile *O) {
            << SegNames[I] << ")\n";
   }
 
-  for (const MachOObjectFile::ChainedFixupsSegment &S : Segments)
+  for (const ChainedFixupsSegment &S : Segments)
     PrintChainedFixupsSegment(S, SegNames[S.SegIdx]);
 
-  // FIXME: Print more things.
+  auto FixupTargets =
+      unwrapOrError(O->getDyldChainedFixupTargets(), O->getFileName());
+
+  uint32_t ImportsFormat = ChainedFixupHeader->imports_format;
+  for (auto [Idx, Target] : enumerate(FixupTargets))
+    PrintChainedFixupTarget(Target, Idx, ImportsFormat, O);
 }
 
 static void PrintDyldInfo(MachOObjectFile *O) {
-  outs() << "dyld information:" << '\n';
-  printMachOChainedFixups(O);
+  Error Err = Error::success();
+
+  size_t SegmentWidth = strlen("segment");
+  size_t SectionWidth = strlen("section");
+  size_t AddressWidth = strlen("address");
+  size_t AddendWidth = strlen("addend");
+  size_t DylibWidth = strlen("dylib");
+  const size_t PointerWidth = 2 + O->getBytesInAddress() * 2;
+
+  auto HexLength = [](uint64_t Num) {
+    return Num ? (size_t)divideCeil(Log2_64(Num), 4) : 1;
+  };
+  for (const object::MachOChainedFixupEntry &Entry : O->fixupTable(Err)) {
+    SegmentWidth = std::max(SegmentWidth, Entry.segmentName().size());
+    SectionWidth = std::max(SectionWidth, Entry.sectionName().size());
+    AddressWidth = std::max(AddressWidth, HexLength(Entry.address()) + 2);
+    if (Entry.isBind()) {
+      AddendWidth = std::max(AddendWidth, HexLength(Entry.addend()) + 2);
+      DylibWidth = std::max(DylibWidth, Entry.symbolName().size());
+    }
+  }
+  // Errors will be handled when printing the table.
+  if (Err)
+    consumeError(std::move(Err));
+
+  outs() << "dyld information:\n";
+  outs() << left_justify("segment", SegmentWidth) << ' '
+         << left_justify("section", SectionWidth) << ' '
+         << left_justify("address", AddressWidth) << ' '
+         << left_justify("pointer", PointerWidth) << " type   "
+         << left_justify("addend", AddendWidth) << ' '
+         << left_justify("dylib", DylibWidth) << " symbol/vm address\n";
+  for (const object::MachOChainedFixupEntry &Entry : O->fixupTable(Err)) {
+    outs() << left_justify(Entry.segmentName(), SegmentWidth) << ' '
+           << left_justify(Entry.sectionName(), SectionWidth) << ' ' << "0x"
+           << left_justify(utohexstr(Entry.address()), AddressWidth - 2) << ' '
+           << format_hex(Entry.rawValue(), PointerWidth, true) << ' ';
+    if (Entry.isBind()) {
+      outs() << "bind   "
+             << "0x" << left_justify(utohexstr(Entry.addend()), AddendWidth - 2)
+             << ' ' << left_justify(ordinalName(O, Entry.ordinal()), DylibWidth)
+             << ' ' << Entry.symbolName();
+      if (Entry.flags() & MachO::BIND_SYMBOL_FLAGS_WEAK_IMPORT)
+        outs() << " (weak import)";
+      outs() << '\n';
+    } else {
+      assert(Entry.isRebase());
+      outs() << "rebase";
+      outs().indent(AddendWidth + DylibWidth + 2);
+      outs() << format("0x%" PRIX64, Entry.pointerValue()) << '\n';
+    }
+  }
+  if (Err)
+    reportError(std::move(Err), O->getFileName());
+
+  // TODO: Print opcode-based fixups if the object uses those.
 }
 
 static void PrintDylibs(MachOObjectFile *O, bool JustId) {
@@ -2040,9 +2147,9 @@ static void ProcessMachO(StringRef Name, MachOObjectFile *MachOOF,
   // UniversalHeaders or ArchiveHeaders.
   if (Disassemble || Relocations || PrivateHeaders || ExportsTrie || Rebase ||
       Bind || SymbolTable || LazyBind || WeakBind || IndirectSymbols ||
-      DataInCode || FunctionStarts || LinkOptHints || ChainedFixups ||
-      DyldInfo || DylibsUsed || DylibId || Rpaths || ObjcMetaData ||
-      (!FilterSections.empty())) {
+      DataInCode || FunctionStartsType != FunctionStartsMode::None ||
+      LinkOptHints || ChainedFixups || DyldInfo || DylibsUsed || DylibId ||
+      Rpaths || ObjcMetaData || (!FilterSections.empty())) {
     if (LeadingHeaders) {
       outs() << Name;
       if (!ArchiveMemberName.empty())
@@ -2097,7 +2204,7 @@ static void ProcessMachO(StringRef Name, MachOObjectFile *MachOOF,
     PrintIndirectSymbols(MachOOF, Verbose);
   if (DataInCode)
     PrintDataInCodeTable(MachOOF, Verbose);
-  if (FunctionStarts)
+  if (FunctionStartsType != FunctionStartsMode::None)
     PrintFunctionStarts(MachOOF);
   if (LinkOptHints)
     PrintLinkOptHints(MachOOF);
@@ -2111,10 +2218,10 @@ static void ProcessMachO(StringRef Name, MachOObjectFile *MachOOF,
     DumpSectionContents(FileName, MachOOF, Verbose);
   if (InfoPlist)
     DumpInfoPlistSectionContents(FileName, MachOOF);
-  if (ChainedFixups)
-    PrintChainedFixups(MachOOF);
   if (DyldInfo)
     PrintDyldInfo(MachOOF);
+  if (ChainedFixups)
+    PrintChainedFixups(MachOOF);
   if (DylibsUsed)
     PrintDylibs(MachOOF, false);
   if (DylibId)
@@ -7316,6 +7423,108 @@ static void emitComments(raw_svector_ostream &CommentStream,
   CommentsToEmit.clear();
 }
 
+const MachOObjectFile *
+objdump::getMachODSymObject(const MachOObjectFile *MachOOF, StringRef Filename,
+                            std::unique_ptr<Binary> &DSYMBinary,
+                            std::unique_ptr<MemoryBuffer> &DSYMBuf) {
+  const MachOObjectFile *DbgObj = MachOOF;
+  std::string DSYMPath;
+
+  // Auto-detect w/o --dsym.
+  if (DSYMFile.empty()) {
+    sys::fs::file_status DSYMStatus;
+    Twine FilenameDSYM = Filename + ".dSYM";
+    if (!status(FilenameDSYM, DSYMStatus)) {
+      if (sys::fs::is_directory(DSYMStatus)) {
+        SmallString<1024> Path;
+        FilenameDSYM.toVector(Path);
+        sys::path::append(Path, "Contents", "Resources", "DWARF",
+                          sys::path::filename(Filename));
+        DSYMPath = std::string(Path);
+      } else if (sys::fs::is_regular_file(DSYMStatus)) {
+        DSYMPath = FilenameDSYM.str();
+      }
+    }
+  }
+
+  if (DSYMPath.empty() && !DSYMFile.empty()) {
+    // If DSYMPath is a .dSYM directory, append the Mach-O file.
+    if (sys::fs::is_directory(DSYMFile) &&
+        sys::path::extension(DSYMFile) == ".dSYM") {
+      SmallString<128> ShortName(sys::path::filename(DSYMFile));
+      sys::path::replace_extension(ShortName, "");
+      SmallString<1024> FullPath(DSYMFile);
+      sys::path::append(FullPath, "Contents", "Resources", "DWARF", ShortName);
+      DSYMPath = FullPath.str();
+    } else {
+      DSYMPath = DSYMFile;
+    }
+  }
+
+  if (!DSYMPath.empty()) {
+    // Load the file.
+    ErrorOr<std::unique_ptr<MemoryBuffer>> BufOrErr =
+        MemoryBuffer::getFileOrSTDIN(DSYMPath);
+    if (std::error_code EC = BufOrErr.getError()) {
+      reportError(errorCodeToError(EC), DSYMPath);
+      return nullptr;
+    }
+
+    // We need to keep the file alive, because we're replacing DbgObj with it.
+    DSYMBuf = std::move(BufOrErr.get());
+
+    Expected<std::unique_ptr<Binary>> BinaryOrErr =
+        createBinary(DSYMBuf.get()->getMemBufferRef());
+    if (!BinaryOrErr) {
+      reportError(BinaryOrErr.takeError(), DSYMPath);
+      return nullptr;
+    }
+
+    // We need to keep the Binary alive with the buffer
+    DSYMBinary = std::move(BinaryOrErr.get());
+    if (ObjectFile *O = dyn_cast<ObjectFile>(DSYMBinary.get())) {
+      // this is a Mach-O object file, use it
+      if (MachOObjectFile *MachDSYM = dyn_cast<MachOObjectFile>(&*O)) {
+        DbgObj = MachDSYM;
+      } else {
+        WithColor::error(errs(), "llvm-objdump")
+            << DSYMPath << " is not a Mach-O file type.\n";
+        return nullptr;
+      }
+    } else if (auto *UB = dyn_cast<MachOUniversalBinary>(DSYMBinary.get())) {
+      // this is a Universal Binary, find a Mach-O for this architecture
+      uint32_t CPUType, CPUSubType;
+      const char *ArchFlag;
+      if (MachOOF->is64Bit()) {
+        const MachO::mach_header_64 H_64 = MachOOF->getHeader64();
+        CPUType = H_64.cputype;
+        CPUSubType = H_64.cpusubtype;
+      } else {
+        const MachO::mach_header H = MachOOF->getHeader();
+        CPUType = H.cputype;
+        CPUSubType = H.cpusubtype;
+      }
+      Triple T = MachOObjectFile::getArchTriple(CPUType, CPUSubType, nullptr,
+                                                &ArchFlag);
+      Expected<std::unique_ptr<MachOObjectFile>> MachDSYM =
+          UB->getMachOObjectForArch(ArchFlag);
+      if (!MachDSYM) {
+        reportError(MachDSYM.takeError(), DSYMPath);
+        return nullptr;
+      }
+
+      // We need to keep the Binary alive with the buffer
+      DbgObj = &*MachDSYM.get();
+      DSYMBinary = std::move(*MachDSYM);
+    } else {
+      WithColor::error(errs(), "llvm-objdump")
+          << DSYMPath << " is not a Mach-O or Universal file type.\n";
+      return nullptr;
+    }
+  }
+  return DbgObj;
+}
+
 static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
                              StringRef DisSegName, StringRef DisSectName) {
   const char *McpuDefault = nullptr;
@@ -7490,90 +7699,15 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
   std::unique_ptr<Binary> DSYMBinary;
   std::unique_ptr<MemoryBuffer> DSYMBuf;
   if (UseDbg) {
-    ObjectFile *DbgObj = MachOOF;
-
-    // A separate DSym file path was specified, parse it as a macho file,
+    // If separate DSym file path was specified, parse it as a macho file,
     // get the sections and supply it to the section name parsing machinery.
-    if (!DSYMFile.empty()) {
-      std::string DSYMPath(DSYMFile);
-
-      // If DSYMPath is a .dSYM directory, append the Mach-O file.
-      if (llvm::sys::fs::is_directory(DSYMPath) &&
-          llvm::sys::path::extension(DSYMPath) == ".dSYM") {
-        SmallString<128> ShortName(llvm::sys::path::filename(DSYMPath));
-        llvm::sys::path::replace_extension(ShortName, "");
-        SmallString<1024> FullPath(DSYMPath);
-        llvm::sys::path::append(FullPath, "Contents", "Resources", "DWARF",
-                                ShortName);
-        DSYMPath = std::string(FullPath.str());
-      }
-
-      // Load the file.
-      ErrorOr<std::unique_ptr<MemoryBuffer>> BufOrErr =
-          MemoryBuffer::getFileOrSTDIN(DSYMPath);
-      if (std::error_code EC = BufOrErr.getError()) {
-        reportError(errorCodeToError(EC), DSYMPath);
-        return;
-      }
-
-      // We need to keep the file alive, because we're replacing DbgObj with it.
-      DSYMBuf = std::move(BufOrErr.get());
-
-      Expected<std::unique_ptr<Binary>> BinaryOrErr =
-      createBinary(DSYMBuf.get()->getMemBufferRef());
-      if (!BinaryOrErr) {
-        reportError(BinaryOrErr.takeError(), DSYMPath);
-        return;
-      }
-
-      // We need to keep the Binary alive with the buffer
-      DSYMBinary = std::move(BinaryOrErr.get());
-      if (ObjectFile *O = dyn_cast<ObjectFile>(DSYMBinary.get())) {
-        // this is a Mach-O object file, use it
-        if (MachOObjectFile *MachDSYM = dyn_cast<MachOObjectFile>(&*O)) {
-          DbgObj = MachDSYM;
-        }
-        else {
-          WithColor::error(errs(), "llvm-objdump")
-            << DSYMPath << " is not a Mach-O file type.\n";
-          return;
-        }
-      }
-      else if (auto UB = dyn_cast<MachOUniversalBinary>(DSYMBinary.get())){
-        // this is a Universal Binary, find a Mach-O for this architecture
-        uint32_t CPUType, CPUSubType;
-        const char *ArchFlag;
-        if (MachOOF->is64Bit()) {
-          const MachO::mach_header_64 H_64 = MachOOF->getHeader64();
-          CPUType = H_64.cputype;
-          CPUSubType = H_64.cpusubtype;
-        } else {
-          const MachO::mach_header H = MachOOF->getHeader();
-          CPUType = H.cputype;
-          CPUSubType = H.cpusubtype;
-        }
-        Triple T = MachOObjectFile::getArchTriple(CPUType, CPUSubType, nullptr,
-                                                  &ArchFlag);
-        Expected<std::unique_ptr<MachOObjectFile>> MachDSYM =
-            UB->getMachOObjectForArch(ArchFlag);
-        if (!MachDSYM) {
-          reportError(MachDSYM.takeError(), DSYMPath);
-          return;
-        }
-
-        // We need to keep the Binary alive with the buffer
-        DbgObj = &*MachDSYM.get();
-        DSYMBinary = std::move(*MachDSYM);
-      }
-      else {
-        WithColor::error(errs(), "llvm-objdump")
-          << DSYMPath << " is not a Mach-O or Universal file type.\n";
-        return;
-      }
+    if (const ObjectFile *DbgObj =
+            getMachODSymObject(MachOOF, Filename, DSYMBinary, DSYMBuf)) {
+      // Setup the DIContext
+      diContext = DWARFContext::create(*DbgObj);
+    } else {
+      return;
     }
-
-    // Setup the DIContext
-    diContext = DWARFContext::create(*DbgObj);
   }
 
   if (FilterSections.empty())
@@ -7782,7 +7916,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
                                            Annotations);
         if (gotInst) {
           if (ShowRawInsn || Arch == Triple::arm) {
-            dumpBytes(makeArrayRef(Bytes.data() + Index, Size), outs());
+            dumpBytes(ArrayRef(Bytes.data() + Index, Size), outs());
           }
           formatted_raw_ostream FormattedOS(outs());
           StringRef AnnotationsStr = Annotations.str();
@@ -7863,7 +7997,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
           }
           if (ShowRawInsn || Arch == Triple::arm) {
             outs() << "\t";
-            dumpBytes(makeArrayRef(Bytes.data() + Index, InstSize), outs());
+            dumpBytes(ArrayRef(Bytes.data() + Index, InstSize), outs());
           }
           StringRef AnnotationsStr = Annotations.str();
           IP->printInst(&Inst, PC, AnnotationsStr, *STI, outs());
@@ -8572,6 +8706,9 @@ static void PrintMachHeader(uint32_t magic, uint32_t cputype,
     case MachO::MH_KEXT_BUNDLE:
       outs() << "  KEXTBUNDLE";
       break;
+    case MachO::MH_FILESET:
+      outs() << "     FILESET";
+      break;
     default:
       outs() << format("  %10u", filetype);
       break;
@@ -8784,6 +8921,12 @@ static void PrintSegmentCommand(uint32_t cmd, uint32_t cmdsize,
         outs() << " PROTECTED_VERSION_1";
         flags &= ~MachO::SG_PROTECTED_VERSION_1;
       }
+      if (flags & MachO::SG_READ_ONLY) {
+        // Apple's otool prints the SG_ prefix for this flag, but not for the
+        // others.
+        outs() << " SG_READ_ONLY";
+        flags &= ~MachO::SG_READ_ONLY;
+      }
       if (flags)
         outs() << format(" 0x%08" PRIx32, flags) << " (unknown flags)\n";
       else
@@ -8881,6 +9024,8 @@ static void PrintSection(const char *sectname, const char *segname,
       outs() << " S_THREAD_LOCAL_VARIABLE_POINTERS\n";
     else if (section_type == MachO::S_THREAD_LOCAL_INIT_FUNCTION_POINTERS)
       outs() << " S_THREAD_LOCAL_INIT_FUNCTION_POINTERS\n";
+    else if (section_type == MachO::S_INIT_FUNC_OFFSETS)
+      outs() << " S_INIT_FUNC_OFFSETS\n";
     else
       outs() << format("0x%08" PRIx32, section_type) << "\n";
     outs() << "attributes";
@@ -10508,6 +10653,8 @@ static StringRef ordinalName(const object::MachOObjectFile *Obj, int Ordinal) {
     return "main-executable";
   case MachO::BIND_SPECIAL_DYLIB_FLAT_LOOKUP:
     return "flat-namespace";
+  case MachO::BIND_SPECIAL_DYLIB_WEAK_LOOKUP:
+    return "weak";
   default:
     if (Ordinal > 0) {
       std::error_code EC =

@@ -424,6 +424,9 @@ public:
   /// Return branch info corresponding to an edge going to \p Succ basic block.
   BinaryBranchInfo &getBranchInfo(const BinaryBasicBlock &Succ);
 
+  /// Return branch info corresponding to an edge going to \p Succ basic block.
+  const BinaryBranchInfo &getBranchInfo(const BinaryBasicBlock &Succ) const;
+
   /// Return branch info corresponding to an edge going to a basic block with
   /// label \p Label.
   BinaryBranchInfo &getBranchInfo(const MCSymbol *Label);
@@ -567,6 +570,7 @@ public:
   }
 
   /// Return required alignment for the block.
+  Align getAlign() const { return Align(Alignment); }
   uint32_t getAlignment() const { return Alignment; }
 
   /// Set the maximum number of bytes to use for the block alignment.
@@ -982,7 +986,7 @@ private:
 #if defined(LLVM_ON_UNIX)
 /// Keep the size of the BinaryBasicBlock within a reasonable size class
 /// (jemalloc bucket) on Linux
-static_assert(sizeof(BinaryBasicBlock) <= 256, "");
+static_assert(sizeof(BinaryBasicBlock) <= 256);
 #endif
 
 bool operator<(const BinaryBasicBlock &LHS, const BinaryBasicBlock &RHS);

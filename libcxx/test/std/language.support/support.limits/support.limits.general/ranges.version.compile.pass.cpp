@@ -16,7 +16,7 @@
 // Test the feature test macros defined by <ranges>
 
 /*  Constant                      Value
-    __cpp_lib_ranges              201811L [C++20]
+    __cpp_lib_ranges              202106L [C++20]
     __cpp_lib_ranges_chunk        202202L [C++2b]
     __cpp_lib_ranges_chunk_by     202202L [C++2b]
     __cpp_lib_ranges_join_with    202202L [C++2b]
@@ -107,17 +107,11 @@
 
 #elif TEST_STD_VER == 20
 
-# if !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES)
-#   ifndef __cpp_lib_ranges
-#     error "__cpp_lib_ranges should be defined in c++20"
-#   endif
-#   if __cpp_lib_ranges != 201811L
-#     error "__cpp_lib_ranges should have the value 201811L in c++20"
-#   endif
-# else
-#   ifdef __cpp_lib_ranges
-#     error "__cpp_lib_ranges should not be defined when !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES) is not defined!"
-#   endif
+# ifndef __cpp_lib_ranges
+#   error "__cpp_lib_ranges should be defined in c++20"
+# endif
+# if __cpp_lib_ranges != 202106L
+#   error "__cpp_lib_ranges should have the value 202106L in c++20"
 # endif
 
 # ifdef __cpp_lib_ranges_chunk
@@ -142,17 +136,11 @@
 
 #elif TEST_STD_VER > 20
 
-# if !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES)
-#   ifndef __cpp_lib_ranges
-#     error "__cpp_lib_ranges should be defined in c++2b"
-#   endif
-#   if __cpp_lib_ranges != 201811L
-#     error "__cpp_lib_ranges should have the value 201811L in c++2b"
-#   endif
-# else
-#   ifdef __cpp_lib_ranges
-#     error "__cpp_lib_ranges should not be defined when !defined(_LIBCPP_HAS_NO_INCOMPLETE_RANGES) is not defined!"
-#   endif
+# ifndef __cpp_lib_ranges
+#   error "__cpp_lib_ranges should be defined in c++2b"
+# endif
+# if __cpp_lib_ranges != 202106L
+#   error "__cpp_lib_ranges should have the value 202106L in c++2b"
 # endif
 
 # if !defined(_LIBCPP_VERSION)

@@ -172,8 +172,6 @@ if config.asan_shadow_scale != '':
 if config.memprof_shadow_scale != '':
   config.target_cflags += " -mllvm -memprof-mapping-scale=" + config.memprof_shadow_scale
 
-config.environment = dict(os.environ)
-
 # Clear some environment variables that might affect Clang.
 possibly_dangerous_env_vars = ['ASAN_OPTIONS', 'DFSAN_OPTIONS', 'HWASAN_OPTIONS',
                                'LSAN_OPTIONS', 'MSAN_OPTIONS', 'UBSAN_OPTIONS',
@@ -735,3 +733,10 @@ if config.host_os == 'Darwin':
       sh_quote(get_ios_commands_dir())
     ))
   )
+
+# It is not realistically possible to account for all options that could
+# possibly be present in system and user configuration files, so disable
+# default configs for the test runs. In particular, anything hardening
+# related is likely to cause issues with sanitizer tests, because it may
+# preempt something we're looking to trap (e.g. _FORTIFY_SOURCE vs our ASAN).
+config.environment["CLANG_NO_DEFAULT_CONFIG"] = "1"

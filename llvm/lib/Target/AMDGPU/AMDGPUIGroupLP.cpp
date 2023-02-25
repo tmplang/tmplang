@@ -93,7 +93,7 @@ private:
   SchedGroupMask SGMask;
 
   // Maximum number of SUnits that can be added to this group.
-  Optional<unsigned> MaxSize;
+  std::optional<unsigned> MaxSize;
 
   // SchedGroups will only synchronize with other SchedGroups that have the same
   // SyncID.
@@ -175,13 +175,13 @@ public:
 
   SchedGroupMask getMask() { return SGMask; }
 
-  SchedGroup(SchedGroupMask SGMask, Optional<unsigned> MaxSize,
+  SchedGroup(SchedGroupMask SGMask, std::optional<unsigned> MaxSize,
              ScheduleDAGInstrs *DAG, const SIInstrInfo *TII)
       : SGMask(SGMask), MaxSize(MaxSize), DAG(DAG), TII(TII) {
     SGID = NumSchedGroups++;
   }
 
-  SchedGroup(SchedGroupMask SGMask, Optional<unsigned> MaxSize, int SyncID,
+  SchedGroup(SchedGroupMask SGMask, std::optional<unsigned> MaxSize, int SyncID,
              ScheduleDAGInstrs *DAG, const SIInstrInfo *TII)
       : SGMask(SGMask), MaxSize(MaxSize), SyncID(SyncID), DAG(DAG), TII(TII) {
     SGID = NumSchedGroups++;
@@ -323,10 +323,9 @@ void PipelineSolver::reset() {
     for (auto &SG : SyncPipeline) {
       SmallVector<SUnit *, 32> TempCollection = SG.Collection;
       SG.Collection.clear();
-      auto SchedBarr = std::find_if(
-          TempCollection.begin(), TempCollection.end(), [](SUnit *SU) {
-            return SU->getInstr()->getOpcode() == AMDGPU::SCHED_GROUP_BARRIER;
-          });
+      auto SchedBarr = llvm::find_if(TempCollection, [](SUnit *SU) {
+        return SU->getInstr()->getOpcode() == AMDGPU::SCHED_GROUP_BARRIER;
+      });
       if (SchedBarr != TempCollection.end())
         SG.Collection.push_back(*SchedBarr);
     }
@@ -348,7 +347,7 @@ void PipelineSolver::convertSyncMapsToArrays() {
     for (auto &SUsToCandSGs : SyncInstrMap.second) {
       if (PipelineInstrs[PipelineIDx].size() == 0) {
         PipelineInstrs[PipelineIDx].push_back(
-            std::make_pair(SUsToCandSGs.first, SUsToCandSGs.second));
+            std::pair(SUsToCandSGs.first, SUsToCandSGs.second));
         continue;
       }
       auto SortPosition = PipelineInstrs[PipelineIDx].begin();
@@ -358,8 +357,7 @@ void PipelineSolver::convertSyncMapsToArrays() {
              SUsToCandSGs.first->NodeNum > SortPosition->first->NodeNum)
         ++SortPosition;
       PipelineInstrs[PipelineIDx].insert(
-          SortPosition,
-          std::make_pair(SUsToCandSGs.first, SUsToCandSGs.second));
+          SortPosition, std::pair(SUsToCandSGs.first, SUsToCandSGs.second));
     }
     --PipelineIDx;
   }
@@ -428,9 +426,8 @@ void PipelineSolver::removeEdges(
     SUnit *Pred = PredSuccPair.first;
     SUnit *Succ = PredSuccPair.second;
 
-    auto Match =
-        std::find_if(Succ->Preds.begin(), Succ->Preds.end(),
-                     [&Pred](SDep &P) { return P.getSUnit() == Pred; });
+    auto Match = llvm::find_if(
+        Succ->Preds, [&Pred](SDep &P) { return P.getSUnit() == Pred; });
     if (Match != Succ->Preds.end()) {
       assert(Match->isArtificial());
       Succ->removePred(*Match);
@@ -510,15 +507,15 @@ void PipelineSolver::populateReadyList(
 
     if (UseCostHeur) {
       if (Match->isFull()) {
-        ReadyList.push_back(std::make_pair(*I, MissPenalty));
+        ReadyList.push_back(std::pair(*I, MissPenalty));
         continue;
       }
 
       int TempCost = addEdges(SyncPipeline, CurrSU.first, CandSGID, AddedEdges);
-      ReadyList.push_back(std::make_pair(*I, TempCost));
+      ReadyList.push_back(std::pair(*I, TempCost));
       removeEdges(AddedEdges);
     } else
-      ReadyList.push_back(std::make_pair(*I, -1));
+      ReadyList.push_back(std::pair(*I, -1));
   }
 
   if (UseCostHeur) {
@@ -767,50 +764,19 @@ void MFMASmallGemmOpt::applyIGLPStrategy(
     DenseMap<int, SmallVector<SchedGroup, 4>> &SyncedSchedGroups) {
   // Count the number of MFMA instructions.
   unsigned MFMACount = 0;
-  for (auto I = DAG->begin(), E = DAG->end(); I != E; ++I) {
-    if (TII->isMFMA(*I))
+  for (const MachineInstr &I : *DAG)
+    if (TII->isMFMAorWMMA(I))
       ++MFMACount;
-  }
 
   const unsigned PipelineSyncID = 0;
   SchedGroup *SG = nullptr;
-  for (unsigned I = 0; I < MFMACount; ++I) {
+  for (unsigned I = 0; I < MFMACount * 3; ++I) {
     SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::DS_READ, 1, PipelineSyncID, DAG, TII);
-    SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
-
-    SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::VMEM_READ, 1, PipelineSyncID, DAG, TII);
+        SchedGroupMask::DS, 2, PipelineSyncID, DAG, TII);
     SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
 
     SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
         SchedGroupMask::MFMA, 1, PipelineSyncID, DAG, TII);
-    SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
-
-    SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::VMEM_WRITE, 1, PipelineSyncID, DAG, TII);
-    SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
-
-    SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::DS_WRITE, 1, PipelineSyncID, DAG, TII);
-    SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
-  }
-
-  for (unsigned I = 0; I < MFMACount; ++I) {
-    SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::DS_READ, 1, PipelineSyncID, DAG, TII);
-    SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
-
-    SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::VMEM_READ, 1, PipelineSyncID, DAG, TII);
-    SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
-
-    SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::VMEM_WRITE, 1, PipelineSyncID, DAG, TII);
-    SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
-
-    SG = &SyncedSchedGroups[PipelineSyncID].emplace_back(
-        SchedGroupMask::DS_WRITE, 1, PipelineSyncID, DAG, TII);
     SG->initSchedGroup(SyncedInstrs[SG->getSyncID()]);
   }
 }
@@ -882,11 +848,11 @@ bool SchedGroup::canAddMI(const MachineInstr &MI) const {
     Result = false;
 
   else if (((SGMask & SchedGroupMask::ALU) != SchedGroupMask::NONE) &&
-           (TII->isVALU(MI) || TII->isMFMA(MI) || TII->isSALU(MI)))
+           (TII->isVALU(MI) || TII->isMFMAorWMMA(MI) || TII->isSALU(MI)))
     Result = true;
 
   else if (((SGMask & SchedGroupMask::VALU) != SchedGroupMask::NONE) &&
-           TII->isVALU(MI) && !TII->isMFMA(MI))
+           TII->isVALU(MI) && !TII->isMFMAorWMMA(MI))
     Result = true;
 
   else if (((SGMask & SchedGroupMask::SALU) != SchedGroupMask::NONE) &&
@@ -894,7 +860,7 @@ bool SchedGroup::canAddMI(const MachineInstr &MI) const {
     Result = true;
 
   else if (((SGMask & SchedGroupMask::MFMA) != SchedGroupMask::NONE) &&
-           TII->isMFMA(MI))
+           TII->isMFMAorWMMA(MI))
     Result = true;
 
   else if (((SGMask & SchedGroupMask::VMEM) != SchedGroupMask::NONE) &&
@@ -933,7 +899,7 @@ bool SchedGroup::canAddMI(const MachineInstr &MI) const {
 int SchedGroup::link(SUnit &SU, bool MakePred,
                      std::vector<std::pair<SUnit *, SUnit *>> &AddedEdges) {
   int MissedEdges = 0;
-  for (auto A : Collection) {
+  for (auto *A : Collection) {
     SUnit *B = &SU;
     if (A == B || A->getInstr()->getOpcode() == AMDGPU::SCHED_GROUP_BARRIER)
       continue;
@@ -946,7 +912,7 @@ int SchedGroup::link(SUnit &SU, bool MakePred,
     // the A->B edge impossible, otherwise it returns true;
     bool Added = tryAddEdge(A, B);
     if (Added)
-      AddedEdges.push_back(std::make_pair(A, B));
+      AddedEdges.push_back(std::pair(A, B));
     else
       ++MissedEdges;
   }
@@ -955,7 +921,7 @@ int SchedGroup::link(SUnit &SU, bool MakePred,
 }
 
 void SchedGroup::link(SUnit &SU, bool MakePred) {
-  for (auto A : Collection) {
+  for (auto *A : Collection) {
     SUnit *B = &SU;
     if (A->getInstr()->getOpcode() == AMDGPU::SCHED_GROUP_BARRIER)
       continue;
@@ -968,7 +934,7 @@ void SchedGroup::link(SUnit &SU, bool MakePred) {
 
 void SchedGroup::link(SUnit &SU,
                       function_ref<bool(const SUnit *A, const SUnit *B)> P) {
-  for (auto A : Collection) {
+  for (auto *A : Collection) {
     SUnit *B = &SU;
     if (P(A, B))
       std::swap(A, B);
@@ -978,7 +944,7 @@ void SchedGroup::link(SUnit &SU,
 }
 
 void SchedGroup::link(SchedGroup &OtherGroup) {
-  for (auto B : OtherGroup.Collection)
+  for (auto *B : OtherGroup.Collection)
     link(*B);
 }
 
@@ -1083,7 +1049,7 @@ void IGroupLPDAGMutation::addSchedBarrierEdges(SUnit &SchedBarrier) {
   resetEdges(SchedBarrier, DAG);
   auto InvertedMask =
       invertSchedBarrierMask((SchedGroupMask)MI.getOperand(0).getImm());
-  SchedGroup SG(InvertedMask, None, DAG, TII);
+  SchedGroup SG(InvertedMask, std::nullopt, DAG, TII);
   SG.initSchedGroup();
   // Preserve original instruction ordering relative to the SCHED_BARRIER.
   SG.link(

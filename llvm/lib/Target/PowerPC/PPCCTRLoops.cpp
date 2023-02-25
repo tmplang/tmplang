@@ -99,10 +99,19 @@ bool PPCCTRLoops::runOnMachineFunction(MachineFunction &MF) {
   TII = static_cast<const PPCInstrInfo *>(MF.getSubtarget().getInstrInfo());
   MRI = &MF.getRegInfo();
 
-  for (auto ML : MLI) {
+  for (auto *ML : MLI) {
     if (ML->isOutermost())
       Changed |= processLoop(ML);
   }
+
+#ifndef NDEBUG
+  for (const MachineBasicBlock &BB : MF) {
+    for (const MachineInstr &I : BB)
+      assert((I.getOpcode() != PPC::DecreaseCTRloop &&
+              I.getOpcode() != PPC::DecreaseCTR8loop) &&
+             "CTR loop pseudo is not expanded!");
+  }
+#endif
 
   return Changed;
 }
@@ -114,14 +123,10 @@ bool PPCCTRLoops::isCTRClobber(MachineInstr *MI, bool CheckReads) const {
     // CTR defination inside the callee of a call instruction will not impact
     // the defination of MTCTRloop, so we can use definesRegister() for the
     // check, no need to check the regmask.
-    return (MI->definesRegister(PPC::CTR) &&
-            !MI->registerDefIsDead(PPC::CTR)) ||
-           (MI->definesRegister(PPC::CTR8) &&
-            !MI->registerDefIsDead(PPC::CTR8));
+    return MI->definesRegister(PPC::CTR) || MI->definesRegister(PPC::CTR8);
   }
 
-  if ((MI->modifiesRegister(PPC::CTR) && !MI->registerDefIsDead(PPC::CTR)) ||
-      (MI->modifiesRegister(PPC::CTR8) && !MI->registerDefIsDead(PPC::CTR8)))
+  if (MI->modifiesRegister(PPC::CTR) || MI->modifiesRegister(PPC::CTR8))
     return true;
 
   if (MI->getDesc().isCall())
@@ -139,8 +144,8 @@ bool PPCCTRLoops::processLoop(MachineLoop *ML) {
   bool Changed = false;
 
   // Align with HardwareLoop pass, process inner loops first.
-  for (auto I = ML->begin(), E = ML->end(); I != E; ++I)
-    Changed |= processLoop(*I);
+  for (MachineLoop *I : *ML)
+    Changed |= processLoop(I);
 
   // If any inner loop is changed, outter loop must be without hardware loop
   // intrinsics.

@@ -41,8 +41,8 @@ subroutine forall3
   end forall
   forall(i=1:10)
     forall(j=1:10)
-      !WARNING: FORALL index variable 'j' not used on left-hand side of assignment
       !ERROR: Cannot redefine FORALL variable 'i'
+      !WARNING: FORALL index variable 'j' not used on left-hand side of assignment
       i = 1
     end forall
   end forall
@@ -110,3 +110,25 @@ subroutine forall6
     a(1)%p => b(i)
   end forall
 end
+
+subroutine forall7(x)
+  integer :: iarr(1)
+  real :: a(10)
+  class(*) :: x
+  associate (j => iarr(1))
+    forall (j=1:size(a))
+      a(j) = a(j) + 1
+    end forall
+  end associate
+  associate (j => iarr(1) + 1)
+    forall (j=1:size(a))
+      a(j) = a(j) + 1
+    end forall
+  end associate
+  select type (j => x)
+  type is (integer)
+    forall (j=1:size(a))
+      a(j) = a(j) + 1
+    end forall
+  end select
+end subroutine

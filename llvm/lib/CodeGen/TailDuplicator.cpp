@@ -370,8 +370,10 @@ void TailDuplicator::processPHI(
   // Remove PredBB from the PHI node.
   MI->removeOperand(SrcOpIdx + 1);
   MI->removeOperand(SrcOpIdx);
-  if (MI->getNumOperands() == 1)
+  if (MI->getNumOperands() == 1 && !TailBB->hasAddressTaken())
     MI->eraseFromParent();
+  else if (MI->getNumOperands() == 1)
+    MI->setDesc(TII->get(TargetOpcode::IMPLICIT_DEF));
 }
 
 /// Duplicate a TailBB instruction to PredBB and update
@@ -395,7 +397,7 @@ void TailDuplicator::duplicateInstruction(
       if (!MO.isReg())
         continue;
       Register Reg = MO.getReg();
-      if (!Register::isVirtualRegister(Reg))
+      if (!Reg.isVirtual())
         continue;
       if (MO.isDef()) {
         const TargetRegisterClass *RC = MRI->getRegClass(Reg);
@@ -797,6 +799,15 @@ bool TailDuplicator::canTailDuplicate(MachineBasicBlock *TailBB,
   if (TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond))
     return false;
   if (!PredCond.empty())
+    return false;
+  // FIXME: This is overly conservative; it may be ok to relax this in the
+  // future under more specific conditions. If TailBB is an INLINEASM_BR
+  // indirect target, we need to see if the edge from PredBB to TailBB is from
+  // an INLINEASM_BR in PredBB, and then also if that edge was from the
+  // indirect target list, fallthrough/default target, or potentially both. If
+  // it's both, TailDuplicator::tailDuplicate will remove the edge, corrupting
+  // the successor list in PredBB and predecessor list in TailBB.
+  if (TailBB->isInlineAsmBrIndirectTarget())
     return false;
   return true;
 }
