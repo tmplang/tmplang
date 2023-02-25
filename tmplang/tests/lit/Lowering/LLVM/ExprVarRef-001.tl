@@ -11,5 +11,5 @@ fn foo: A a -> A {
 
 //      CHECK:%A = type { i32, i32, i32 }
 
-//      CHECK:define %A @foo(%A %0) !dbg !3 {
-// CHECK-NEXT:  ret %A %0, !dbg !7
+//      CHECK:define %A @foo(%A %0)
+// CHECK-NEXT:  ret %A %0

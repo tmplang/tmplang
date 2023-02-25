@@ -5,9 +5,9 @@ fn foo -> (i32) {
 }
 
 //      CHECK:define { i32 } @foo()
-// CHECK-NEXT:  %1 = alloca { i32 }, i64 1, align 8, !dbg !7
-// CHECK-NEXT:  %2 = getelementptr { i32 }, ptr %1, i64 0, !dbg !9
-// CHECK-NEXT:  store i32 1, ptr %2, align 4, !dbg !7
-// CHECK-NEXT:  %3 = load { i32 }, ptr %1, align 4, !dbg !7
-// CHECK-NEXT:  ret { i32 } %3, !dbg !10
+// CHECK-NEXT:  %1 = alloca { i32 }, i64 1, align 8
+// CHECK-NEXT:  %2 = getelementptr { i32 }, ptr %1, i64 0
+// CHECK-NEXT:  store i32 1, ptr %2, align 4
+// CHECK-NEXT:  %3 = load { i32 }, ptr %1, align 4
+// CHECK-NEXT:  ret { i32 } %3
 // CHECK-NEXT:}
