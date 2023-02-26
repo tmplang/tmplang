@@ -13,7 +13,7 @@ class SourceManager;
 /// Simple grammar verifier parser. Given a lexer which already contains the
 /// code returns wether the grammar can generate the input
 std::optional<source::CompilationUnit> Parse(tmplang::Lexer &, raw_ostream &out,
-                                        const SourceManager &);
+                                             const SourceManager &);
 
 } // namespace tmplang
 
