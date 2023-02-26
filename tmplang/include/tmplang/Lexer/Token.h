@@ -37,6 +37,7 @@ enum TokenKind {
   TK_Data,
   TK_FnType,
   TK_Match,
+  TK_Union,
   TK_ProcType,
   TK_Otherwise,
   TK_Ret,

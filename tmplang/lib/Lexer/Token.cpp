@@ -41,6 +41,8 @@ StringLiteral tmplang::ToString(TokenKind tk) {
     return "_";
   case TK_Match:
     return "match";
+  case TK_Union:
+    return "union";
   case TK_Data:
     return "data";
   case TK_FnType:
