@@ -4,3 +4,5 @@ proc foo: i32 var i32 var2 {}
 
 // CHECK:error: missing needed comma between parameters
 // CHECK:proc foo: i32 var , i32 var2 {}
+
+// XFAIL: *

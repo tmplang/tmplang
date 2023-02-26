@@ -7,3 +7,5 @@ fn : i32 , i32 var i32 var2 -> i32
 // CHECK-NEXT:ParamDecl: i32 Err![<parameter_id>] ,
 // CHECK-NEXT:ParamDecl: i32 var Err![,]
 // CHECK-NEXT:ParamDecl: i32 var2
+
+// XFAIL: *

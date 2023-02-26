@@ -13,8 +13,6 @@
 //=-------------------------- Parsing Diags --------------------------------=//
 ERROR(found_unknown_token,                     "found unexpected token")
 ERROR(missing_arrow,                           "missing type arrow")
-ERROR(missing_comma,                           "missing needed comma between parameters")
-ERROR(missing_comma_between_data_fields,       "missing needed comma data fields")
 ERROR(missing_comma_prior_tuple_param,         "missing comma before next tuple parameter")
 ERROR(missing_colon,                           "missing needed colon before start of parameter list")
 ERROR(missing_colon_on_data_field,             "missing colon between identifier and type on data field")

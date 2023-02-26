@@ -5,6 +5,7 @@
 #include <tmplang/Tree/Source/Decls.h>
 #include <tmplang/Tree/Source/Exprs.h>
 #include <tmplang/Tree/Source/Types.h>
+#include <utility>
 
 using namespace tmplang;
 
@@ -26,8 +27,31 @@ private:
   std::optional<Token> missingDataDeclId();
   std::optional<Token> missingDataDeclStartingEq();
 
-  std::optional<SmallVector<source::DataFieldDecl, 4>> DataFieldDeclList();
-  std::optional<Token> missingCommaDataFieldSepRecovery();
+  std::unique_ptr<source::UnionDecl> UnionDecl();
+
+  std::optional<source::UnionAlternativeDecl> UnionAlternativeDecl();
+  /// DataFieldDeclList = DataFieldDecl (",", DataFieldDecl)*;
+  std::optional<source::OneElementOrMoreList<source::UnionAlternativeDecl>>
+  UnionAlternativeDeclList() {
+    return ParseOneOrMoreCommaSeparatedItemList<
+        source::UnionAlternativeDecl, &Parser::UnionAlternativeDecl>();
+  }
+
+  std::optional<source::UnionAlternativeFieldDecl> UnionAlternativeFieldDecl();
+  /// DataFieldDeclList = DataFieldDecl (",", DataFieldDecl)*;
+  std::optional<source::OneElementOrMoreList<source::UnionAlternativeFieldDecl>>
+  UnionAlternativeFieldDeclList() {
+    return ParseOneOrMoreCommaSeparatedItemList<
+        source::UnionAlternativeFieldDecl,
+        &Parser::UnionAlternativeFieldDecl>();
+  }
+
+  /// DataFieldDeclList = DataFieldDecl (",", DataFieldDecl)*;
+  std::optional<source::OneElementOrMoreList<source::DataFieldDecl>>
+  DataFieldDeclList() {
+    return ParseOneOrMoreCommaSeparatedItemList<source::DataFieldDecl,
+                                                &Parser::DataFieldDecl>();
+  }
 
   std::optional<source::DataFieldDecl> DataFieldDecl();
   std::optional<Token> missingDataFieldId();
@@ -38,13 +62,16 @@ private:
   std::unique_ptr<source::SubprogramDecl> ArrowAndEndOfSubprogramFactored(
       Token funcType, Token id,
       std::optional<SpecificToken<TK_Colon>> colon = nullopt,
-      SmallVector<source::ParamDecl, 4> paramList = {});
+      source::MinElementList<source::ParamDecl, 0> paramList = {});
   std::optional<Token> missingSubprogramTypeRecovery();
   std::optional<Token> missingSubprogramIdRecovery();
   std::optional<Token> missingReturnTypeArrowRecovery();
 
-  std::optional<SmallVector<source::ParamDecl, 4>> ParamList();
-  std::optional<Token> missingCommaParamSepRecovery();
+  /// Param_List = (Param (",", Param)*)?;
+  std::optional<source::VariadicList<source::ParamDecl>> ParamList() {
+    return ParseVariadicCommaSeparatedItemList<source::ParamDecl,
+                                               &Parser::Param>();
+  }
 
   std::optional<source::ParamDecl> Param();
   std::optional<Token> missingVariableOnParamRecovery();
@@ -90,6 +117,50 @@ private:
       return consume();
     }
     return nullopt;
+  }
+
+  template <typename T, unsigned MinSize,
+            std::optional<T> (Parser::*itemParserFunc)()>
+  std::optional<source::MinElementList<T, MinSize>>
+  ParseItemCommaSeparatedList() {
+    typename source::MinElementList<T, MinSize>::InternalList_t items;
+
+    auto firstItem = (this->*itemParserFunc)();
+    if (!firstItem) {
+      return std::nullopt;
+    }
+    items.push_back(std::move(*firstItem));
+
+    while (auto comma = Parser::ParseToken<TK_Comma>()) {
+      items.back().setComma(std::move(*comma));
+
+      auto restItems = (this->*itemParserFunc)();
+      if (!restItems) {
+        return std::nullopt;
+      }
+
+      items.push_back(std::move(*restItems));
+    }
+
+    return std::optional<source::MinElementList<T, MinSize>>(std::in_place,
+                                                             std::move(items));
+  }
+
+  /// Parses a guaranteed one sized or more list of elements using the provided
+  /// function \ref itemParserFunc. This functions relies on nodes inheriting
+  /// the TrailingComma trait.
+  template <typename T, std::optional<T> (Parser::*itemParserFunc)()>
+  std::optional<source::OneElementOrMoreList<T>>
+  ParseOneOrMoreCommaSeparatedItemList() {
+    return ParseItemCommaSeparatedList<T, 1, itemParserFunc>();
+  }
+
+  /// Parses a variadic size list of elements using the provided function \ref
+  /// itemParserFunc. This functions relies on nodes inheriting the
+  /// TrailingComma trait.
+  template <typename T, std::optional<T> (Parser::*itemParserFunc)()>
+  std::optional<source::VariadicList<T>> ParseVariadicCommaSeparatedItemList() {
+    return ParseItemCommaSeparatedList<T, 0, itemParserFunc>();
   }
 
   // Utility functions
@@ -163,6 +234,16 @@ std::optional<source::CompilationUnit> Parser::Start() {
                                      ParserState.NumberOfRecoveriesPerformed);
     }
 
+    if (tk().is(TK_Union)) {
+      auto unionDecl = UnionDecl();
+      if (!unionDecl) {
+        // Nothing to do, already reported
+        return nullopt;
+      }
+      decls.push_back(std::move(unionDecl));
+      continue;
+    }
+
     if (tk().is(TK_Data)) {
       auto fieldDecl = DataDecl();
       if (!fieldDecl) {
@@ -195,7 +276,7 @@ std::optional<source::CompilationUnit> Parser::Start() {
 
 std::unique_ptr<source::SubprogramDecl> Parser::ArrowAndEndOfSubprogramFactored(
     Token funcType, Token id, std::optional<SpecificToken<TK_Colon>> colon,
-    SmallVector<source::ParamDecl, 4> paramList) {
+    source::VariadicList<source::ParamDecl> paramList) {
   if (auto arrow = parseOrTryRecover<&Parser::ParseToken<TK_RArrow>,
                                      &Parser::missingReturnTypeArrowRecovery>(
           /*emitUnexpectedTokenDiag*/ false)) {
@@ -299,6 +380,92 @@ std::optional<Token> Parser::missingDataDeclStartingEq() {
   return getRecoveryToken(TK_Eq);
 }
 
+std::unique_ptr<source::UnionDecl> Parser::UnionDecl() {
+  auto unionKeyword = Parser::ParseToken<TK_Union>();
+  if (!unionKeyword) {
+    // TODO: Emmit error and recover
+    return nullptr;
+  }
+
+  auto id = Parser::ParseToken<TK_Identifier>();
+  if (!id) {
+    // TODO: Emmit error and recover
+    return nullptr;
+  }
+
+  auto eq = Parser::ParseToken<TK_Eq>();
+  if (!eq) {
+    // TODO: Emmit error and recover
+    return nullptr;
+  }
+
+  auto alternatives = UnionAlternativeDeclList();
+  if (!alternatives) {
+    return nullptr;
+  }
+
+  auto semicolon = Parser::ParseToken<TK_Semicolon>();
+  if (!semicolon) {
+    // TODO: Emmit error and recover
+    return nullptr;
+  }
+
+  return std::make_unique<source::UnionDecl>(
+      std::move(*unionKeyword), std::move(*id), std::move(*eq),
+      std::move(*alternatives), std::move(*semicolon));
+}
+
+std::optional<source::UnionAlternativeDecl> Parser::UnionAlternativeDecl() {
+  auto id = Parser::ParseToken<TK_Identifier>();
+  if (!id) {
+    // TODO: Emmit error and recover
+    return std::nullopt;
+  }
+
+  auto lParen = Parser::ParseToken<TK_LParentheses>();
+  if (!lParen) {
+    // TODO: Emmit error and recover
+    return std::nullopt;
+  }
+
+  auto fields = UnionAlternativeFieldDeclList();
+  if (!fields) {
+    return std::nullopt;
+  }
+
+  auto rParen = Parser::ParseToken<TK_RParentheses>();
+  if (!rParen) {
+    // TODO: Emmit error and recover
+    return std::nullopt;
+  }
+
+  return source::UnionAlternativeDecl(std::move(*id), std::move(*lParen),
+                                      std::move(*fields), std::move(*rParen));
+}
+
+std::optional<source::UnionAlternativeFieldDecl>
+Parser::UnionAlternativeFieldDecl() {
+  auto id = Parser::ParseToken<TK_Identifier>();
+  if (!id) {
+    // TODO: Emmit error and recover
+    return std::nullopt;
+  }
+
+  auto colon = Parser::ParseToken<TK_Colon>();
+  if (!colon) {
+    // TODO: Emmit error and recover
+    return std::nullopt;
+  }
+
+  auto type = Type();
+  if (!type) {
+    return std::nullopt;
+  }
+
+  return source::UnionAlternativeFieldDecl(std::move(*id), std::move(*colon),
+                                           std::move(type));
+}
+
 std::optional<source::DataFieldDecl> Parser::DataFieldDecl() {
   std::optional<Token> id =
       parseOrTryRecover<&Parser::ParseToken<TK_Identifier>,
@@ -383,58 +550,7 @@ std::optional<Token> Parser::missingDataFieldType() {
   return getRecoveryToken(TK_Identifier);
 }
 
-/// DataFieldDeclList = DataFieldDecl (",", DataFieldDecl)*;
-std::optional<SmallVector<source::DataFieldDecl, 4>>
-Parser::DataFieldDeclList() {
-  SmallVector<source::DataFieldDecl, 4> dataFieldDecls;
-
-  auto firstParam = DataFieldDecl();
-  if (!firstParam) {
-    // Nothing to report here, reported on Param
-    return nullopt;
-  }
-  dataFieldDecls.push_back(std::move(*firstParam));
-
-  while (auto comma =
-             parseOrTryRecover<&Parser::ParseToken<TK_Comma>,
-                               &Parser::missingCommaDataFieldSepRecovery>(
-                 /*emitUnexpectedTokenDiag*/ false)) {
-    dataFieldDecls.back().setComma(std::move(*comma));
-
-    auto dataField = DataFieldDecl();
-    if (!dataField) {
-      // Nothing to report here, reported on Param
-      return nullopt;
-    }
-
-    dataFieldDecls.push_back(std::move(*dataField));
-  }
-
-  return dataFieldDecls;
-}
-
-std::optional<Token> Parser::missingCommaDataFieldSepRecovery() {
-  // data Foo =
-  //   a : i32
-  //          ^___ comma here
-  //   b : i32,;
-
-  const bool missingComma = tk().isOneOf(TK_Identifier) &&
-                            // TokenKinds corresponding to end of Type
-                            prevTk().isOneOf(TK_Identifier, TK_RParentheses);
-  if (!missingComma) {
-    return nullopt;
-  }
-
-  Diagnostic(DiagId::err_missing_comma_between_data_fields, tk().getSpan(),
-             InsertTextAtHint(getStartCurrToken(), ToString(TK_Comma)))
-      .print(Out, SM);
-
-  return getRecoveryToken(TK_Comma);
-}
-
 /// Function_type = "proc" | "fn";
-
 /// Function_Definition =
 ///  [1] | Function_Type, Identifier, ":", Param_List, "->", Type, Block
 ///  [2] | Function_Type, Identifier, ":", Param_List, Block
@@ -520,55 +636,6 @@ std::optional<Token> Parser::missingReturnTypeArrowRecovery() {
       .print(Out, SM);
 
   return getRecoveryToken(TK_RArrow);
-}
-
-/// Param_List = Param (",", Param)*;
-std::optional<SmallVector<source::ParamDecl, 4>> Parser::ParamList() {
-  SmallVector<source::ParamDecl, 4> paramList;
-
-  auto firstParam = Param();
-  if (!firstParam) {
-    // Nothing to report here, reported on Param
-    return nullopt;
-  }
-  paramList.push_back(std::move(*firstParam));
-
-  while (auto comma = parseOrTryRecover<&Parser::ParseToken<TK_Comma>,
-                                        &Parser::missingCommaParamSepRecovery>(
-             /*emitUnexpectedTokenDiag*/ false)) {
-    paramList.back().setComma(std::move(*comma));
-
-    auto param = Param();
-    if (!param) {
-      // Nothing to report here, reported on Param
-      return nullopt;
-    }
-
-    paramList.push_back(std::move(*param));
-  }
-
-  return paramList;
-}
-
-std::optional<Token> Parser::missingCommaParamSepRecovery() {
-  // fn foo: i32 var i32 var ...
-  //                ^___ comma here
-
-  // fn foo: i32 var () var ...
-  // fn foo: i32 var (var) var ...
-  //   do not emit in the above cases, the can get confusing with missing arrow
-  const bool missingComma = prevTk().is(TK_Identifier) &&
-                            tk().is(TK_Identifier) &&
-                            nextTk().is(TK_Identifier);
-  if (!missingComma) {
-    return nullopt;
-  }
-
-  Diagnostic(DiagId::err_missing_comma, tk().getSpan(),
-             InsertTextAtHint(getStartCurrToken(), ToString(TK_Comma)))
-      .print(Out, SM);
-
-  return getRecoveryToken(TK_Comma);
 }
 
 /// Param = Type Identifier;

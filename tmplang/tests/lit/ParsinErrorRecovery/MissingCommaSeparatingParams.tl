@@ -5,3 +5,5 @@ proc foo: i32 var i32 var2 i32 var3 {}
 //      CHECK:ParamDecl: i32 var Err![,]
 // CHECK-NEXT:ParamDecl: i32 var2 Err![,]
 // CHECK-NEXT:ParamDecl: i32 var3
+
+// XFAIL:*

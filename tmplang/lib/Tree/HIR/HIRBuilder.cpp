@@ -431,6 +431,9 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
   case source::Node::Kind::TupleDestructurationElem:
   case source::Node::Kind::DataDestructuration:
   case source::Node::Kind::DataDestructurationElem:
+  case source::Node::Kind::UnionDecl:
+  case source::Node::Kind::UnionAlternativeDecl:
+  case source::Node::Kind::UnionAlternativeFieldDecl:
     break;
   }
   llvm_unreachable("This should not be reachable");
@@ -525,6 +528,8 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
     return get(*cast<source::SubprogramDecl>(&decl));
   case source::Node::Kind::DataDecl:
     return get(*cast<source::DataDecl>(&decl));
+  case source::Node::Kind::UnionDecl:
+    return {};
   case source::Node::Kind::CompilationUnit:
   case source::Node::Kind::DataFieldDecl:
   case source::Node::Kind::ParamDecl:
@@ -544,6 +549,8 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::TupleDestructurationElem:
   case source::Node::Kind::DataDestructuration:
   case source::Node::Kind::DataDestructurationElem:
+  case source::Node::Kind::UnionAlternativeDecl:
+  case source::Node::Kind::UnionAlternativeFieldDecl:
     // All these nodes cannot be top level decls
     break;
   }
