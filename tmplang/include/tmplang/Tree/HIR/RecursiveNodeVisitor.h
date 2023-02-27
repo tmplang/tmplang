@@ -205,6 +205,28 @@ protected:
     return TraverseExprMatchCaseLhsVal(aggregateDesElem.getValue());
   }
 
+  bool traverseUnionAlternativeFieldDecl(
+      const UnionAlternativeFieldDecl &alternativeFieldDecl) {
+    TRY_TO(visitNode(alternativeFieldDecl));
+    return true;
+  }
+
+  bool traverseUnionAlternativeDecl(const UnionAlternativeDecl &alternative) {
+    TRY_TO(visitNode(alternative));
+    for (const auto &field : alternative.getFields()) {
+      TRY_TO(traverseNode(field));
+    }
+    return true;
+  }
+
+  bool traverseUnionDecl(const UnionDecl &enumDecl) {
+    TRY_TO(visitNode(enumDecl));
+    for (const auto &alternative : enumDecl.getAlternatives()) {
+      TRY_TO(traverseNode(alternative));
+    }
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//

@@ -29,6 +29,10 @@ private:
   std::optional<DataFieldDecl> get(const source::DataFieldDecl &);
   std::optional<PlaceholderDecl> get(const source::PlaceholderDecl &,
                                      const Type &matchedExprTy);
+  std::unique_ptr<UnionDecl> get(const source::UnionDecl &);
+  std::optional<UnionAlternativeDecl> get(const source::UnionAlternativeDecl &);
+  std::optional<UnionAlternativeFieldDecl>
+  get(const source::UnionAlternativeFieldDecl &);
 
   // All expressions
   std::unique_ptr<Expr> get(const source::Expr &);
@@ -529,7 +533,7 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::DataDecl:
     return get(*cast<source::DataDecl>(&decl));
   case source::Node::Kind::UnionDecl:
-    return {};
+    return get(*cast<source::UnionDecl>(&decl));
   case source::Node::Kind::CompilationUnit:
   case source::Node::Kind::DataFieldDecl:
   case source::Node::Kind::ParamDecl:
@@ -693,6 +697,104 @@ HIRBuilder::get(const source::PlaceholderDecl &placeholderDecl,
   auto &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
                                       placeholderDecl.getName(), placeholderTy);
   return PlaceholderDecl(placeholderDecl, sym);
+}
+
+std::unique_ptr<UnionDecl> HIRBuilder::get(const source::UnionDecl &enumDecl) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromType,
+                             enumDecl.getName())) {
+    // TODO: Report message about type already defined
+    return nullptr;
+  }
+
+  auto &unionSymScope = pushSymbolicScope();
+
+  std::vector<UnionAlternativeDecl> alternatives;
+  for (auto &alternative : enumDecl.getAlternatives()) {
+    auto optAlternative = get(alternative);
+    if (!optAlternative) {
+      // Error already reported
+      return nullptr;
+    }
+    alternatives.push_back(std::move(*optAlternative));
+  }
+
+  popSymbolScope();
+
+  SmallVector<const Type *> alternativeTys;
+  alternativeTys.reserve(alternatives.size());
+  transform(alternatives, std::back_inserter(alternativeTys),
+            [](const UnionAlternativeDecl &field) { return &field.getType(); });
+
+  auto &unionTy = UnionType::get(Ctx, enumDecl.getName(), alternativeTys);
+
+  auto &sym =
+      addSymbolToCurrentScope(SymbolKind::ReferenciableFromType,
+                              enumDecl.getName(), unionTy, &unionSymScope);
+
+  return std::make_unique<UnionDecl>(enumDecl, sym, std::move(alternatives));
+}
+
+std::optional<UnionAlternativeDecl>
+HIRBuilder::get(const source::UnionAlternativeDecl &alternative) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromType,
+                             alternative.getName())) {
+    // TODO: Report message about alternative already defined
+    return nullopt;
+  }
+
+  pushSymbolicScope();
+
+  std::vector<UnionAlternativeFieldDecl> fields;
+  for (auto &field : alternative.getFields()) {
+    auto optField = get(field);
+    if (!optField) {
+      // Error already reported
+      return nullopt;
+    }
+    fields.push_back(std::move(*optField));
+  }
+
+  auto &alternativeScope = popSymbolScope();
+
+  SmallVector<const Type *> fieldTys;
+  fieldTys.reserve(fields.size());
+  transform(
+      fields, std::back_inserter(fieldTys),
+      [](const UnionAlternativeFieldDecl &field) { return &field.getType(); });
+
+  // Alternative types are struct types
+  auto &alternativeTy = DataType::get(Ctx, alternative.getName(), fieldTys);
+
+  auto &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromType,
+                                      alternative.getName(), alternativeTy,
+                                      &alternativeScope);
+
+  // Link the type with its associated symbol
+  DataTyToSymMap[&alternativeTy] = &sym;
+
+  return std::make_optional<UnionAlternativeDecl>(alternative, sym,
+                                                  std::move(fields));
+}
+
+std::optional<UnionAlternativeFieldDecl>
+HIRBuilder::get(const source::UnionAlternativeFieldDecl &alternativeFieldDecl) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                             alternativeFieldDecl.getName())) {
+    // TODO: Report message about field already defined
+    return nullopt;
+  }
+
+  auto *fieldTy = get(alternativeFieldDecl.getType());
+  if (!fieldTy) {
+    // Already reported
+    return nullopt;
+  }
+
+  auto &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                                      alternativeFieldDecl.getName(), *fieldTy);
+
+  return std::make_optional<UnionAlternativeFieldDecl>(alternativeFieldDecl,
+                                                       sym);
 }
 
 static void AddNamedBuiltinTypes(SymbolManager &sm, HIRContext &ctx) {

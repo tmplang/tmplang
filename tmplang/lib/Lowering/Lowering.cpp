@@ -238,6 +238,9 @@ private:
     case hir::Node::Kind::ExprMatchCase:
     case hir::Node::Kind::AggregateDestructuration:
     case hir::Node::Kind::AggregateDestructurationElem:
+    case hir::Node::Kind::UnionDecl:
+    case hir::Node::Kind::UnionAlternativeDecl:
+    case hir::Node::Kind::UnionAlternativeFieldDecl:
       llvm_unreachable("None of these are exprs");
       break;
     }
@@ -257,6 +260,9 @@ private:
       return get(*cast<hir::SubprogramType>(&type));
     case hir::Type::K_Data:
       return get(*cast<hir::DataType>(&type));
+    case hir::Type::K_Union:
+      return get(*cast<hir::UnionType>(&type));
+      break;
     }
     llvm_unreachable("All cases covered");
   }
@@ -297,6 +303,8 @@ private:
 
     return tmplang::DataType::get(&Ctx, dataTy.getName(), tys);
   }
+
+  mlir::Type get(const hir::UnionType &) { return {}; }
 
   mlir::FileLineColLoc getLocation(const hir::Node &node) {
     const LineAndColumn lineAndCol = SM.getLineAndColumn(node.getBeginLoc());

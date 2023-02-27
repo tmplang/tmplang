@@ -25,6 +25,8 @@ public:
       return getDerived().traverseSubprogramType(*cast<SubprogramType>(&type));
     case Type::K_Data:
       return getDerived().traverseDataType(*cast<DataType>(&type));
+    case Type::K_Union:
+      return getDerived().traverseUnionType(*cast<UnionType>(&type));
     }
     llvm_unreachable("All cases are handled");
   }
@@ -40,6 +42,9 @@ public:
       return getDerived().visitSubprogramType(*cast<SubprogramType>(&type));
     case Type::K_Data:
       return getDerived().visitDataType(*cast<DataType>(&type));
+    case Type::K_Union:
+      return getDerived().visitUnionType(*cast<UnionType>(&type));
+      break;
     }
     llvm_unreachable("All cases are handled");
   }
@@ -53,6 +58,7 @@ protected:
   bool visitTupleType(const TupleType &) { return true; }
   bool visitSubprogramType(const SubprogramType &) { return true; }
   bool visitDataType(const DataType &) { return true; }
+  bool visitUnionType(const UnionType &) { return true; }
   //=--------------------------------------------------------------------------=//
   // End visit functions
   //=--------------------------------------------------------------------------=//
@@ -82,6 +88,13 @@ protected:
   bool traverseDataType(const DataType &dataTy) {
     TRY_TO(visitType(dataTy));
     for (const Type *type : dataTy.getFieldsTypes()) {
+      TRY_TO(traverseType(*type));
+    }
+    return true;
+  }
+  bool traverseUnionType(const UnionType &unionTy) {
+    TRY_TO(visitType(unionTy));
+    for (const Type *type : unionTy.getAlternativeTypes()) {
       TRY_TO(traverseType(*type));
     }
     return true;

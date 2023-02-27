@@ -83,3 +83,20 @@ SubprogramType::get(HIRContext &ctx, const Type &retTy,
              ? *it
              : ctx.DataTypes.emplace_back(DataType(name, fieldsTys));
 }
+
+/*  static */ const UnionType &
+UnionType::get(HIRContext &ctx, llvm::StringRef name,
+               ArrayRef<const Type *> alternativeTys) {
+  // FIXME: This is very naive and unoptimal, we could accelerate this using,
+  //        for example, an index table by data size
+
+  // Search for it first in case already exists
+  auto it = llvm::find_if(ctx.UnionTypes, [&](const UnionType &unionTy) {
+    return unionTy.getAlternativeTypes() == alternativeTys &&
+           unionTy.Name == name;
+  });
+
+  return it != ctx.UnionTypes.end()
+             ? *it
+             : ctx.UnionTypes.emplace_back(UnionType(name, alternativeTys));
+}
