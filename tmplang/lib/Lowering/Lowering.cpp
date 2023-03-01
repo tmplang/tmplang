@@ -304,7 +304,12 @@ private:
     return tmplang::DataType::get(&Ctx, dataTy.getName(), tys);
   }
 
-  mlir::Type get(const hir::UnionType &) { return {}; }
+  tmplang::UnionType get(const hir::UnionType &unionTy) {
+    SmallVector<DataType, 4> tys;
+    transform(unionTy.getAlternativeTypes(), std::back_inserter(tys),
+              [&](const hir::Type *ty) { return llvm::cast<DataType>(get(*ty)); });
+    return UnionType::get(&Ctx, unionTy.getName(), tys);
+  }
 
   mlir::FileLineColLoc getLocation(const hir::Node &node) {
     const LineAndColumn lineAndCol = SM.getLineAndColumn(node.getBeginLoc());

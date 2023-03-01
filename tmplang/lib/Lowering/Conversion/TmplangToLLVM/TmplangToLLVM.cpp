@@ -156,7 +156,8 @@ struct ConvertTmplangToLLVMPass
 
   void runOnOperation() override {
     mlir::LLVMTypeConverter typeConverter(&getContext());
-    populateTmplangToLLVMConversionPatterns(getContext(), typeConverter);
+    populateTmplangToLLVMConversionPatterns(getContext(), typeConverter,
+                                            DefaultDataLayout);
 
     mlir::LLVMConversionTarget target(getContext());
     target
@@ -176,6 +177,9 @@ struct ConvertTmplangToLLVMPass
       mlir::Pass::signalPassFailure();
     }
   }
+
+  /// Default data layout for now
+  mlir::DataLayout DefaultDataLayout;
 };
 
 } // namespace
@@ -185,7 +189,8 @@ struct ConvertTmplangToLLVMPass
 //===----------------------------------------------------------------------===//
 
 void tmplang::populateTmplangToLLVMConversionPatterns(
-    mlir::MLIRContext &context, mlir::LLVMTypeConverter &typeConverter) {
+    mlir::MLIRContext &context, mlir::LLVMTypeConverter &typeConverter,
+    mlir::DataLayout &dataLayout) {
   typeConverter.addConversion([&](mlir::TupleType tupleTy) {
     SmallVector<mlir::Type, 4> tys;
     for (auto ty : tupleTy) {
@@ -200,6 +205,35 @@ void tmplang::populateTmplangToLLVMConversionPatterns(
     }
     return mlir::LLVM::LLVMStructType::getNewIdentified(
         &context, dataType.getName(), tys);
+  });
+
+  /// For the lowering of an union type we will just create an struct with
+  /// quantity of bytes required for the biggest alternative and the idx for
+  /// keeping track of the active alternative
+  typeConverter.addConversion([&](tmplang::UnionType unionTy) {
+    // Transform all alternative types to llvm types
+    SmallVector<mlir::LLVM::LLVMStructType, 4> alternativeTys;
+    transform(unionTy.getTys(), std::back_inserter(alternativeTys),
+              [&](mlir::Type ty) {
+                return typeConverter.convertType(ty)
+                    .cast<mlir::LLVM::LLVMStructType>();
+              });
+
+    // Calculate max size of the biggest alternative
+    unsigned maxSizeStruct = 0;
+    for (auto ty : alternativeTys) {
+      maxSizeStruct = std::max(maxSizeStruct, dataLayout.getTypeSize(ty));
+    }
+
+    // Array of biggest alternative in bytes and idx for active alternative
+    SmallVector<mlir::Type, 2> memAndAlternativesIdx = {
+        mlir::LLVM::LLVMArrayType::get(
+            mlir::IntegerType::get(&context, /*width=*/8), maxSizeStruct),
+        mlir::IntegerType::get(&context, /*width=*/64)};
+
+    // Create named llvm struct with array and idx
+    return mlir::LLVM::LLVMStructType::getNewIdentified(
+        &context, unionTy.getName(), memAndAlternativesIdx);
   });
 }
 
