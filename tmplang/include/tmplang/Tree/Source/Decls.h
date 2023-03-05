@@ -13,12 +13,9 @@ namespace tmplang::source {
 class ParamDecl final : public Decl, public TrailingOptComma {
 public:
   explicit ParamDecl(RAIIType paramType, SpecificToken<TK_Identifier> id)
-      : Decl(Node::Kind::ParamDecl), ParamType(std::move(paramType)),
-        Identifier(std::move(id)) {}
+      : Decl(Kind::ParamDecl, std::move(id)), ParamType(std::move(paramType)) {}
 
   const Type &getType() const { return *ParamType; }
-  StringRef getName() const override { return Identifier.getLexeme(); }
-  const auto &getIdentifier() const { return Identifier; }
 
   tmplang::SourceLocation getBeginLoc() const override {
     return ParamType->getBeginLoc();
@@ -33,7 +30,6 @@ public:
 
 private:
   RAIIType ParamType;
-  SpecificToken<TK_Identifier> Identifier;
 };
 
 class SubprogramDecl final : public Decl {
@@ -53,9 +49,7 @@ public:
     return OptArrowAndType ? OptArrowAndType->RetType.get() : nullptr;
   }
   const ArrayRef<ParamDecl> getParams() const { return ParamList.Items; }
-  StringRef getName() const override { return Identifier.getLexeme(); }
   const auto &getFuncType() const { return FuncType; }
-  const auto &getIdentifier() const { return Identifier; }
   const std::optional<SpecificToken<TK_Colon>> &getColon() const {
     return Colon;
   }
@@ -87,8 +81,8 @@ public:
                  std::optional<SpecificToken<TK_Colon>> colon,
                  source::VariadicList<source::ParamDecl> paramList,
                  std::optional<ArrowAndType> arrowAndType = nullopt)
-      : Decl(Kind::SubprogramDecl), FuncType(std::move(funcType)),
-        Identifier(std::move(identifier)), Colon(std::move(colon)),
+      : Decl(Kind::SubprogramDecl, std::move(identifier)),
+        FuncType(std::move(funcType)), Colon(std::move(colon)),
         ParamList(std::move(paramList)),
         OptArrowAndType(std::move(arrowAndType)), B(std::move(block)) {}
 
@@ -98,7 +92,6 @@ public:
 
 private:
   SpecificToken<TK_FnType, TK_ProcType> FuncType;
-  SpecificToken<TK_Identifier> Identifier;
   std::optional<SpecificToken<TK_Colon>> Colon;
   source::VariadicList<source::ParamDecl> ParamList;
   std::optional<ArrowAndType> OptArrowAndType;
@@ -107,8 +100,6 @@ private:
 
 class DataFieldDecl final : public Decl, public TrailingOptComma {
 public:
-  StringRef getName() const override { return Identifier.getLexeme(); }
-  const auto &getIdentifier() const { return Identifier; }
   const auto &getColon() const { return Colon; }
   const Type &getType() const { return *Ty; }
 
@@ -126,13 +117,12 @@ public:
 
   DataFieldDecl(SpecificToken<TK_Identifier> id, SpecificToken<TK_Colon> colon,
                 RAIIType ty)
-      : Decl(Node::Kind::DataFieldDecl), Identifier(std::move(id)),
-        Colon(std::move(colon)), Ty(std::move(ty)) {
+      : Decl(Node::Kind::DataFieldDecl, std::move(id)), Colon(std::move(colon)),
+        Ty(std::move(ty)) {
     assert(Ty);
   }
 
 private:
-  SpecificToken<TK_Identifier> Identifier;
   SpecificToken<TK_Colon> Colon;
   RAIIType Ty;
 };
@@ -140,8 +130,6 @@ private:
 class DataDecl final : public Decl {
 public:
   const auto &getDataKeyword() const { return DataKeyword; }
-  StringRef getName() const override { return Identifier.getLexeme(); }
-  const auto &getIdentifier() const { return Identifier; }
   llvm::ArrayRef<DataFieldDecl> getFields() const { return Fields.Items; }
   const auto &getStartingEq() const { return StartingEq; }
   const auto &getEndingSemicolon() const { return EndingSemicolon; }
@@ -161,8 +149,8 @@ public:
            SpecificToken<TK_Eq> startingEq,
            OneElementOrMoreList<DataFieldDecl> fields,
            SpecificToken<TK_Semicolon> endingSemicolon)
-      : Decl(Kind::DataDecl), DataKeyword(std::move(dataKeyword)),
-        Identifier(std::move(id)), StartingEq(std::move(startingEq)),
+      : Decl(Kind::DataDecl, std::move(id)),
+        DataKeyword(std::move(dataKeyword)), StartingEq(std::move(startingEq)),
         Fields(std::move(fields)), EndingSemicolon(std::move(endingSemicolon)) {
   }
 
@@ -170,7 +158,6 @@ public:
 
 private:
   SpecificToken<TK_Data> DataKeyword;
-  SpecificToken<TK_Identifier> Identifier;
   SpecificToken<TK_Eq> StartingEq;
   OneElementOrMoreList<DataFieldDecl> Fields;
   SpecificToken<TK_Semicolon> EndingSemicolon;
@@ -178,8 +165,6 @@ private:
 
 class UnionAlternativeFieldDecl final : public Decl, public TrailingOptComma {
 public:
-  StringRef getName() const override { return Identifier.getLexeme(); }
-  const auto &getIdentifier() const { return Identifier; }
   const auto &getColon() const { return Colon; }
   const Type &getType() const { return *Ty; }
 
@@ -197,21 +182,18 @@ public:
 
   UnionAlternativeFieldDecl(SpecificToken<TK_Identifier> id,
                             SpecificToken<TK_Colon> colon, RAIIType ty)
-      : Decl(Kind::UnionAlternativeFieldDecl), Identifier(std::move(id)),
+      : Decl(Kind::UnionAlternativeFieldDecl, std::move(id)),
         Colon(std::move(colon)), Ty(std::move(ty)) {
     assert(Ty);
   }
 
 private:
-  SpecificToken<TK_Identifier> Identifier;
   SpecificToken<TK_Colon> Colon;
   RAIIType Ty;
 };
 
 class UnionAlternativeDecl final : public Decl, public TrailingOptComma {
 public:
-  StringRef getName() const override { return Identifier.getLexeme(); }
-  const auto &getIdentifier() const { return Identifier; }
   const auto &getLhsParen() const { return LhsParen; }
   ArrayRef<UnionAlternativeFieldDecl> getFields() const { return Fields.Items; }
   const auto &getRhsParen() const { return RhsParen; }
@@ -232,12 +214,11 @@ public:
                        SpecificToken<TK_LParentheses> lParen,
                        OneElementOrMoreList<UnionAlternativeFieldDecl> fields,
                        SpecificToken<TK_RParentheses> rParen)
-      : Decl(Kind::UnionAlternativeDecl), Identifier(std::move(id)),
+      : Decl(Kind::UnionAlternativeDecl, std::move(id)),
         LhsParen(std::move(lParen)), Fields(std::move(fields)),
         RhsParen(std::move(rParen)) {}
 
 private:
-  SpecificToken<TK_Identifier> Identifier;
   SpecificToken<TK_LParentheses> LhsParen;
   OneElementOrMoreList<UnionAlternativeFieldDecl> Fields;
   SpecificToken<TK_RParentheses> RhsParen;
@@ -246,8 +227,6 @@ private:
 class UnionDecl final : public Decl {
 public:
   const auto &getUnionKeyword() const { return UnionKeyword; }
-  StringRef getName() const override { return Identifier.getLexeme(); }
-  const auto &getIdentifier() const { return Identifier; }
   const auto &getStartingEq() const { return StartingEq; }
   llvm::ArrayRef<UnionAlternativeDecl> getAlternatives() const {
     return Alternatives.Items;
@@ -269,8 +248,9 @@ public:
             SpecificToken<TK_Identifier> id, SpecificToken<TK_Eq> startingEq,
             OneElementOrMoreList<UnionAlternativeDecl> alternatives,
             SpecificToken<TK_Semicolon> endingSemicolon)
-      : Decl(Kind::UnionDecl), UnionKeyword(std::move(unionKeyword)),
-        Identifier(std::move(id)), StartingEq(std::move(startingEq)),
+      : Decl(Kind::UnionDecl, std::move(id)),
+        UnionKeyword(std::move(unionKeyword)),
+        StartingEq(std::move(startingEq)),
         Alternatives(std::move(alternatives)),
         EndingSemicolon(std::move(endingSemicolon)) {}
 
@@ -278,7 +258,6 @@ public:
 
 private:
   SpecificToken<TK_Union> UnionKeyword;
-  SpecificToken<TK_Identifier> Identifier;
   SpecificToken<TK_Eq> StartingEq;
   OneElementOrMoreList<UnionAlternativeDecl> Alternatives;
   SpecificToken<TK_Semicolon> EndingSemicolon;
@@ -287,10 +266,7 @@ private:
 class PlaceholderDecl final : public Decl {
 public:
   PlaceholderDecl(SpecificToken<TK_Identifier> id)
-      : Decl(Kind::PlaceholderDecl), Identifier(std::move(id)) {}
-
-  const auto &getIdentifier() const { return Identifier; }
-  StringRef getName() const override { return Identifier.getLexeme(); }
+      : Decl(Kind::PlaceholderDecl, std::move(id)) {}
 
   tmplang::SourceLocation getBeginLoc() const override {
     return Identifier.getSpan().Start;
@@ -302,9 +278,6 @@ public:
   static bool classof(const Node *node) {
     return node->getKind() == Kind::PlaceholderDecl;
   }
-
-private:
-  SpecificToken<TK_Identifier> Identifier;
 };
 
 } // namespace tmplang::source

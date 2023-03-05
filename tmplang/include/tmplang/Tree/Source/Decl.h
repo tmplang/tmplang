@@ -11,8 +11,10 @@ class Decl : public Node {
 public:
   virtual ~Decl() = default;
 
+  const auto &getIdentifier() const { return Identifier; }
+
   /// All declarations have a name
-  virtual StringRef getName() const = 0;
+  StringRef getName() const { return Identifier.getLexeme(); }
 
   static bool classof(const Node *node) {
     return node->getKind() == Node::Kind::SubprogramDecl ||
@@ -20,7 +22,10 @@ public:
   }
 
 protected:
-  explicit Decl(Node::Kind k) : Node(k) {}
+  explicit Decl(Node::Kind k, SpecificToken<TK_Identifier> id)
+      : Node(k), Identifier(std::move(id)) {}
+
+  SpecificToken<TK_Identifier> Identifier;
 };
 
 } // namespace tmplang::source
