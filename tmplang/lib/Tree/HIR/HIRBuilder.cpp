@@ -46,6 +46,8 @@ private:
   // MatchExpr related building functions
   std::optional<AggregateDestructurationElem>
   get(const source::AggregateDestructurationElem &, const Type &, unsigned idx);
+  std::optional<UnionDestructuration> get(const source::UnionDestructuration &,
+                                          const Type &);
   std::optional<AggregateDestructuration>
   get(const source::DataDestructuration &, const Type &);
   std::optional<AggregateDestructuration>
@@ -161,6 +163,11 @@ HIRBuilder::get(const source::ExprMatchCaseLhsVal &lhsVal, const Type &currTy) {
         return des ? std::make_unique<ExprMatchCaseLhsVal>(std::move(*des))
                    : nullptr;
       },
+      [&](const source::UnionDestructuration &arg) {
+        auto des = get(arg, currTy);
+        return des ? std::make_unique<ExprMatchCaseLhsVal>(std::move(*des))
+                   : nullptr;
+      },
       [](const auto &arg) -> std::unique_ptr<ExprMatchCaseLhsVal> {
         llvm_unreachable("All cases covered");
       }};
@@ -175,6 +182,50 @@ HIRBuilder::get(const source::AggregateDestructurationElem &srcNode,
   return value ? AggregateDestructurationElem(srcNode, currTy, idx,
                                               std::move(value))
                : std::optional<AggregateDestructurationElem>{};
+}
+
+std::optional<UnionDestructuration>
+HIRBuilder::get(const source::UnionDestructuration &unionDes,
+                const Type &currentTy) {
+  auto *unionTy = dyn_cast<UnionType>(&currentTy);
+  if (!unionTy) {
+    // TODO: Emit error about destructuring a non union type
+    return std::nullopt;
+  }
+
+  // Find union symbol by name
+  auto *unionSym = fetchSymbolRecursively(SymbolKind::ReferenciableFromType,
+                                          unionTy->getName());
+  if (!unionSym) {
+    // TODO: Emit error (type undefined)
+    return nullopt;
+  }
+
+  auto *createdSymScopeForUnion = unionSym->getCreatedSymScope();
+  assert(createdSymScopeForUnion && "All union types create a scope");
+
+  // Find alternative by name in the union
+  auto *alternativeSymIt = llvm::find_if(
+      createdSymScopeForUnion->getSymbols(), [&](const Symbol &sym) {
+        return sym.getId() == unionDes.getAlternativeStr();
+      });
+  if (alternativeSymIt == createdSymScopeForUnion->getSymbols().end()) {
+    // TODO: Alternative does not exists
+    return nullopt;
+  }
+  const unsigned alternativeIdx = std::distance(
+      createdSymScopeForUnion->getSymbols().begin(), alternativeSymIt);
+
+  auto dataDes =
+      get(unionDes.getDataDestructuration(), alternativeSymIt->get().getType());
+  if (!dataDes) {
+    // Already reported
+    return nullopt;
+  }
+
+  return std::make_optional<UnionDestructuration>(
+      unionDes, alternativeSymIt->get().getType(), alternativeIdx,
+      std::move(*dataDes));
 }
 
 std::optional<AggregateDestructuration>

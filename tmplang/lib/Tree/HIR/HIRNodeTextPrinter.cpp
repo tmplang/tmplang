@@ -265,6 +265,14 @@ public:
     return true;
   }
 
+  bool visitUnionDestructuration(const UnionDestructuration &unionDes) {
+    OS << ' ';
+    traverseType(unionDes.getDestructuringType());
+    printIdentifier("alternativeIdx: ");
+    OS << unionDes.getAlternativeIdx();
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

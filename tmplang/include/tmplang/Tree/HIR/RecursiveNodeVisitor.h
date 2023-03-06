@@ -163,6 +163,10 @@ protected:
               TRY_TO(traverseNode(arg));
               return true;
             },
+            [&](const UnionDestructuration &arg) {
+              TRY_TO(traverseNode(arg));
+              return true;
+            },
             [](const auto &arg) -> std::unique_ptr<ExprMatchCaseLhsVal> {
               llvm_unreachable("All cases covered");
             }},
@@ -224,6 +228,12 @@ protected:
     for (const auto &alternative : enumDecl.getAlternatives()) {
       TRY_TO(traverseNode(alternative));
     }
+    return true;
+  }
+
+  bool traverseUnionDestructuration(const UnionDestructuration &unionDes) {
+    TRY_TO(visitNode(unionDes));
+    TRY_TO(traverseNode(unionDes.getDestructuredData()));
     return true;
   }
 

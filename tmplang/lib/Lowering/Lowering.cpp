@@ -241,6 +241,7 @@ private:
     case hir::Node::Kind::UnionDecl:
     case hir::Node::Kind::UnionAlternativeDecl:
     case hir::Node::Kind::UnionAlternativeFieldDecl:
+    case hir::Node::Kind::UnionDestructuration:
       llvm_unreachable("None of these are exprs");
       break;
     }
