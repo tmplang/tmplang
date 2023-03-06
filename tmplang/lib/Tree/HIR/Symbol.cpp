@@ -57,6 +57,15 @@ llvm::StringLiteral tmplang::hir::ToString(SymbolKind kind) {
   llvm_unreachable("All cases are covered");
 }
 
+void Symbol::print(llvm::raw_ostream &out) const {
+  getType().print(out);
+  out << " : " << getId() << ", kind: " << ToString(this->getKind()) << "\n";
+}
+
+void Symbol::dump() const {
+  print(llvm::dbgs());
+}
+
 bool Symbol::operator==(const Symbol &otherSym) const {
   return otherSym.Id == Id && otherSym.Kind == Kind;
 }
