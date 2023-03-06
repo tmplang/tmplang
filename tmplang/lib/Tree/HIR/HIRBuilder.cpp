@@ -180,17 +180,17 @@ HIRBuilder::get(const source::AggregateDestructurationElem &srcNode,
 std::optional<AggregateDestructuration>
 HIRBuilder::get(const source::DataDestructuration &srcNode,
                 const Type &currentTy) {
+  auto *dataTy = dyn_cast<DataType>(&currentTy);
+  if (!dataTy) {
+    // TODO: Emit error about destructuring a non data type
+    return std::nullopt;
+  }
+
   std::vector<AggregateDestructurationElem> destructuratedElems;
   destructuratedElems.reserve(srcNode.DataElems.size());
 
   llvm::StringSet<> alreadySeenFields;
   for (const source::DataDestructurationElem &elem : srcNode.DataElems) {
-    auto *dataTy = dyn_cast<DataType>(&currentTy);
-    if (!dataTy) {
-      // TODO: Emit error about destructuring a non data type
-      return std::nullopt;
-    }
-
     assert(DataTyToSymMap.count(dataTy));
 
     const SymbolicScope *dataTyScope =
@@ -232,17 +232,17 @@ HIRBuilder::get(const source::DataDestructuration &srcNode,
 std::optional<AggregateDestructuration>
 HIRBuilder::get(const source::TupleDestructuration &srcNode,
                 const Type &currentTy) {
+  auto *tupleTy = dyn_cast<TupleType>(&currentTy);
+  if (!tupleTy) {
+    // TODO: Emit error about destructuring a non tuple type
+    return std::nullopt;
+  }
+
   std::vector<AggregateDestructurationElem> destructuratedElems;
   destructuratedElems.reserve(srcNode.getTupleElems().size());
 
   for (const auto &idxAndElem : llvm::enumerate(srcNode.getTupleElems())) {
     auto [idx, elem] = idxAndElem;
-
-    auto *tupleTy = dyn_cast<TupleType>(&currentTy);
-    if (!tupleTy) {
-      // TODO: Emit error about destructuring a non tuple type
-      return std::nullopt;
-    }
 
     if (idx >= tupleTy->getTypes().size()) {
       // TODO: emir error about accesing the elements of the tuple
