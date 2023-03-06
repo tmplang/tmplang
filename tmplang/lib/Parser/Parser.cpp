@@ -86,10 +86,11 @@ private:
   std::optional<Token> missingSemicolonAfterExpressionRecovery();
 
   std::optional<Token> parseIdentifier();
-  std::optional<Token> parsunionber();
+  std::optional<Token> parseNumber();
   std::unique_ptr<ExprAggregateDataAccess>
   parseExprAggregateDataAccess(ExprAggregateDataAccess::BaseNode baseExpr);
 
+  std::optional<UnionDestructuration> parseUnionDestructuration();
   std::optional<TupleDestructuration> parseTupleDestructuration();
   std::optional<DataDestructurationElem>
   parseDataDestructurationFieldNameAndValue();
@@ -855,7 +856,7 @@ std::unique_ptr<ExprAggregateDataAccess> Parser::parseExprAggregateDataAccess(
     auto dot = consume();
     std::optional<tmplang::Token> idOrNum = parseIdentifier();
     if (!idOrNum) {
-      idOrNum = parsunionber();
+      idOrNum = parseNumber();
       if (!idOrNum) {
         // FIXME: Add token recovery and diags error
         return nullptr;
@@ -873,7 +874,7 @@ std::unique_ptr<ExprAggregateDataAccess> Parser::parseExprAggregateDataAccess(
 
 /// ConstantExpr = ExprNumber | ToBeAdded(StringLiteral, ...)
 std::unique_ptr<Expr> Parser::parseConstantExpr() {
-  if (auto num = parsunionber()) {
+  if (auto num = parseNumber()) {
     return std::make_unique<ExprIntegerNumber>(std::move(*num));
   }
   return nullptr;
@@ -890,7 +891,7 @@ std::unique_ptr<Expr> Parser::parseExpr() {
     return parseExprAggregateDataAccess(ExprVarRef(std::move(*id)));
   }
 
-  if (auto num = parsunionber()) {
+  if (auto num = parseNumber()) {
     return std::make_unique<ExprIntegerNumber>(std::move(*num));
   }
 
@@ -957,8 +958,22 @@ std::optional<Token> Parser::parseIdentifier() {
   return tk().is(TK_Identifier) ? consume() : std::optional<Token>{};
 }
 
-std::optional<Token> Parser::parsunionber() {
+std::optional<Token> Parser::parseNumber() {
   return tk().is(TK_IntegerNumber) ? consume() : std::optional<Token>{};
+}
+
+std::optional<UnionDestructuration> Parser::parseUnionDestructuration() {
+  auto alternative = parseOrTryRecover<&Parser::ParseToken<TK_Identifier>>();
+  if (!alternative) {
+    return nullopt;
+  }
+  auto dataDes = parseDataDestructuration();
+  if (!dataDes) {
+    return nullopt;
+  }
+
+  return std::make_optional<UnionDestructuration>(std::move(*alternative),
+                                                  std::move(*dataDes));
 }
 
 std::optional<TupleDestructuration> Parser::parseTupleDestructuration() {
@@ -1067,6 +1082,13 @@ std::unique_ptr<ExprMatchCaseLhsVal> Parser::parseMatchCaseLhsValue() {
   }
 
   if (tk().is(TK_Identifier)) {
+    if (nextTk().is(TK_LKeyBracket)) {
+      auto unionDes = parseUnionDestructuration();
+      if (!unionDes) {
+        return nullptr;
+      }
+      return std::make_unique<ExprMatchCaseLhsVal>(std::move(*unionDes));
+    }
     return std::make_unique<ExprMatchCaseLhsVal>(PlaceholderDecl(consume()));
   }
 
