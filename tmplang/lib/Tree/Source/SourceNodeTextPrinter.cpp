@@ -244,6 +244,11 @@ public:
     return true;
   }
 
+  bool visitUnionDestructuration(const UnionDestructuration &unionDes) {
+    printToken(unionDes.getAlternative());
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

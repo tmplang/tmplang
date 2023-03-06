@@ -438,6 +438,7 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
   case source::Node::Kind::UnionDecl:
   case source::Node::Kind::UnionAlternativeDecl:
   case source::Node::Kind::UnionAlternativeFieldDecl:
+  case source::Node::Kind::UnionDestructuration:
     break;
   }
   llvm_unreachable("This should not be reachable");
@@ -555,6 +556,7 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::DataDestructurationElem:
   case source::Node::Kind::UnionAlternativeDecl:
   case source::Node::Kind::UnionAlternativeFieldDecl:
+  case source::Node::Kind::UnionDestructuration:
     // All these nodes cannot be top level decls
     break;
   }

@@ -255,6 +255,12 @@ protected:
     return true;
   }
 
+  bool traverseUnionDestructuration(const UnionDestructuration &unionDes) {
+    TRY_TO(visitNode(unionDes));
+    TRY_TO(traverseNode(unionDes.getDataDestructuration()));
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//
