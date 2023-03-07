@@ -152,6 +152,9 @@ private:
     return {};
   }
 
+  /// Lower all the destructurations (value-matching or placeholders). We
+  /// pass the mlir::Block corresponding to the next case so we can jump to the
+  /// next case if the comparison fails
   mlir::Value get(const hir::ExprMatchCaseLhsVal &expr, mlir::Value baseVal,
                   mlir::Block &nextCase) {
     auto visitors = source::visitors{
