@@ -178,14 +178,24 @@ private:
     return std::visit(visitors, expr);
   }
 
+  /// The lowering of the ExprMatch works in the following manner:
+  ///   1. Create the MatchOp with an unique input which is the value we are
+  ///      matching.
+  ///   2. For each case of the ExprMatch:
+  ///      2.1. Create one mlir::Block
+  ///      2.2. Lower all the destructurations (value-matching or placeholders).
+  ///           We pass the mlir::Block corresponding to the next case so we
+  ///           can jump to the next case if the comparison fails
+  ///      2.3. Create a MatchYieldOp for the rhs
   mlir::Value get(const hir::ExprMatch &expr) {
     mlir::OpBuilder::InsertionGuard insertionGuard(B);
 
     auto baseVal = get(expr.getMatchedExpr());
+    // [1]
     auto matchOp =
         B.create<MatchOp>(getLocation(expr), get(expr.getType()), baseVal);
 
-    // Reserve all blocks
+    // [2.1]
     std::vector<mlir::Block *> allBlocks;
     allBlocks.reserve(expr.getExprMatchCases().size());
     for (unsigned i = 0; i < expr.getExprMatchCases().size(); i++) {
@@ -197,15 +207,13 @@ private:
       auto &[idx, hirCase] = idxAndhirCase;
       B.setInsertionPointToStart(allBlocks[idx]);
 
-      // Add all comprobations and branching
-      if (auto *lhs =
-              std::get_if<hir::ExprMatchCaseLhsVal>(&hirCase->getLhs())) {
-        if (mlir::Value val = get(*lhs, baseVal, *allBlocks[idx + 1])) {
-          val.dump();
-        }
+      // [2.2]
+      auto *lhs = std::get_if<hir::ExprMatchCaseLhsVal>(&hirCase->getLhs());
+      if (lhs) {
+        get(*lhs, baseVal, *allBlocks[idx + 1]);
       }
 
-      // If everything matched, return the expression
+      // [2.3]
       B.create<MatchYieldOp>(getLocation(hirCase->getRhs()),
                              mlir::ValueRange{get(hirCase->getRhs())});
     }
