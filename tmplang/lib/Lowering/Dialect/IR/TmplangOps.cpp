@@ -157,11 +157,10 @@ void ConstantOp::print(mlir::OpAsmPrinter &p) {
   p.printType(getType());
 }
 
-mlir::ParseResult AggregateDataAccessOp::parse(mlir::OpAsmParser &parser,
-                                               mlir::OperationState &result) {
-  // Sample of syntax:
-  // tmplang.aggregateDataAccess(%0), 0 : (!tmplang<data "A"{i32, i32}>) -> i32
-
+static mlir::ParseResult
+ParseAggregateOrUnionAccess(mlir::OpAsmParser &parser,
+                            mlir::OperationState &result,
+                            StringRef attributeIdx) {
   mlir::OpAsmParser::UnresolvedOperand unresolvedOp;
   int64_t idx;
   mlir::Type inputTy;
@@ -182,16 +181,27 @@ mlir::ParseResult AggregateDataAccessOp::parse(mlir::OpAsmParser &parser,
   }
   assert(val.size() == 1);
 
-  result.addAttribute("idx", parser.getBuilder().getIndexAttr(idx));
+  result.addAttribute(attributeIdx, parser.getBuilder().getIndexAttr(idx));
   result.addOperands(val.back());
   result.addTypes(accessTy);
 
   return mlir::success();
 }
 
+mlir::ParseResult AggregateDataAccessOp::parse(mlir::OpAsmParser &parser,
+                                               mlir::OperationState &result) {
+  // Sample of syntax:
+  // tmplang.aggregateDataAccess(%0), 0 : (!tmplang<data "A"{i32, i32}>) -> i32
+  return ParseAggregateOrUnionAccess(parser, result, "idx");
+}
+
+static void PrintAggregateOrUnionAccess(mlir::OpAsmPrinter &p, mlir::Value op, mlir::Value result, llvm::APInt idx) {
+  p << '(' << op << "), " << idx << " : "
+    << op.getType() << " -> " << result.getType();
+}
+
 void AggregateDataAccessOp::print(mlir::OpAsmPrinter &p) {
-  p << '(' << getOperand() << "), " << getIdx() << " : " << getOperand().getType()
-    << " -> " << getResult().getType();
+  PrintAggregateOrUnionAccess(p, getOperand(), getResult(), getIdx());
 }
 
 mlir::ParseResult MatchOp::parse(mlir::OpAsmParser &parser,
@@ -223,6 +233,18 @@ mlir::ParseResult MatchOp::parse(mlir::OpAsmParser &parser,
   result.addTypes(resultTy);
 
   return mlir::success();
+}
+
+mlir::ParseResult UnionAccess::parse(mlir::OpAsmParser &parser,
+                                     mlir::OperationState &result) {
+  // Sample of syntax:
+  // tmplang.unionAccess(%0), 0 : !tmplang<Union "MyUnion2"{ "firstAlternative"{!tmplang<Union "MyUnion"{ "one"{i32},  "two"{i32}}>},  "secondAlternative"{i32, tuple<i32, i32>}}>
+  //   -> !tmplang<data "firstAlternative"{!tmplang<Union "MyUnion"{ "one"{i32},  "two"{i32}}>}>
+  return ParseAggregateOrUnionAccess(parser, result, "alternativeIdx");
+}
+
+void UnionAccess::print(mlir::OpAsmPrinter &p) {
+  PrintAggregateOrUnionAccess(p, getOperand(), getResult(), getAlternativeIdx());
 }
 
 void MatchOp::print(mlir::OpAsmPrinter &p) {

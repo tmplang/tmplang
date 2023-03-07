@@ -152,6 +152,15 @@ private:
     return {};
   }
 
+  mlir::Value get(const hir::UnionDestructuration &unionDes,
+                  mlir::Value baseVal, mlir::Block &nextCase) {
+    auto unionAccess = B.create<UnionAccess>(
+        getLocation(unionDes), get(unionDes.getDestructuringType()), baseVal,
+        B.getIndexAttr(unionDes.getAlternativeIdx()));
+
+    return get(unionDes.getDestructuredData(), unionAccess, nextCase);
+  }
+
   /// Lower all the destructurations (value-matching or placeholders). We
   /// pass the mlir::Block corresponding to the next case so we can jump to the
   /// next case if the comparison fails
@@ -175,6 +184,9 @@ private:
         [&](const hir::PlaceholderDecl &decl) { return get(decl, baseVal); },
         [&](const hir::AggregateDestructuration &aggreDes) {
           return get(aggreDes, baseVal, nextCase);
+        },
+        [&](const hir::UnionDestructuration &unionDes) {
+          return get(unionDes, baseVal, nextCase);
         },
         [](const auto &) { return mlir::Value(); },
     };
