@@ -154,7 +154,7 @@ private:
 
   mlir::Value get(const hir::UnionDestructuration &unionDes,
                   mlir::Value baseVal, mlir::Block &nextCase) {
-    auto unionAccess = B.create<UnionAccess>(
+    auto unionAccess = B.create<UnionAccessOp>(
         getLocation(unionDes), get(unionDes.getDestructuringType()), baseVal,
         B.getIndexAttr(unionDes.getAlternativeIdx()));
 

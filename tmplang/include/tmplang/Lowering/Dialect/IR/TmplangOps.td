@@ -179,7 +179,7 @@ def AggregateDataAccessOp : Tmplang_Op<"aggregateDataAccess", [NoMemoryEffect]> 
 //===----------------------------------------------------------------------===//
 // UnionAccess
 //===----------------------------------------------------------------------===//
-def UnionAccess: Tmplang_Op<"unionAccess", [NoMemoryEffect]> {
+def UnionAccessOp : Tmplang_Op<"unionAccess", [NoMemoryEffect]> {
   let summary = "Union data access operation";
 
   let description = [{
