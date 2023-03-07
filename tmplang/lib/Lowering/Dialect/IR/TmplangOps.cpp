@@ -235,15 +235,14 @@ mlir::ParseResult MatchOp::parse(mlir::OpAsmParser &parser,
   return mlir::success();
 }
 
-mlir::ParseResult UnionAccessOp::parse(mlir::OpAsmParser &parser,
-                                       mlir::OperationState &result) {
+mlir::ParseResult UnionAlternativeCheckOp::parse(mlir::OpAsmParser &parser,
+                                                 mlir::OperationState &result) {
   // Sample of syntax:
-  // tmplang.unionAccess(%0), 0 : !tmplang<Union "MyUnion2"{ "firstAlternative"{!tmplang<Union "MyUnion"{ "one"{i32},  "two"{i32}}>},  "secondAlternative"{i32, tuple<i32, i32>}}>
-  //   -> !tmplang<data "firstAlternative"{!tmplang<Union "MyUnion"{ "one"{i32},  "two"{i32}}>}>
+  // tmplang.unionAccess(%0), 0 : !tmplang<Union "MyUnion2"{ "firstAlternative"{i32}, "secondAlternative"{i32}> -> i8
   return ParseAggregateOrUnionAccess(parser, result, "alternativeIdx");
 }
 
-void UnionAccessOp::print(mlir::OpAsmPrinter &p) {
+void UnionAlternativeCheckOp::print(mlir::OpAsmPrinter &p) {
   PrintAggregateOrUnionAccess(p, getOperand(), getResult(),
                               getAlternativeIdx());
 }

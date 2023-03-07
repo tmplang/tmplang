@@ -152,11 +152,28 @@ private:
     return {};
   }
 
+  /// UnionDestructuration lowers in the following manner:
+  ///   Check that the alternative acceses is the active one. If false, jump to
+  ///   end. Otherwise access the union with the corresponding ty
   mlir::Value get(const hir::UnionDestructuration &unionDes,
                   mlir::Value baseVal, mlir::Block &nextCase) {
+    auto unionAlternativeCheck = B.create<UnionAlternativeCheckOp>(
+        getLocation(unionDes), B.getI1Type(), baseVal,
+        B.getIndexAttr(unionDes.getAlternativeIdx()));
+
+    mlir::Block *falseBranch = nullptr;
+    {
+      mlir::OpBuilder::InsertionGuard insertionGuard(B);
+      falseBranch = B.createBlock(&nextCase);
+    }
+    B.create<mlir::cf::CondBranchOp>(getLocation(unionDes),
+                                     unionAlternativeCheck, &nextCase,
+                                     falseBranch, mlir::ValueRange());
+    B.setInsertionPointToStart(falseBranch);
+
     auto unionAccess = B.create<UnionAccessOp>(
         getLocation(unionDes), get(unionDes.getDestructuringType()), baseVal,
-        B.getIndexAttr(unionDes.getAlternativeIdx()));
+        mlir::TypeAttr::get(B.getI1Type()));
 
     return get(unionDes.getDestructuredData(), unionAccess, nextCase);
   }
@@ -330,8 +347,9 @@ private:
 
   tmplang::UnionType get(const hir::UnionType &unionTy) {
     SmallVector<DataType, 4> tys;
-    transform(unionTy.getAlternativeTypes(), std::back_inserter(tys),
-              [&](const hir::Type *ty) { return llvm::cast<DataType>(get(*ty)); });
+    transform(
+        unionTy.getAlternativeTypes(), std::back_inserter(tys),
+        [&](const hir::Type *ty) { return llvm::cast<DataType>(get(*ty)); });
     return UnionType::get(&Ctx, unionTy.getName(), tys);
   }
 
