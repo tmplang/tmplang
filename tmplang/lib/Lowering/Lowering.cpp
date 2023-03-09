@@ -7,6 +7,7 @@
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -63,6 +64,12 @@ private:
     auto subprogramOp = B.create<SubprogramOp>(
         getLocation(subprog), subprog.getName(), functionTy,
         mlir::SymbolTable::Visibility::Private);
+
+    for (auto &idxAndFuncTy : llvm::enumerate(functionTy.getInputs())) {
+      auto &[idx, funcTy] = idxAndFuncTy;
+      subprogramOp.setArgAttr(idx, mlir::LLVM::LLVMDialect::getByValAttrName(),
+                              mlir::TypeAttr::get(funcTy));
+    }
 
     // For each param, store for their hir::Symbol, its corresponding
     // mlir::Value
@@ -171,9 +178,9 @@ private:
                                      falseBranch, mlir::ValueRange());
     B.setInsertionPointToStart(falseBranch);
 
+    auto dataTy = get(unionDes.getDestructuringType());
     auto unionAccess = B.create<UnionAccessOp>(
-        getLocation(unionDes), get(unionDes.getDestructuringType()), baseVal,
-        mlir::TypeAttr::get(B.getI1Type()));
+        getLocation(unionDes), dataTy, baseVal, mlir::TypeAttr::get(dataTy));
 
     return get(unionDes.getDestructuredData(), unionAccess, nextCase);
   }
