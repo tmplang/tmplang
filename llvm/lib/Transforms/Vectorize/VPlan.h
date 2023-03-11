@@ -1170,8 +1170,6 @@ class VPWidenPointerInductionRecipe : public VPHeaderPHIRecipe {
 
   bool IsScalarAfterVectorization;
 
-  bool IsScalarAfterVectorization;
-
 public:
   /// Create a new VPWidenPointerInductionRecipe for \p Phi with start value \p
   /// Start.
