@@ -172,7 +172,7 @@ mlir::ParseResult AggregateDataAccessOp::parse(mlir::OpAsmParser &parser,
       parser.parseRParen() || parser.parseComma() || parser.parseInteger(idx) ||
       parser.parseColonType(inputTy) || parser.parseArrow() ||
       parser.parseType(accessTy);
-  if (!parsingResult) {
+  if (parsingResult) {
     return mlir::failure();
   }
 
@@ -209,7 +209,7 @@ mlir::ParseResult MatchOp::parse(mlir::OpAsmParser &parser,
       parser.parseRParen() || parser.parseColonType(inputTy) ||
       parser.parseArrow() || parser.parseType(resultTy) ||
       parser.parseRegion(region);
-  if (!parsingResult) {
+  if (parsingResult) {
     return mlir::failure();
   }
 
