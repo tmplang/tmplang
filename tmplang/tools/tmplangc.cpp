@@ -24,7 +24,7 @@ using namespace tmplang;
 
 template <typename PrintConfig_t>
 static std::optional<PrintConfig_t> ParseTreeDumpArg(llvm::opt::Arg &arg,
-                                                CLPrinter &out) {
+                                                     CLPrinter &out) {
   if (arg.getNumValues() == 0) {
     out.errs() << "At least one value of the followings is required: "
                   "'color|addr|loc|all|simple'\n";
@@ -81,7 +81,7 @@ static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
 }
 
 static std::optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
-                                                     CLPrinter &out) {
+                                                          CLPrinter &out) {
   constexpr StringLiteral missingDumpOptionMsg =
       "At least one value of the followings is required: "
       "'lower|opt|trans|llvm'\n";
