@@ -1,3 +1,4 @@
+#include <mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h>
 #include <tmplang/Lowering/Lowering.h>
 
 #include <llvm/Support/Debug.h>
@@ -64,15 +65,16 @@ private:
         getLocation(subprog), subprog.getName(), functionTy,
         mlir::SymbolTable::Visibility::Private);
 
-    // For each param, store for their hir::Symbol, its corresponding
-    // mlir::Value
+    // Set insertion point to the insides of the subprogram
+    B.setInsertionPointToEnd(&subprogramOp.getBody().getBlocks().front());
+
+    // For each param, create a SubprogramParamOp. Then link this param to its
+    // correspondign hir::Symbol
     for (auto hirParamAndMLIRParam : llvm::zip(
              subprog.getParams(), subprogramOp.getBody().getArguments())) {
       auto &[hirParam, mlirParam] = hirParamAndMLIRParam;
-      SymbolToValueMap[&hirParam.getSymbol()] = mlirParam;
+      SymbolToValueMap[&hirParam.getSymbol()] = get(hirParam, mlirParam);
     }
-
-    B.setInsertionPointToEnd(&subprogramOp.getBody().getBlocks().front());
 
     for (auto &expr : subprog.getBody()) {
       get(*expr);
@@ -91,6 +93,12 @@ private:
         llvm_unreachable("This should be error'd out in sema");
       }
     }
+  }
+
+  mlir::Value get(const hir::ParamDecl &paramDecl,
+                  mlir::BlockArgument &subprogramParam) {
+    return B.create<SubprogramParamOp>(
+        getLocation(paramDecl), subprogramParam.getType(), subprogramParam);
   }
 
   mlir::Value get(const hir::ExprIntegerNumber &expr) {
@@ -378,8 +386,9 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
 
   // Tmplang specific lowering passes
   pm.addPass(createConvertTmplangToArithPass());
-  pm.addPass(createConvertTmplangToFuncPass());
+  // pm.addPass(createConvertTmplangToFuncPass());
   pm.addPass(createConvertTmplangToLLVMPass());
+  pm.addPass(mlir::createReconcileUnrealizedCastsPass());
 
   // Lower arithmetic and control flow pass to LLVM (func is done on
   // TmplangToLLVM)

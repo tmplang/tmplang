@@ -25,6 +25,7 @@ llvm_add_library(TmplangLowering
     MLIRLLVMToLLVMIRTranslation
 
     # MLIR Transformations
+    MLIRReconcileUnrealizedCasts
 
     # MLIR Support Libraries
     MLIRIR

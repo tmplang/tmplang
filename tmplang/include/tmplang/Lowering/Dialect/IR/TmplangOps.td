@@ -72,6 +72,27 @@ def SubprogramOp : Tmplang_Op<"subprogram",
   let hasCustomAssemblyFormat = 1;
 }
 
+def SubprogramParamOp : Tmplang_Op<"subprogramParam", [SameOperandsAndResultElementType]> {
+  let summary = "Represents a parameter of a subprogram";
+
+  let description = [{
+    This operation represetns a parameter of a subprogram. It helps in the
+    creation of an alloca for each parameter. For example:
+
+    ```mlir
+      %0 = tmplang.subprogramParam(%param) : i32
+    ```
+  }];
+
+  let arguments = (ins AnyType:$param);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+    `(` $param`)` attr-dict `:` functional-type($param, $result)
+  }];
+  bit hasCustomAssemblyFormat = 1;
+}
+
 def ConstantOp : Tmplang_Op<"constant", [NoMemoryEffect]> {
   let summary = "constant operation";
 
