@@ -16,3 +16,5 @@ target_link_libraries(tmplangc
   LLVMSupport
   LLVMOption
 )
+
+add_subdirectory(tmplang-opt)
