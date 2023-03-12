@@ -36,12 +36,23 @@ public:
     llvm_unreachable("All cases are handled");
   }
 
+  bool walkupNode(const Node &node) {
+    switch (node.getKind()) {
+#define HIRNode(K)                                                             \
+  case Node::Kind::K:                                                          \
+    return getDerived().walkup##K(*cast<K>(&node));
+#include "../Nodes.def"
+    }
+    llvm_unreachable("All cases are handled");
+  }
+
 protected:
   //=--------------------------------------------------------------------------=//
   // Begin visit functions
   //=--------------------------------------------------------------------------=//
 #define HIRNode(K)                                                             \
-  bool visit##K(const K &) { return true; }
+  bool visit##K(const K &) { return true; }                                    \
+  bool walkup##K(const K &) { return true; }
 #include "../Nodes.def"
   //=--------------------------------------------------------------------------=//
   // End visit functions
@@ -55,6 +66,7 @@ protected:
     for (const auto &decl : compilationUnit.getTopLevelDecls()) {
       TRY_TO(traverseNode(*decl));
     }
+    TRY_TO(walkupNode(compilationUnit));
     return true;
   }
   bool traverseSubprogramDecl(const SubprogramDecl &subprogramDecl) {
@@ -65,6 +77,7 @@ protected:
     for (const auto &expr : subprogramDecl.getBody()) {
       TRY_TO(traverseNode(*expr));
     }
+    TRY_TO(walkupNode(subprogramDecl));
     return true;
   }
   bool traverseDataDecl(const DataDecl &dataDecl) {
@@ -72,22 +85,27 @@ protected:
     for (const auto &field : dataDecl.getFields()) {
       TRY_TO(traverseNode(field));
     }
+    TRY_TO(walkupNode(dataDecl));
     return true;
   }
   bool traverseDataFieldDecl(const DataFieldDecl &dataFieldDecl) {
     TRY_TO(visitNode(dataFieldDecl));
+    TRY_TO(walkupNode(dataFieldDecl));
     return true;
   }
   bool traverseParamDecl(const ParamDecl &paramDecl) {
     TRY_TO(visitNode(paramDecl));
+    TRY_TO(walkupNode(paramDecl));
     return true;
   }
   bool traversePlaceholderDecl(const PlaceholderDecl &placeholderDecl) {
     TRY_TO(visitNode(placeholderDecl));
+    TRY_TO(walkupNode(placeholderDecl));
     return true;
   }
   bool traverseExprIntegerNumber(const ExprIntegerNumber &num) {
     TRY_TO(visitNode(num));
+    TRY_TO(walkupNode(num));
     return true;
   }
   bool traverseExprTuple(const ExprTuple &exprTuple) {
@@ -95,6 +113,7 @@ protected:
     for (const auto &tupleVal : exprTuple.getVals()) {
       TRY_TO(traverseNode(*tupleVal));
     }
+    TRY_TO(walkupNode(exprTuple));
     return true;
   }
   bool traverseExprRet(const ExprRet &exprRet) {
@@ -102,16 +121,19 @@ protected:
     if (auto *retExpr = exprRet.getReturnedExpr()) {
       TRY_TO(traverseNode(*retExpr));
     }
+    TRY_TO(walkupNode(exprRet));
     return true;
   }
   bool traverseExprVarRef(const ExprVarRef &exprVarRef) {
     TRY_TO(visitNode(exprVarRef));
+    TRY_TO(walkupNode(exprVarRef));
     return true;
   }
   bool traverseExprAggregateDataAccess(
       const ExprAggregateDataAccess &exprDataFieldAcc) {
     TRY_TO(visitNode(exprDataFieldAcc));
     TRY_TO(traverseNode(exprDataFieldAcc.getBase()));
+    TRY_TO(walkupNode(exprDataFieldAcc));
     return true;
   }
 
@@ -121,6 +143,7 @@ protected:
     for (const auto &matchCase : exprMatch.getExprMatchCases()) {
       TRY_TO(traverseNode(*matchCase));
     }
+    TRY_TO(walkupNode(exprMatch));
     return true;
   }
 
@@ -161,6 +184,7 @@ protected:
 
     TRY_TO(traverseNode(matchCase.getRhs()));
 
+    TRY_TO(walkupNode(matchCase));
     return true;
   }
 
@@ -170,12 +194,14 @@ protected:
     for (auto &elem : aggregateDes.getElems()) {
       TRY_TO(traverseNode(elem));
     }
+    TRY_TO(walkupNode(aggregateDes));
     return true;
   }
 
   bool traverseAggregateDestructurationElem(
       const AggregateDestructurationElem &aggregateDesElem) {
     TRY_TO(visitNode(aggregateDesElem));
+    TRY_TO(walkupNode(aggregateDesElem));
     return TraverseExprMatchCaseLhsVal(aggregateDesElem.getValue());
   }
 
