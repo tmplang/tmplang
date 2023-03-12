@@ -72,6 +72,27 @@ private:
 };
 
 //=-------------------------------------------------------------------------=//
+//=                     AssertMarchCasesDoesNotReturn                       =//
+//=-------------------------------------------------------------------------=//
+// Make sure that no case of any match uses the ret expr
+//=-------------------------------------------------------------------------=//
+
+class AssertMarchCasesDoesNotReturn
+    : public SemaAnalysisPass,
+      public RecursiveASTVisitor<AssertMarchCasesDoesNotReturn> {
+public:
+  using SemaAnalysisPass::SemaAnalysisPass;
+
+  bool visitExprMatchCase(const ExprMatchCase &matchCase) {
+    if (isa<ExprRet>(matchCase.getRhs())) {
+      // TODO: Add diagnostics message
+      markAsFailure();
+    }
+    return true;
+  }
+};
+
+//=-------------------------------------------------------------------------=//
 //=                       AssertReturnsInAllCFPaths                         =//
 //=-------------------------------------------------------------------------=//
 // Make sure that for a subprogram that its return type is diferent from unit
@@ -307,6 +328,7 @@ bool tmplang::Sema(CompilationUnit &compUnit, const SourceManager &sm,
   //        the current one uses CRTP and can't be used along with visitors
   //        that are not default constructible
   RunPass(AssertReturnsInAllCFPaths);
+  RunPass(AssertMarchCasesDoesNotReturn);
   RunPass(AssertReturnMatchesTypeOfSubprogram);
   RunPass(AllBranchesOfMatchExprAreSameType);
   RunPass(OnlyIntergerExprOnAggregateDestructuration);
