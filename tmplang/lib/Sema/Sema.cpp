@@ -1,5 +1,6 @@
 #include <tmplang/Sema/Sema.h>
 
+#include <llvm/ADT/ScopeExit.h>
 #include <tmplang/Diagnostics/Diagnostic.h>
 #include <tmplang/Diagnostics/Hint.h>
 #include <tmplang/Support/SourceManager.h>
@@ -80,24 +81,41 @@ class AssertReturnsInAllCFPaths
     : public SemaAnalysisPass,
       public RecursiveASTVisitor<AssertReturnsInAllCFPaths> {
 public:
-  using SemaAnalysisPass::SemaAnalysisPass;
+  using Base = RecursiveASTVisitor<AssertReturnsInAllCFPaths>;
 
-  bool traverseSubprogramDecl(const SubprogramDecl &subprogramDecl) {
-    // If the result type is unit type, there is no need to return in all paths
+  struct ControlFlowBifurcation {
+    ControlFlowBifurcation(ControlFlowBifurcation *p = nullptr) : Parent(p) {}
+
+    bool DoesReturnsInAllPath() const {
+      return PathExitsFunction &&
+             all_of(Bifurcations,
+                    [](const std::unique_ptr<ControlFlowBifurcation> &cfp) {
+                      return cfp->DoesReturnsInAllPath();
+                    });
+    }
+
+    bool PathExitsFunction = false;
+    ControlFlowBifurcation *Parent = nullptr;
+    SmallVector<std::unique_ptr<ControlFlowBifurcation>> Bifurcations;
+  };
+
+  AssertReturnsInAllCFPaths(const SourceManager &sm, raw_ostream &out)
+      : SemaAnalysisPass(sm, out), CFP(), CurrentCFP(&CFP) {}
+
+  bool walkupSubprogramDecl(const SubprogramDecl &subprogramDecl) {
+    auto resetOnExit = llvm::make_scope_exit([&]() {
+      // Reset control flow bifurcations
+      CFP = ControlFlowBifurcation();
+      CurrentCFP = &CFP;
+    });
+
     auto *retTy =
         dyn_cast<hir::TupleType>(&subprogramDecl.getType().getReturnType());
     if (retTy && retTy->isUnit()) {
       return true;
     }
 
-    const bool returnsInAllPaths =
-        any_of(subprogramDecl.getBody(), [](const std::unique_ptr<Expr> &expr) {
-          // Right now, since there are no if-else or any other kind of
-          // expresion that may modify the control flow, this is enough
-          return expr->getKind() == Node::Kind::ExprRet;
-        });
-
-    if (!returnsInAllPaths) {
+    if (!CFP.DoesReturnsInAllPath()) {
       Diagnostic(DiagId::err_subprogram_does_not_return_in_all_paths,
                  {subprogramDecl.getBeginLoc(), subprogramDecl.getEndLoc()},
                  NoHint())
@@ -107,6 +125,57 @@ public:
 
     return true;
   }
+
+  // Use traverse since we don't care about if the expr of the return
+  // open a control flow.
+  bool traverseExprRet(const ExprRet &ret) {
+    CurrentCFP->PathExitsFunction = true;
+    return true;
+  }
+
+  static bool CanBifurcateControlFlow(Node::Kind k) {
+    switch (k) {
+    case Node::Kind::ExprMatchCase:
+      return true;
+    case Node::Kind::CompilationUnit:
+    case Node::Kind::SubprogramDecl:
+    case Node::Kind::DataFieldDecl:
+    case Node::Kind::DataDecl:
+    case Node::Kind::ParamDecl:
+    case Node::Kind::ExprIntegerNumber:
+    case Node::Kind::ExprRet:
+    case Node::Kind::ExprVarRef:
+    case Node::Kind::ExprAggregateDataAccess:
+    case Node::Kind::ExprTuple:
+    case Node::Kind::ExprMatch:
+    case Node::Kind::PlaceholderDecl:
+    case Node::Kind::AggregateDestructuration:
+    case Node::Kind::AggregateDestructurationElem:
+      return false;
+    }
+    llvm_unreachable("All cases covered");
+  }
+
+  bool visitNode(const Node &node) {
+    if (CanBifurcateControlFlow(node.getKind())) {
+      CurrentCFP->Bifurcations.push_back(
+          std::make_unique<ControlFlowBifurcation>(CurrentCFP));
+      CurrentCFP = CurrentCFP->Bifurcations.back().get();
+    }
+
+    return Base::visitNode(node);
+  }
+
+  bool walkupNode(const Node &node) {
+    if (CanBifurcateControlFlow(node.getKind())) {
+      CurrentCFP = CurrentCFP->Parent;
+    }
+
+    return Base::walkupNode(node);
+  }
+
+  ControlFlowBifurcation CFP;
+  ControlFlowBifurcation *CurrentCFP;
 };
 
 //=-------------------------------------------------------------------------=//
