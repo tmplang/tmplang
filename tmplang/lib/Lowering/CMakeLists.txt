@@ -1,5 +1,6 @@
 add_subdirectory(Dialect)
 add_subdirectory(Conversion)
+add_subdirectory(Transforms)
 
 llvm_add_library(TmplangLowering
     Lowering.cpp
@@ -15,6 +16,7 @@ llvm_add_library(TmplangLowering
     TmplangToLLVM
 
     # Tmplang Transformations
+    TmplangTransforms
 
     # MLIR Conversions
     MLIRLLVMCommonConversion

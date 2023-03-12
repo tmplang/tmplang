@@ -9,5 +9,4 @@ fn foo -> (i32, i32) {
 // CHECK-NEXT:  %1 = tmplang.constant 2 -> i32
 // CHECK-NEXT:  %2 = tmplang.tuple(%0, %1) : (i32, i32) -> tuple<i32, i32>
 // CHECK-NEXT:  tmplang.return(%2) -> tuple<i32, i32>
-// CHECK-NEXT:^bb1:  // no predecessors
 // CHECK-NEXT:}

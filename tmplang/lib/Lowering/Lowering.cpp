@@ -23,6 +23,7 @@
 #include <tmplang/Lowering/Conversion/TmplangToLLVM/TmplangToLLVM.h>
 #include <tmplang/Lowering/Dialect/IR/Ops.h>
 #include <tmplang/Lowering/Dialect/IR/Types.h>
+#include <tmplang/Lowering/Transforms/Passes.h>
 #include <tmplang/Support/SourceManager.h>
 #include <tmplang/Tree/HIR/CompilationUnit.h>
 #include <tmplang/Tree/HIR/Decls.h>
@@ -107,12 +108,7 @@ private:
       val = get(*expr);
     }
 
-    auto retOp = B.create<ReturnOp>(getLocation(exprRet), val);
-
-    // Create a new block so potential instructions that will be generated after
-    // the return will be generated on dead blocks, since it will contain no
-    // predecessors
-    B.createBlock(retOp->getBlock()->getParent());
+    B.create<ReturnOp>(getLocation(exprRet), val);
   }
 
   mlir::Value get(const hir::ExprTuple &expr) {
@@ -330,6 +326,16 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
                    mlir::cf::ControlFlowDialect>();
 
   auto mod = MLIRBuilder(*ctx, sm).build(compUnit);
+  {
+    // Build pass manager and run pipeline
+    mlir::PassManager pm(ctx.get());
+    pm.addNestedPass<SubprogramOp>(
+        tmplang::createRemoveUnreachableOpsAfterReturnPass());
+    if (mlir::failed(pm.run(&*mod))) {
+      // FIXME: Use proper diagnostics
+      return nullptr;
+    }
+  }
 
   mlir::OpPrintingFlags flags;
   // So we always get a nicely printed MLIR

@@ -11,6 +11,7 @@ target_link_libraries(tmplang-opt PRIVATE
   TmplangToArith
   TmplangToFunc
   TmplangToLLVM
+  TmplangTransforms
 
   MLIRLLVMDialect
   MLIROptLib
