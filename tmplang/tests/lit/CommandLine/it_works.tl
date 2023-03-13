@@ -1,1 +1,1 @@
-// RUN: tmplangc %s
+// RUN: tmplangc --max-phase compilation %s

@@ -21,8 +21,8 @@ public:
 #undef SourceNode
   };
 
-  virtual SourceLocation getBeginLoc() const = 0;
-  virtual SourceLocation getEndLoc() const = 0;
+  virtual tmplang::SourceLocation getBeginLoc() const = 0;
+  virtual tmplang::SourceLocation getEndLoc() const = 0;
 
   enum PrintConfig {
     None = 0,

@@ -9,6 +9,7 @@
 #include <tmplang/ADT/LLVM.h>
 #include <tmplang/CLI/Arguments.h>
 #include <tmplang/CLI/CLPrinter.h>
+#include <tmplang/Codegen/Codegen.h>
 #include <tmplang/Diagnostics/Diagnostic.h>
 #include <tmplang/Lexer/Lexer.h>
 #include <tmplang/Lowering/Lowering.h>
@@ -121,6 +122,10 @@ static std::optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
   return printCfg;
 }
 
+static std::string GetInputAsObjectFile(StringRef input) {
+  return (input.rsplit(".").first + ".o").str();
+}
+
 int main(int argc, const char *argv[]) {
   llvm::InitLLVM llvm(argc, argv);
 
@@ -177,6 +182,10 @@ int main(int argc, const char *argv[]) {
   if (auto *dumpSrcArg = parsedCompilerArgs->getLastArg(OPT_dump_src)) {
     return DumpSrc(*dumpSrcArg, printer, *srcCompilationUnit, *sm);
   }
+  StringRef maximumPhase = parsedCompilerArgs->getLastArgValue(OPT_max_phase);
+  if (maximumPhase == "syntax") {
+    return 0;
+  }
 
   hir::HIRContext ctx;
   auto hirCompilationUnit = hir::buildHIR(*srcCompilationUnit, ctx);
@@ -200,9 +209,10 @@ int main(int argc, const char *argv[]) {
     return 1;
   }
 
-  auto *arg = parsedCompilerArgs->getLastArg(OPT_dump_mlir);
+  auto *dumpMLIRArg = parsedCompilerArgs->getLastArg(OPT_dump_mlir);
   std::optional<MLIRPrintingOpsCfg> mlirDumpCfg =
-      arg ? ParseDumpMLIRArg(*arg, printer) : MLIRPrintingOpsCfg::None;
+      dumpMLIRArg ? ParseDumpMLIRArg(*dumpMLIRArg, printer)
+                  : MLIRPrintingOpsCfg::None;
   if (!mlirDumpCfg) {
     // Errors already reported
     return 1;
@@ -215,6 +225,29 @@ int main(int argc, const char *argv[]) {
     printer.errs() << "MLIR lowering to LLVM failed!\n";
     return 1;
   }
+  if (dumpMLIRArg || maximumPhase == "compilation") {
+    return 0;
+  }
 
-  return 0;
+  int result = 1;
+  switch (Codegen(*mlirMod, parsedCompilerArgs->getLastArgValue(
+                                OPT_output, GetInputAsObjectFile(inputs[0])))) {
+  case CodegenResult::Ok:
+    result = 0;
+    break;
+  case CodegenResult::TargetTripleNotSupported:
+    printer.errs() << "Codegen target triple not supported\n";
+    break;
+  case CodegenResult::TargetMachineNotFound:
+    printer.errs() << "Codegen target machine not found!\n";
+    break;
+  case CodegenResult::FilesystemErrorCreatingOutput:
+    printer.errs() << "Filesystem error creating output file\n";
+    break;
+  case CodegenResult::FileTypeNotSupported:
+    printer.errs() << "target does not support generation of this file type";
+    break;
+  }
+
+  return result;
 }

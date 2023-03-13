@@ -40,7 +40,7 @@ config.test_exec_root = os.path.join(config.tmplang_bin_dir, 'tests/lit')
 llvm_config.use_default_substitutions()
 
 tool_dirs = [config.llvm_tools_dir]
-tools = ['tmplangc', 'not']
+tools = ['tmplangc', 'not', 'llvm-objdump']
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
 # Propagate some variables from the host environment.

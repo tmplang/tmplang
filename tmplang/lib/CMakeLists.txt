@@ -1,4 +1,5 @@
 add_subdirectory(CLI)
+add_subdirectory(Codegen)
 add_subdirectory(Diagnostics)
 add_subdirectory(Lexer)
 add_subdirectory(Lowering)

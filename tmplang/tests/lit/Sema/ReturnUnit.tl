@@ -1,3 +1,3 @@
-// RUN: tmplangc %s 2>&1
+// RUN: tmplangc %s --max-phase compilation
 
 fn foo {}

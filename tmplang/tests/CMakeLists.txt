@@ -23,6 +23,7 @@ endif ()
 list(APPEND TMPLANG_TEST_DEPS
     FileCheck count not
     llvm-config
+    llvm-objdump
     llvm-symbolizer
 
     tmplangc
