@@ -3451,7 +3451,7 @@ bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize) {
       Alignment = 1;
     else if (!isPowerOf2_64(Alignment)) {
       ReturnVal |= Error(AlignmentLoc, "alignment must be a power of 2");
-      Alignment = PowerOf2Floor(Alignment);
+      Alignment = llvm::bit_floor<uint64_t>(Alignment);
     }
     if (!isUInt<32>(Alignment)) {
       ReturnVal |= Error(AlignmentLoc, "alignment must be smaller than 2**32");
@@ -6371,7 +6371,7 @@ static bool isSymbolUsedInExpression(const MCSymbol *Sym, const MCExpr *Value) {
   case MCExpr::SymbolRef: {
     const MCSymbol &S =
         static_cast<const MCSymbolRefExpr *>(Value)->getSymbol();
-    if (S.isVariable())
+    if (S.isVariable() && !S.isWeakExternal())
       return isSymbolUsedInExpression(Sym, S.getVariableValue());
     return &S == Sym;
   }

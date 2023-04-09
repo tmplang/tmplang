@@ -64,6 +64,6 @@ proc foo: (i32, Dummy) a -> i32 {
 //  CHECK-NEXT:  br label %25
 // CHECK-EMPTY:
 //  CHECK-NEXT:25:                                               ; preds = %24, %23, %19, %10, %5
-//  CHECK-NEXT:  %26 = phi i32 [ 8, %24 ], [ 7, %23 ], [ %16, %19 ], [ 4, %10 ], [ 2, %5 ]
+//  CHECK-NEXT:  %26 = phi i32 [ 2, %5 ], [ 4, %10 ], [ %16, %19 ], [ 7, %23 ], [ 8, %24 ]
 //  CHECK-NEXT:  ret i32 %26
 //  CHECK-NEXT:}

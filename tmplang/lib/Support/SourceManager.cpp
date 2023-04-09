@@ -53,7 +53,9 @@ void SourceManager::getLines(const SourceLocationSpan span,
 
   for (unsigned currIdx = startIdx; currIdx <= endIdx; currIdx++) {
     const unsigned startOffset = OffsetValuesAtStartOfLines[currIdx];
-    const unsigned endOffset = OffsetValuesAtStartOfLines[currIdx + 1];
+    const unsigned endOffset = currIdx + 1 < OffsetValuesAtStartOfLines.size()
+                                   ? OffsetValuesAtStartOfLines[currIdx + 1]
+                                   : this->MaxSL;
     lines.push_back(
         content.substr(startOffset - /*offset starts at 1*/ 1,
                        (endOffset - startOffset) - /*offset starts at 1*/ 1));

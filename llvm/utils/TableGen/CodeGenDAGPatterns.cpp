@@ -13,6 +13,7 @@
 
 #include "CodeGenDAGPatterns.h"
 #include "CodeGenInstruction.h"
+#include "CodeGenRegisters.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/STLExtras.h"
@@ -217,7 +218,7 @@ bool TypeSetByHwMode::operator==(const TypeSetByHwMode &VTS) const {
   bool IsSimple = isSimple();
   bool VTSIsSimple = VTS.isSimple();
   if (IsSimple && VTSIsSimple)
-    return *begin() == *VTS.begin();
+    return getSimple() == VTS.getSimple();
 
   // Speedup: We have a default if the set is simple.
   bool HaveDefault = IsSimple || hasDefault();
@@ -354,15 +355,12 @@ bool TypeSetByHwMode::intersect(SetType &Out, const SetType &In) {
 }
 
 bool TypeSetByHwMode::validate() const {
-#ifndef NDEBUG
   if (empty())
     return true;
   bool AllEmpty = true;
   for (const auto &I : *this)
     AllEmpty &= I.second.empty();
   return !AllEmpty;
-#endif
-  return true;
 }
 
 // --- TypeInfer
@@ -821,56 +819,41 @@ void TypeInfer::expandOverloads(TypeSetByHwMode &VTS) {
 
 void TypeInfer::expandOverloads(TypeSetByHwMode::SetType &Out,
                                 const TypeSetByHwMode::SetType &Legal) {
-  std::set<MVT> Ovs;
-  for (MVT T : Out) {
-    if (!T.isOverloaded())
-      continue;
-
-    Ovs.insert(T);
-    // MachineValueTypeSet allows iteration and erasing.
-    Out.erase(T);
-  }
-
-  for (MVT Ov : Ovs) {
-    switch (Ov.SimpleTy) {
-      case MVT::iPTRAny:
-        Out.insert(MVT::iPTR);
-        return;
-      case MVT::iAny:
-        for (MVT T : MVT::integer_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        for (MVT T : MVT::integer_fixedlen_vector_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        for (MVT T : MVT::integer_scalable_vector_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        return;
-      case MVT::fAny:
-        for (MVT T : MVT::fp_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        for (MVT T : MVT::fp_fixedlen_vector_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        for (MVT T : MVT::fp_scalable_vector_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        return;
-      case MVT::vAny:
-        for (MVT T : MVT::vector_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        return;
-      case MVT::Any:
-        for (MVT T : MVT::all_valuetypes())
-          if (Legal.count(T))
-            Out.insert(T);
-        return;
-      default:
-        break;
-    }
+  if (Out.count(MVT::iPTRAny)) {
+    Out.erase(MVT::iPTRAny);
+    Out.insert(MVT::iPTR);
+  } else if (Out.count(MVT::iAny)) {
+    Out.erase(MVT::iAny);
+    for (MVT T : MVT::integer_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
+    for (MVT T : MVT::integer_fixedlen_vector_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
+    for (MVT T : MVT::integer_scalable_vector_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
+  } else if (Out.count(MVT::fAny)) {
+    Out.erase(MVT::fAny);
+    for (MVT T : MVT::fp_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
+    for (MVT T : MVT::fp_fixedlen_vector_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
+    for (MVT T : MVT::fp_scalable_vector_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
+  } else if (Out.count(MVT::vAny)) {
+    Out.erase(MVT::vAny);
+    for (MVT T : MVT::vector_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
+  } else if (Out.count(MVT::Any)) {
+    Out.erase(MVT::Any);
+    for (MVT T : MVT::all_valuetypes())
+      if (Legal.count(T))
+        Out.insert(T);
   }
 }
 
@@ -887,22 +870,22 @@ const TypeSetByHwMode &TypeInfer::getLegalTypes() {
   return LegalCache;
 }
 
-#ifndef NDEBUG
 TypeInfer::ValidateOnExit::~ValidateOnExit() {
   if (Infer.Validate && !VTS.validate()) {
-    dbgs() << "Type set is empty for each HW mode:\n"
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+    errs() << "Type set is empty for each HW mode:\n"
               "possible type contradiction in the pattern below "
               "(use -print-records with llvm-tblgen to see all "
               "expanded records).\n";
     Infer.TP.dump();
-    dbgs() << "Generated from record:\n";
+    errs() << "Generated from record:\n";
     Infer.TP.getRecord()->dump();
+#endif
     PrintFatalError(Infer.TP.getRecord()->getLoc(),
                     "Type set is empty for each HW mode in '" +
                         Infer.TP.getRecord()->getName() + "'");
   }
 }
-#endif
 
 
 //===----------------------------------------------------------------------===//
@@ -1522,22 +1505,17 @@ std::string PatternToMatch::getPredicateCheck() const {
   getPredicateRecords(PredicateRecs);
 
   SmallString<128> PredicateCheck;
+  raw_svector_ostream OS(PredicateCheck);
+  ListSeparator LS(" && ");
   for (Record *Pred : PredicateRecs) {
     StringRef CondString = Pred->getValueAsString("CondString");
     if (CondString.empty())
       continue;
-    if (!PredicateCheck.empty())
-      PredicateCheck += " && ";
-    PredicateCheck += "(";
-    PredicateCheck += CondString;
-    PredicateCheck += ")";
+    OS << LS << '(' << CondString << ')';
   }
 
-  if (!HwModeFeatures.empty()) {
-    if (!PredicateCheck.empty())
-      PredicateCheck += " && ";
-    PredicateCheck += HwModeFeatures;
-  }
+  if (!HwModeFeatures.empty())
+    OS << LS << HwModeFeatures;
 
   return std::string(PredicateCheck);
 }
@@ -1996,7 +1974,17 @@ void TreePatternNode::dump() const {
 bool TreePatternNode::isIsomorphicTo(const TreePatternNode *N,
                                      const MultipleUseVarSet &DepVars) const {
   if (N == this) return true;
-  if (N->isLeaf() != isLeaf() || getExtTypes() != N->getExtTypes() ||
+  if (N->isLeaf() != isLeaf())
+    return false;
+
+  // Check operator of non-leaves early since it can be cheaper than checking
+  // types.
+  if (!isLeaf())
+    if (N->getOperator() != getOperator() ||
+        N->getNumChildren() != getNumChildren())
+      return false;
+
+  if (getExtTypes() != N->getExtTypes() ||
       getPredicateCalls() != N->getPredicateCalls() ||
       getTransformFn() != N->getTransformFn())
     return false;
@@ -2004,16 +1992,13 @@ bool TreePatternNode::isIsomorphicTo(const TreePatternNode *N,
   if (isLeaf()) {
     if (DefInit *DI = dyn_cast<DefInit>(getLeafValue())) {
       if (DefInit *NDI = dyn_cast<DefInit>(N->getLeafValue())) {
-        return ((DI->getDef() == NDI->getDef())
-                && (DepVars.find(getName()) == DepVars.end()
-                    || getName() == N->getName()));
+        return ((DI->getDef() == NDI->getDef()) &&
+                (!DepVars.contains(getName()) || getName() == N->getName()));
       }
     }
     return getLeafValue() == N->getLeafValue();
   }
 
-  if (N->getOperator() != getOperator() ||
-      N->getNumChildren() != getNumChildren()) return false;
   for (unsigned i = 0, e = getNumChildren(); i != e; ++i)
     if (!getChild(i)->isIsomorphicTo(N->getChild(i), DepVars))
       return false;
@@ -2038,6 +2023,7 @@ TreePatternNodePtr TreePatternNode::clone() const {
   New->setNamesAsPredicateArg(getNamesAsPredicateArg());
   New->Types = Types;
   New->setPredicateCalls(getPredicateCalls());
+  New->setGISelFlagsRecord(getGISelFlagsRecord());
   New->setTransformFn(getTransformFn());
   return New;
 }
@@ -2140,6 +2126,7 @@ void TreePatternNode::InlinePatternFragments(
       R->setName(getName());
       R->setNamesAsPredicateArg(getNamesAsPredicateArg());
       R->setPredicateCalls(getPredicateCalls());
+      R->setGISelFlagsRecord(getGISelFlagsRecord());
       R->setTransformFn(getTransformFn());
       for (unsigned i = 0, e = getNumTypes(); i != e; ++i)
         R->setType(i, getExtType(i));
@@ -2208,6 +2195,9 @@ void TreePatternNode::InlinePatternFragments(
     FragTree->setName(getName());
     for (unsigned i = 0, e = FragTree->getNumTypes(); i != e; ++i)
       FragTree->UpdateNodeType(i, getExtType(i), TP);
+
+    if (Op->isSubClassOf("GISelFlags"))
+      FragTree->setGISelFlagsRecord(Op);
 
     // Transfer in the old predicates.
     for (const TreePredicateCall &Pred : getPredicateCalls())
@@ -4450,14 +4440,14 @@ void CodeGenDAGPatterns::ExpandHwModeBasedTypes() {
 
       // Fill the map entry for this mode.
       const HwMode &HM = CGH.getMode(M);
-      AppendPattern(P, M, "(MF->getSubtarget().checkFeatures(\"" + HM.Features + "\"))");
+      AppendPattern(P, M, HM.Predicates);
 
       // Add negations of the HM's predicates to the default predicate.
       if (!DefaultCheck.empty())
         DefaultCheck += " && ";
-      DefaultCheck += "(!(MF->getSubtarget().checkFeatures(\"";
-      DefaultCheck += HM.Features;
-      DefaultCheck += "\")))";
+      DefaultCheck += "!(";
+      DefaultCheck += HM.Predicates;
+      DefaultCheck += ")";
     }
 
     bool HasDefault = Modes.count(DefaultMode);
@@ -4542,6 +4532,7 @@ static void CombineChildVariants(
     R->setName(Orig->getName());
     R->setNamesAsPredicateArg(Orig->getNamesAsPredicateArg());
     R->setPredicateCalls(Orig->getPredicateCalls());
+    R->setGISelFlagsRecord(Orig->getGISelFlagsRecord());
     R->setTransformFn(Orig->getTransformFn());
     for (unsigned i = 0, e = Orig->getNumTypes(); i != e; ++i)
       R->setType(i, Orig->getExtType(i));

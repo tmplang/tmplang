@@ -73,7 +73,14 @@ enum class UnresolvedPolicy { ReportError, Warn, Ignore };
 enum class OrphanHandlingPolicy { Place, Warn, Error };
 
 // For --sort-section and linkerscript sorting rules.
-enum class SortSectionPolicy { Default, None, Alignment, Name, Priority };
+enum class SortSectionPolicy {
+  Default,
+  None,
+  Alignment,
+  Name,
+  Priority,
+  Reverse,
+};
 
 // For --target2
 enum class Target2Policy { Abs, Rel, GotRel };
@@ -170,7 +177,9 @@ struct Config {
   StringRef zCetReport = "none";
   llvm::StringRef ltoBasicBlockSections;
   std::pair<llvm::StringRef, llvm::StringRef> thinLTOObjectSuffixReplace;
-  std::pair<llvm::StringRef, llvm::StringRef> thinLTOPrefixReplace;
+  llvm::StringRef thinLTOPrefixReplaceOld;
+  llvm::StringRef thinLTOPrefixReplaceNew;
+  llvm::StringRef thinLTOPrefixReplaceNativeObject;
   std::string rpath;
   llvm::SmallVector<VersionDefinition, 0> versionDefinitions;
   llvm::SmallVector<llvm::StringRef, 0> auxiliaryList;
@@ -235,7 +244,6 @@ struct Config {
   bool nostdlib;
   bool oFormatBinary;
   bool omagic;
-  bool opaquePointers;
   bool optEB = false;
   bool optEL = false;
   bool optimizeBBJumps;
@@ -318,6 +326,7 @@ struct Config {
   uint64_t zStackSize;
   unsigned ltoPartitions;
   unsigned ltoo;
+  llvm::CodeGenOpt::Level ltoCgo;
   unsigned optimize;
   StringRef thinLTOJobs;
   unsigned timeTraceGranularity;

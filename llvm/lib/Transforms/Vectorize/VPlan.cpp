@@ -46,7 +46,10 @@
 #include <vector>
 
 using namespace llvm;
+
+namespace llvm {
 extern cl::opt<bool> EnableVPlanNativePath;
+}
 
 #define DEBUG_TYPE "vplan"
 
@@ -577,7 +580,9 @@ void VPRegionBlock::print(raw_ostream &O, const Twine &Indent,
 #endif
 
 VPlan::~VPlan() {
-  clearLiveOuts();
+  for (auto &KV : LiveOuts)
+    delete KV.second;
+  LiveOuts.clear();
 
   if (Entry) {
     VPValue DummyValue;
@@ -650,8 +655,7 @@ void VPlan::prepareToExecute(Value *TripCountV, Value *VectorTripCountV,
                                VPInstruction::CanonicalIVIncrementNUW;
                   }) &&
            "the canonical IV should only be used by its increments or "
-           "ScalarIVSteps when "
-           "resetting the start value");
+           "ScalarIVSteps when resetting the start value");
     IV->setOperand(0, VPV);
   }
 }
@@ -745,17 +749,30 @@ void VPlan::print(raw_ostream &O) const {
 
   O << "VPlan '" << getName() << "' {";
 
+  bool AnyLiveIn = false;
   if (VectorTripCount.getNumUsers() > 0) {
     O << "\nLive-in ";
     VectorTripCount.printAsOperand(O, SlotTracker);
-    O << " = vector-trip-count\n";
+    O << " = vector-trip-count";
+    AnyLiveIn = true;
+  }
+
+  if (TripCount && TripCount->getNumUsers() > 0) {
+    O << "\nLive-in ";
+    TripCount->printAsOperand(O, SlotTracker);
+    O << " = original trip-count";
+    AnyLiveIn = true;
   }
 
   if (BackedgeTakenCount && BackedgeTakenCount->getNumUsers()) {
     O << "\nLive-in ";
     BackedgeTakenCount->printAsOperand(O, SlotTracker);
-    O << " = backedge-taken count\n";
+    O << " = backedge-taken count";
+    AnyLiveIn = true;
   }
+
+  if (AnyLiveIn)
+    O << "\n";
 
   for (const VPBlockBase *Block : vp_depth_first_shallow(getEntry())) {
     O << '\n';
@@ -1086,7 +1103,7 @@ VPInterleavedAccessInfo::VPInterleavedAccessInfo(VPlan &Plan,
 }
 
 void VPSlotTracker::assignSlot(const VPValue *V) {
-  assert(Slots.find(V) == Slots.end() && "VPValue already has a slot!");
+  assert(!Slots.contains(V) && "VPValue already has a slot!");
   Slots[V] = NextSlot++;
 }
 
@@ -1098,6 +1115,8 @@ void VPSlotTracker::assignSlots(const VPlan &Plan) {
   assignSlot(&Plan.VectorTripCount);
   if (Plan.BackedgeTakenCount)
     assignSlot(Plan.BackedgeTakenCount);
+  if (Plan.TripCount)
+    assignSlot(Plan.TripCount);
 
   ReversePostOrderTraversal<VPBlockDeepTraversalWrapper<const VPBlockBase *>>
       RPOT(VPBlockDeepTraversalWrapper<const VPBlockBase *>(Plan.getEntry()));

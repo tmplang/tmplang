@@ -144,7 +144,7 @@ void Diagnostic::printContext(raw_ostream &out, const SourceManager &sm) const {
 
   PrintContextLine(out, spaces);
 
-  for (auto &lineAndIdx : llvm::enumerate(lines)) {
+  for (const auto &lineAndIdx : llvm::enumerate(lines)) {
     auto [idx, line] = lineAndIdx;
 
     // Line with source code

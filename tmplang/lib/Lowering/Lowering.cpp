@@ -14,6 +14,7 @@
 #include <mlir/IR/Types.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
@@ -384,7 +385,7 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
   // Lower arithmetic and control flow pass to LLVM (func is done on
   // TmplangToLLVM)
   pm.addPass(mlir::createArithToLLVMConversionPass());
-  pm.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
+  pm.addPass(mlir::createConvertControlFlowToLLVMPass());
 
   if (mlir::failed(pm.run(&*mod))) {
     // FIXME: Use proper diagnostics
@@ -392,6 +393,7 @@ tmplang::Lower(hir::CompilationUnit &compUnit, llvm::LLVMContext &llvmCtx,
   }
 
   // Register LLVM dialect translations
+  mlir::registerBuiltinDialectTranslation(*ctx);
   mlir::registerLLVMDialectTranslation(*ctx);
 
   // Convert the module to LLVM IR in a new LLVM IR context.

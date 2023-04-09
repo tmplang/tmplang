@@ -23,6 +23,7 @@ llvm_add_library(TmplangLowering
     MLIRArithToLLVM
     MLIRControlFlowToLLVM
     MLIRLLVMToLLVMIRTranslation
+    MLIRBuiltinToLLVMIRTranslation
 
     # MLIR Transformations
 

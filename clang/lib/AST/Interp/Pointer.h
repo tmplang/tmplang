@@ -225,6 +225,10 @@ public:
     return Offset - Base - Adjust;
   }
 
+  /// Whether this array refers to an array, but not
+  /// to the first element.
+  bool isArrayRoot() const { return inArray() && Offset == Base; }
+
   /// Checks if the innermost field is an array.
   bool inArray() const { return getFieldDesc()->IsArray; }
   /// Checks if the structure is a primitive array.
@@ -286,6 +290,8 @@ public:
   /// Returns the number of elements.
   unsigned getNumElems() const { return getSize() / elemSize(); }
 
+  Block *block() const { return Pointee; }
+
   /// Returns the index into an array.
   int64_t getIndex() const {
     if (isElementPastEnd())
@@ -306,6 +312,10 @@ public:
   /// Dereferences the pointer, if it's live.
   template <typename T> T &deref() const {
     assert(isLive() && "Invalid pointer");
+    if (isArrayRoot())
+      return *reinterpret_cast<T *>(Pointee->rawData() + Base +
+                                    sizeof(InitMap *));
+
     return *reinterpret_cast<T *>(Pointee->rawData() + Offset);
   }
 

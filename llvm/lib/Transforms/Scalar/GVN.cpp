@@ -772,7 +772,7 @@ void GVNPass::printPipeline(
   static_cast<PassInfoMixin<GVNPass> *>(this)->printPipeline(
       OS, MapClassName2PassName);
 
-  OS << "<";
+  OS << '<';
   if (Options.AllowPRE != std::nullopt)
     OS << (*Options.AllowPRE ? "" : "no-") << "pre;";
   if (Options.AllowLoadPRE != std::nullopt)
@@ -782,7 +782,7 @@ void GVNPass::printPipeline(
        << "split-backedge-load-pre;";
   if (Options.AllowMemDep != std::nullopt)
     OS << (*Options.AllowMemDep ? "" : "no-") << "memdep";
-  OS << ">";
+  OS << '>';
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -1507,6 +1507,7 @@ bool GVNPass::PerformLoadPRE(LoadInst *Load, AvailValInBlkVect &ValuesPerBlock,
   unsigned NumUnavailablePreds = PredLoads.size() + CriticalEdgePred.size();
   assert(NumUnavailablePreds != 0 &&
          "Fully available value should already be eliminated!");
+  (void)NumUnavailablePreds;
 
   // If this load is unavailable in multiple predecessors, reject it.
   // FIXME: If we could restructure the CFG, we could make a common pred with
@@ -1555,8 +1556,8 @@ bool GVNPass::PerformLoadPRE(LoadInst *Load, AvailValInBlkVect &ValuesPerBlock,
     BasicBlock *Cur = Load->getParent();
     while (Cur != LoadBB) {
       PHITransAddr Address(LoadPtr, DL, AC);
-      LoadPtr = Address.PHITranslateWithInsertion(
-          Cur, Cur->getSinglePredecessor(), *DT, NewInsts);
+      LoadPtr = Address.translateWithInsertion(Cur, Cur->getSinglePredecessor(),
+                                               *DT, NewInsts);
       if (!LoadPtr) {
         CanDoPRE = false;
         break;
@@ -1566,8 +1567,8 @@ bool GVNPass::PerformLoadPRE(LoadInst *Load, AvailValInBlkVect &ValuesPerBlock,
 
     if (LoadPtr) {
       PHITransAddr Address(LoadPtr, DL, AC);
-      LoadPtr = Address.PHITranslateWithInsertion(LoadBB, UnavailablePred, *DT,
-                                                  NewInsts);
+      LoadPtr = Address.translateWithInsertion(LoadBB, UnavailablePred, *DT,
+                                               NewInsts);
     }
     // If we couldn't find or insert a computation of this phi translated value,
     // we fail PRE.
@@ -1907,8 +1908,10 @@ bool GVNPass::processAssumeIntrinsic(AssumeInst *IntrinsicI) {
         MSSAU->insertDef(cast<MemoryDef>(NewDef), /*RenameUses=*/false);
       }
     }
-    if (isAssumeWithEmptyBundle(*IntrinsicI))
+    if (isAssumeWithEmptyBundle(*IntrinsicI)) {
       markInstructionForDeletion(IntrinsicI);
+      return true;
+    }
     return false;
   } else if (isa<Constant>(V)) {
     // If it's not false, and constant, it must evaluate to true. This means our

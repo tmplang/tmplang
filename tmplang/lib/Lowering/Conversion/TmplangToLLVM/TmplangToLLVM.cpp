@@ -72,7 +72,7 @@ private:
                              mlir::ConversionPatternRewriter &rewriter) const {
     const mlir::Location location = op->getLoc();
 
-    for (auto &[idx, operand] : llvm::enumerate(op->getOperands())) {
+    for (const auto &[idx, operand] : llvm::enumerate(op->getOperands())) {
       auto idxVal = rewriter.create<mlir::LLVM::ConstantOp>(
           location, typeConverter.convertType(rewriter.getIndexType()),
           rewriter.getIntegerAttr(

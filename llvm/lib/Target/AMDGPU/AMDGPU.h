@@ -26,6 +26,8 @@ FunctionPass *createAMDGPUPostLegalizeCombiner(bool IsOptNone);
 FunctionPass *createAMDGPURegBankCombiner(bool IsOptNone);
 void initializeAMDGPURegBankCombinerPass(PassRegistry &);
 
+void initializeAMDGPURegBankSelectPass(PassRegistry &);
+
 // SI Passes
 FunctionPass *createGCNDPPCombinePass();
 FunctionPass *createSIAnnotateControlFlowPass();
@@ -47,13 +49,13 @@ FunctionPass *createSIFormMemoryClausesPass();
 FunctionPass *createSIPostRABundlerPass();
 FunctionPass *createAMDGPUSimplifyLibCallsPass(const TargetMachine *);
 FunctionPass *createAMDGPUUseNativeCallsPass();
+ModulePass *createAMDGPURemoveIncompatibleFunctionsPass(const TargetMachine *);
 FunctionPass *createAMDGPUCodeGenPreparePass();
 FunctionPass *createAMDGPULateCodeGenPreparePass();
 FunctionPass *createAMDGPUMachineCFGStructurizerPass();
 FunctionPass *createAMDGPUPropagateAttributesEarlyPass(const TargetMachine *);
 ModulePass *createAMDGPUPropagateAttributesLatePass(const TargetMachine *);
 FunctionPass *createAMDGPURewriteOutArgumentsPass();
-ModulePass *createAMDGPUReplaceLDSUseWithPointerPass();
 ModulePass *createAMDGPULowerModuleLDSPass();
 FunctionPass *createSIModeRegisterPass();
 FunctionPass *createGCNPreRAOptimizationsPass();
@@ -139,14 +141,6 @@ struct AMDGPUPropagateAttributesLatePass
 
 private:
   TargetMachine &TM;
-};
-
-void initializeAMDGPUReplaceLDSUseWithPointerPass(PassRegistry &);
-extern char &AMDGPUReplaceLDSUseWithPointerID;
-
-struct AMDGPUReplaceLDSUseWithPointerPass
-    : PassInfoMixin<AMDGPUReplaceLDSUseWithPointerPass> {
-  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
 void initializeAMDGPULowerModuleLDSPass(PassRegistry &);
@@ -286,6 +280,9 @@ extern char &AMDGPUAnnotateUniformValuesPassID;
 void initializeAMDGPUCodeGenPreparePass(PassRegistry&);
 extern char &AMDGPUCodeGenPrepareID;
 
+void initializeAMDGPURemoveIncompatibleFunctionsPass(PassRegistry &);
+extern char &AMDGPURemoveIncompatibleFunctionsID;
+
 void initializeAMDGPULateCodeGenPreparePass(PassRegistry &);
 extern char &AMDGPULateCodeGenPrepareID;
 
@@ -419,6 +416,12 @@ inline bool isFlatGlobalAddrSpace(unsigned AS) {
   return AS == AMDGPUAS::GLOBAL_ADDRESS ||
          AS == AMDGPUAS::FLAT_ADDRESS ||
          AS == AMDGPUAS::CONSTANT_ADDRESS ||
+         AS > AMDGPUAS::MAX_AMDGPU_ADDRESS;
+}
+
+inline bool isExtendedGlobalAddrSpace(unsigned AS) {
+  return AS == AMDGPUAS::GLOBAL_ADDRESS || AS == AMDGPUAS::CONSTANT_ADDRESS ||
+         AS == AMDGPUAS::CONSTANT_ADDRESS_32BIT ||
          AS > AMDGPUAS::MAX_AMDGPU_ADDRESS;
 }
 }
