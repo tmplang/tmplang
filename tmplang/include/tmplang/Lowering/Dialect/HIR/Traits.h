@@ -1,0 +1,6 @@
+#ifndef TMPLANG_LOWERING_DIALECT_TRAITS_H
+#define TMPLANG_LOWERING_DIALECT_TRAITS_H
+
+#include <tmplang/Lowering/Dialect/HIR/Symbol.h>
+
+#endif // TMPLANG_LOWERING_DIALECT_TRAITS_H

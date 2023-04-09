@@ -1,22 +1,18 @@
 add_subdirectory(Dialect)
-add_subdirectory(Conversion)
-add_subdirectory(Transforms)
+add_subdirectory(Sema)
 
 llvm_add_library(TmplangLowering
-    Lowering.cpp
+    HIRBuilder.cpp
 
     LINK_LIBS PUBLIC
     # Tmplang libraries
-    TmplangHIRTree
+    TmplangSourceTree
+    TmplangSema
     TmplangMLIRDialect
 
     # Tmplang Conversions
-    TmplangToArith
-    TmplangToFunc
-    TmplangToLLVM
 
     # Tmplang Transformations
-    TmplangTransforms
 
     # MLIR Conversions
     MLIRLLVMCommonConversion

@@ -9,8 +9,6 @@ target_link_libraries(tmplangc
   TmplangLowering
   TmplangParser
   TmplangSourceTree
-  TmplangSema
-  TmplangHIRTree
   TmplangSupport
 
   LLVMSupport

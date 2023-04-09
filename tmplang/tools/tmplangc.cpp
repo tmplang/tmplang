@@ -11,12 +11,13 @@
 #include <tmplang/CLI/CLPrinter.h>
 #include <tmplang/Diagnostics/Diagnostic.h>
 #include <tmplang/Lexer/Lexer.h>
-#include <tmplang/Lowering/Lowering.h>
+#include <tmplang/Lowering/HIRBuilder.h>
+#include <tmplang/Lowering/Sema/Sema.h>
 #include <tmplang/Parser/Parser.h>
-#include <tmplang/Sema/Sema.h>
 #include <tmplang/Support/FileManager.h>
 #include <tmplang/Support/SourceManager.h>
-#include <tmplang/Tree/HIR/HIRBuilder.h>
+
+#include <tmplang/Lowering/Dialect/HIR/Traits.h>
 
 #include <memory>
 
@@ -65,60 +66,6 @@ static bool DumpSrc(llvm::opt::Arg &arg, CLPrinter &out,
 
   compUnit.dump(sm, *cfg);
   return compUnit.didRecoverFromAnError();
-}
-
-static bool DumpHIR(llvm::opt::Arg &arg, CLPrinter &out,
-                    const hir::CompilationUnit &compUnit,
-                    const SourceManager &sm) {
-  auto cfg = ParseTreeDumpArg<hir::Node::PrintConfig>(arg, out);
-  if (!cfg) {
-    // Errors already reported
-    return 1;
-  }
-
-  compUnit.dump(sm, *cfg);
-  return 0;
-}
-
-static std::optional<MLIRPrintingOpsCfg> ParseDumpMLIRArg(llvm::opt::Arg &arg,
-                                                          CLPrinter &out) {
-  constexpr StringLiteral missingDumpOptionMsg =
-      "At least one value of the followings is required: "
-      "'lower|opt|trans|llvm'\n";
-
-  if (arg.getNumValues() == 0) {
-    out.errs() << missingDumpOptionMsg;
-    return nullopt;
-  }
-
-  MLIRPrintingOpsCfg printCfg = MLIRPrintingOpsCfg::None;
-  for (StringRef option : arg.getValues()) {
-    std::optional<MLIRPrintingOpsCfg> parsedOption =
-        StringSwitch<std::optional<MLIRPrintingOpsCfg>>(option)
-            .Case("lower", MLIRPrintingOpsCfg::Lowering)
-            .Case("opt", MLIRPrintingOpsCfg::Optimization)
-            .Case("trans", MLIRPrintingOpsCfg::Translation)
-            .Case("llvm", MLIRPrintingOpsCfg::LLVM)
-            .Case("loc", MLIRPrintingOpsCfg::Location)
-            .Case("all", MLIRPrintingOpsCfg::All)
-            .Default(nullopt);
-
-    if (!parsedOption) {
-      out.errs() << "Invalid value '" << option << "' for flag "
-                 << arg.getSpelling() << "\n";
-      return nullopt;
-    }
-
-    printCfg |= *parsedOption;
-  }
-
-  // Location is a complemetary option, by itself it does not count
-  if (!static_cast<bool>((printCfg & ~MLIRPrintingOpsCfg::Location))) {
-    out.errs() << missingDumpOptionMsg;
-    return nullopt;
-  }
-
-  return printCfg;
 }
 
 int main(int argc, const char *argv[]) {
@@ -178,43 +125,26 @@ int main(int argc, const char *argv[]) {
     return DumpSrc(*dumpSrcArg, printer, *srcCompilationUnit, *sm);
   }
 
-  hir::HIRContext ctx;
-  auto hirCompilationUnit = hir::buildHIR(*srcCompilationUnit, ctx);
-  if (!hirCompilationUnit) {
-    // TODO: Add proper message diagnostic handling
-    printer.errs() << "There was a problem building the HIR for the file\n";
+  auto ctx = std::make_unique<mlir::MLIRContext>();
+  // Load the required dialects (mlir::BuiltinDialect is loaded by default)
+  ctx->loadDialect<TmplangHIRDialect>();
+
+  auto tuOp = tmplang::LowerToHIR(*srcCompilationUnit, *ctx, *sm);
+  if (!tuOp) {
+    printer.errs() << "Lowering to HIR failed\n";
     return 1;
   }
 
-  if (auto *dumpHIRArg = parsedCompilerArgs->getLastArg(OPT_dump_hir)) {
-    return DumpHIR(*dumpHIRArg, printer, *hirCompilationUnit, *sm);
-  }
+  mlir::OpPrintingFlags flags;
+  flags.assumeVerified();
+  tuOp->print(llvm::dbgs(), flags);
 
-  if (!Sema(*hirCompilationUnit, *sm, diagOuts)) {
-    printer.errs() << "Sema failed!\n";
+  if (!tmplang::Sema(tuOp, *sm)) {
+    printer.errs() << "Sema failed\n";
     return 1;
   }
 
-  // Stop here, if there was a recoverable error while parsing
-  if (srcCompilationUnit->didRecoverFromAnError()) {
-    return 1;
-  }
-
-  auto *arg = parsedCompilerArgs->getLastArg(OPT_dump_mlir);
-  std::optional<MLIRPrintingOpsCfg> mlirDumpCfg =
-      arg ? ParseDumpMLIRArg(*arg, printer) : MLIRPrintingOpsCfg::None;
-  if (!mlirDumpCfg) {
-    // Errors already reported
-    return 1;
-  }
-
-  auto llvmCtx = std::make_unique<llvm::LLVMContext>();
-  std::unique_ptr<llvm::Module> mlirMod =
-      Lower(*hirCompilationUnit, *llvmCtx, *sm, *mlirDumpCfg);
-  if (!mlirMod) {
-    printer.errs() << "MLIR lowering to LLVM failed!\n";
-    return 1;
-  }
+  tuOp->print(llvm::dbgs(), flags);
 
   return 0;
 }
