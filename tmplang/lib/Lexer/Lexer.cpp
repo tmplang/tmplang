@@ -159,6 +159,7 @@ Token Lexer::next() {
                      .Case(ToString(TK_Ret), TK_Ret)
                      .Case(ToString(TK_Data), TK_Data)
                      .Case(ToString(TK_Match), TK_Match)
+                     .Case(ToString(TK_Union), TK_Union)
                      .Case(ToString(TK_Otherwise), TK_Otherwise)
                      .Default(TK_Identifier);
 

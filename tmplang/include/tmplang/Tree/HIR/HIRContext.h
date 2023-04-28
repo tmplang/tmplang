@@ -21,6 +21,7 @@ private:
   friend class TupleType;
   friend class SubprogramType;
   friend class DataType;
+  friend class UnionType;
 
   /// NOTE: Once this grows, it can be a good idea to move it to  the heap
   ///       through PImpl idiom
@@ -30,6 +31,7 @@ private:
   std::deque<TupleType> TupleTypes;
   std::deque<SubprogramType> SubprogramTypes;
   std::deque<DataType> DataTypes;
+  std::deque<UnionType> UnionTypes;
 
   SymbolManager SymM;
 };

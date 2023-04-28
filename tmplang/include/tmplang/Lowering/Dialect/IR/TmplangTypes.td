@@ -24,6 +24,19 @@ def DataType : TmplangTypeBase<"Data", "data", []> {
   let assemblyFormat = "$name`{` $tys `}`";
 }
 
+def UnionType : TmplangTypeBase<"Union", "Union", []> {
+  let summary = "Discriminated union of different alternatives.";
+
+  let description = [{
+    Discriminated union of different alternatives of data.
+  }];
+
+  let parameters = (ins StringRefParameter<>:$name,
+                        ArrayRefParameter<"tmplang::DataType">:$tys);
+
+  let assemblyFormat = "$name`{` $tys `}`";
+}
+
 def AggregateDataType : AnyTypeOf<[DataType, Builtin_Tuple]>;
 
 // TODO: Define general TmplangType

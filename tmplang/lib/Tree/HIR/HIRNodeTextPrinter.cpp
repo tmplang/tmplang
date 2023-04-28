@@ -4,7 +4,6 @@
 #include <tmplang/Tree/HIR/RecursiveTypeVisitor.h>
 
 #include "../TreeFormatPrinter.h"
-#include "tmplang/Tree/HIR/Exprs.h"
 
 using namespace tmplang;
 using namespace tmplang::hir;
@@ -50,9 +49,18 @@ public:
     return true;
   }
 
-  bool traverseDataType(const DataType &dataType) {
+  void printAggregatedType(StringRef name) {
     ColorScope color(OS, Cfg & Node::PrintConfig::Color, TypeColor);
-    OS << dataType.getName() << "{...}";
+    OS << name << "{...}";
+  }
+
+  bool traverseDataType(const DataType &dataType) {
+    printAggregatedType(dataType.getName());
+    return true;
+  }
+
+  bool traverseUnionType(const UnionType &unionType) {
+    printAggregatedType(unionType.getName());
     return true;
   }
 
@@ -233,6 +241,35 @@ public:
     traverseType(aggreDesElem.getType());
     printIdentifier(" idx: ");
     OS << aggreDesElem.getIdxOfAggregateAccess();
+    return true;
+  }
+
+  bool visitUnionAlternativeFieldDecl(
+      const UnionAlternativeFieldDecl &enumAlternativeField) {
+    OS << ' ';
+    traverseType(enumAlternativeField.getType());
+    OS << " :";
+    printIdentifier(enumAlternativeField.getName());
+    return true;
+  }
+
+  bool visitUnionAlternativeDecl(const UnionAlternativeDecl &alternative) {
+    OS << ' ';
+    traverseType(alternative.getType());
+    return true;
+  }
+
+  bool visitUnionDecl(const UnionDecl &enumDecl) {
+    OS << ' ';
+    traverseType(enumDecl.getType());
+    return true;
+  }
+
+  bool visitUnionDestructuration(const UnionDestructuration &unionDes) {
+    OS << ' ';
+    traverseType(unionDes.getDestructuringType());
+    printIdentifier("alternativeIdx: ");
+    OS << unionDes.getAlternativeIdx();
     return true;
   }
 

@@ -20,6 +20,8 @@ def Tmplang_Dialect : Dialect {
   }];
 
   let useDefaultTypePrinterParser = 1;
+
+  let useFoldAPI = kEmitFoldAdaptorFolder;
 }
 
 #endif // TMPLANG_BASE

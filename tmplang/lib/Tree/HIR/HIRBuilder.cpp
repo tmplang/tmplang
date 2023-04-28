@@ -29,6 +29,10 @@ private:
   std::optional<DataFieldDecl> get(const source::DataFieldDecl &);
   std::optional<PlaceholderDecl> get(const source::PlaceholderDecl &,
                                      const Type &matchedExprTy);
+  std::unique_ptr<UnionDecl> get(const source::UnionDecl &);
+  std::optional<UnionAlternativeDecl> get(const source::UnionAlternativeDecl &);
+  std::optional<UnionAlternativeFieldDecl>
+  get(const source::UnionAlternativeFieldDecl &);
 
   // All expressions
   std::unique_ptr<Expr> get(const source::Expr &);
@@ -42,6 +46,8 @@ private:
   // MatchExpr related building functions
   std::optional<AggregateDestructurationElem>
   get(const source::AggregateDestructurationElem &, const Type &, unsigned idx);
+  std::optional<UnionDestructuration> get(const source::UnionDestructuration &,
+                                          const Type &);
   std::optional<AggregateDestructuration>
   get(const source::DataDestructuration &, const Type &);
   std::optional<AggregateDestructuration>
@@ -157,6 +163,11 @@ HIRBuilder::get(const source::ExprMatchCaseLhsVal &lhsVal, const Type &currTy) {
         return des ? std::make_unique<ExprMatchCaseLhsVal>(std::move(*des))
                    : nullptr;
       },
+      [&](const source::UnionDestructuration &arg) {
+        auto des = get(arg, currTy);
+        return des ? std::make_unique<ExprMatchCaseLhsVal>(std::move(*des))
+                   : nullptr;
+      },
       [](const auto &arg) -> std::unique_ptr<ExprMatchCaseLhsVal> {
         llvm_unreachable("All cases covered");
       }};
@@ -173,20 +184,64 @@ HIRBuilder::get(const source::AggregateDestructurationElem &srcNode,
                : std::optional<AggregateDestructurationElem>{};
 }
 
+std::optional<UnionDestructuration>
+HIRBuilder::get(const source::UnionDestructuration &unionDes,
+                const Type &currentTy) {
+  auto *unionTy = dyn_cast<UnionType>(&currentTy);
+  if (!unionTy) {
+    // TODO: Emit error about destructuring a non union type
+    return std::nullopt;
+  }
+
+  // Find union symbol by name
+  auto *unionSym = fetchSymbolRecursively(SymbolKind::ReferenciableFromType,
+                                          unionTy->getName());
+  if (!unionSym) {
+    // TODO: Emit error (type undefined)
+    return nullopt;
+  }
+
+  auto *createdSymScopeForUnion = unionSym->getCreatedSymScope();
+  assert(createdSymScopeForUnion && "All union types create a scope");
+
+  // Find alternative by name in the union
+  auto *alternativeSymIt = llvm::find_if(
+      createdSymScopeForUnion->getSymbols(), [&](const Symbol &sym) {
+        return sym.getId() == unionDes.getAlternativeStr();
+      });
+  if (alternativeSymIt == createdSymScopeForUnion->getSymbols().end()) {
+    // TODO: Alternative does not exists
+    return nullopt;
+  }
+  const unsigned alternativeIdx = std::distance(
+      createdSymScopeForUnion->getSymbols().begin(), alternativeSymIt);
+
+  auto dataDes =
+      get(unionDes.getDataDestructuration(), alternativeSymIt->get().getType());
+  if (!dataDes) {
+    // Already reported
+    return nullopt;
+  }
+
+  return std::make_optional<UnionDestructuration>(
+      unionDes, alternativeSymIt->get().getType(), alternativeIdx,
+      std::move(*dataDes));
+}
+
 std::optional<AggregateDestructuration>
 HIRBuilder::get(const source::DataDestructuration &srcNode,
                 const Type &currentTy) {
+  auto *dataTy = dyn_cast<DataType>(&currentTy);
+  if (!dataTy) {
+    // TODO: Emit error about destructuring a non data type
+    return std::nullopt;
+  }
+
   std::vector<AggregateDestructurationElem> destructuratedElems;
   destructuratedElems.reserve(srcNode.DataElems.size());
 
   llvm::StringSet<> alreadySeenFields;
   for (const source::DataDestructurationElem &elem : srcNode.DataElems) {
-    auto *dataTy = dyn_cast<DataType>(&currentTy);
-    if (!dataTy) {
-      // TODO: Emit error about destructuring a non data type
-      return std::nullopt;
-    }
-
     assert(DataTyToSymMap.count(dataTy));
 
     const SymbolicScope *dataTyScope =
@@ -228,17 +283,17 @@ HIRBuilder::get(const source::DataDestructuration &srcNode,
 std::optional<AggregateDestructuration>
 HIRBuilder::get(const source::TupleDestructuration &srcNode,
                 const Type &currentTy) {
+  auto *tupleTy = dyn_cast<TupleType>(&currentTy);
+  if (!tupleTy) {
+    // TODO: Emit error about destructuring a non tuple type
+    return std::nullopt;
+  }
+
   std::vector<AggregateDestructurationElem> destructuratedElems;
   destructuratedElems.reserve(srcNode.getTupleElems().size());
 
   for (const auto &idxAndElem : llvm::enumerate(srcNode.getTupleElems())) {
     auto [idx, elem] = idxAndElem;
-
-    auto *tupleTy = dyn_cast<TupleType>(&currentTy);
-    if (!tupleTy) {
-      // TODO: Emit error about destructuring a non tuple type
-      return std::nullopt;
-    }
 
     if (idx >= tupleTy->getTypes().size()) {
       // TODO: emir error about accesing the elements of the tuple
@@ -431,6 +486,10 @@ std::unique_ptr<Expr> HIRBuilder::get(const source::Expr &expr) {
   case source::Node::Kind::TupleDestructurationElem:
   case source::Node::Kind::DataDestructuration:
   case source::Node::Kind::DataDestructurationElem:
+  case source::Node::Kind::UnionDecl:
+  case source::Node::Kind::UnionAlternativeDecl:
+  case source::Node::Kind::UnionAlternativeFieldDecl:
+  case source::Node::Kind::UnionDestructuration:
     break;
   }
   llvm_unreachable("This should not be reachable");
@@ -525,6 +584,8 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
     return get(*cast<source::SubprogramDecl>(&decl));
   case source::Node::Kind::DataDecl:
     return get(*cast<source::DataDecl>(&decl));
+  case source::Node::Kind::UnionDecl:
+    return get(*cast<source::UnionDecl>(&decl));
   case source::Node::Kind::CompilationUnit:
   case source::Node::Kind::DataFieldDecl:
   case source::Node::Kind::ParamDecl:
@@ -544,6 +605,9 @@ std::unique_ptr<Decl> HIRBuilder::getTopLevelDecl(const source::Decl &decl) {
   case source::Node::Kind::TupleDestructurationElem:
   case source::Node::Kind::DataDestructuration:
   case source::Node::Kind::DataDestructurationElem:
+  case source::Node::Kind::UnionAlternativeDecl:
+  case source::Node::Kind::UnionAlternativeFieldDecl:
+  case source::Node::Kind::UnionDestructuration:
     // All these nodes cannot be top level decls
     break;
   }
@@ -686,6 +750,104 @@ HIRBuilder::get(const source::PlaceholderDecl &placeholderDecl,
   auto &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
                                       placeholderDecl.getName(), placeholderTy);
   return PlaceholderDecl(placeholderDecl, sym);
+}
+
+std::unique_ptr<UnionDecl> HIRBuilder::get(const source::UnionDecl &enumDecl) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromType,
+                             enumDecl.getName())) {
+    // TODO: Report message about type already defined
+    return nullptr;
+  }
+
+  auto &unionSymScope = pushSymbolicScope();
+
+  std::vector<UnionAlternativeDecl> alternatives;
+  for (auto &alternative : enumDecl.getAlternatives()) {
+    auto optAlternative = get(alternative);
+    if (!optAlternative) {
+      // Error already reported
+      return nullptr;
+    }
+    alternatives.push_back(std::move(*optAlternative));
+  }
+
+  popSymbolScope();
+
+  SmallVector<const Type *> alternativeTys;
+  alternativeTys.reserve(alternatives.size());
+  transform(alternatives, std::back_inserter(alternativeTys),
+            [](const UnionAlternativeDecl &field) { return &field.getType(); });
+
+  auto &unionTy = UnionType::get(Ctx, enumDecl.getName(), alternativeTys);
+
+  auto &sym =
+      addSymbolToCurrentScope(SymbolKind::ReferenciableFromType,
+                              enumDecl.getName(), unionTy, &unionSymScope);
+
+  return std::make_unique<UnionDecl>(enumDecl, sym, std::move(alternatives));
+}
+
+std::optional<UnionAlternativeDecl>
+HIRBuilder::get(const source::UnionAlternativeDecl &alternative) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromType,
+                             alternative.getName())) {
+    // TODO: Report message about alternative already defined
+    return nullopt;
+  }
+
+  pushSymbolicScope();
+
+  std::vector<UnionAlternativeFieldDecl> fields;
+  for (auto &field : alternative.getFields()) {
+    auto optField = get(field);
+    if (!optField) {
+      // Error already reported
+      return nullopt;
+    }
+    fields.push_back(std::move(*optField));
+  }
+
+  auto &alternativeScope = popSymbolScope();
+
+  SmallVector<const Type *> fieldTys;
+  fieldTys.reserve(fields.size());
+  transform(
+      fields, std::back_inserter(fieldTys),
+      [](const UnionAlternativeFieldDecl &field) { return &field.getType(); });
+
+  // Alternative types are struct types
+  auto &alternativeTy = DataType::get(Ctx, alternative.getName(), fieldTys);
+
+  auto &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromType,
+                                      alternative.getName(), alternativeTy,
+                                      &alternativeScope);
+
+  // Link the type with its associated symbol
+  DataTyToSymMap[&alternativeTy] = &sym;
+
+  return std::make_optional<UnionAlternativeDecl>(alternative, sym,
+                                                  std::move(fields));
+}
+
+std::optional<UnionAlternativeFieldDecl>
+HIRBuilder::get(const source::UnionAlternativeFieldDecl &alternativeFieldDecl) {
+  if (isSymbolInCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                             alternativeFieldDecl.getName())) {
+    // TODO: Report message about field already defined
+    return nullopt;
+  }
+
+  auto *fieldTy = get(alternativeFieldDecl.getType());
+  if (!fieldTy) {
+    // Already reported
+    return nullopt;
+  }
+
+  auto &sym = addSymbolToCurrentScope(SymbolKind::ReferenciableFromExprVarRef,
+                                      alternativeFieldDecl.getName(), *fieldTy);
+
+  return std::make_optional<UnionAlternativeFieldDecl>(alternativeFieldDecl,
+                                                       sym);
 }
 
 static void AddNamedBuiltinTypes(SymbolManager &sm, HIRContext &ctx) {

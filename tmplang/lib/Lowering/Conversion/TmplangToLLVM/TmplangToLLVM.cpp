@@ -142,6 +142,51 @@ struct MatchOpLowering : public TmplangToLLVMConversion<MatchOp> {
   }
 };
 
+struct UnionAlternativeCheckOpLowering
+    : public TmplangToLLVMConversion<UnionAlternativeCheckOp> {
+  using TmplangToLLVMConversion<
+      UnionAlternativeCheckOp>::TmplangToLLVMConversion;
+
+  mlir::LogicalResult
+  matchAndRewrite(UnionAlternativeCheckOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+        op, adaptor.getOperands()[0], 1);
+
+    return mlir::success();
+  }
+};
+
+struct UnionAccessOpLowering : public TmplangToLLVMConversion<UnionAccessOp> {
+  using TmplangToLLVMConversion<UnionAccessOp>::TmplangToLLVMConversion;
+
+  mlir::LogicalResult
+  matchAndRewrite(UnionAccessOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+                    rewriter.cancelRootUpdate(op);
+
+    auto rawDataOfUnion = rewriter.create<mlir::LLVM::ExtractValueOp>(
+        op->getLoc(), adaptor.getOperands()[0], 0);
+
+
+    auto alternativeTargetTy =
+        typeConverter.convertType(adaptor.getAlternativeType());
+    auto rawDataPtr = typeConverter.convertType(rawDataOfUnion.getType());
+
+    auto ptrTyToLLVMData =
+        mlir::LLVM::LLVMPointerType::get(getContext(), rawDataPtr,
+                                         /*addressSpace=*/0);
+
+    llvm::SmallVector<mlir::LLVM::GEPArg> gepiIdx = {0, 0};
+    auto gepi = rewriter.create<mlir::LLVM::GEPOp>(
+        op->getLoc(), ptrTyToLLVMData, rawDataOfUnion, gepiIdx);
+
+    // rewriter.replaceOpWithNewOp<mlir::LLVM::BitcastOp>(op, targetTy, gepi);
+
+    return mlir::success();
+  }
+};
+
 } // namespace
 
 ////===----------------------------------------------------------------------===//
@@ -156,7 +201,8 @@ struct ConvertTmplangToLLVMPass
 
   void runOnOperation() override {
     mlir::LLVMTypeConverter typeConverter(&getContext());
-    populateTmplangToLLVMConversionPatterns(getContext(), typeConverter);
+    populateTmplangToLLVMConversionPatterns(getContext(), typeConverter,
+                                            DefaultDataLayout);
 
     mlir::LLVMConversionTarget target(getContext());
     target
@@ -168,7 +214,8 @@ struct ConvertTmplangToLLVMPass
     mlir::RewritePatternSet patterns(&getContext());
     mlir::populateFuncToLLVMConversionPatterns(typeConverter, patterns);
     patterns
-        .add<AggregateDataAccessOpLowering, TupleOpLowering, MatchOpLowering>(
+        .add<AggregateDataAccessOpLowering, TupleOpLowering, MatchOpLowering,
+             UnionAccessOpLowering, UnionAlternativeCheckOpLowering>(
             typeConverter);
 
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target,
@@ -176,6 +223,9 @@ struct ConvertTmplangToLLVMPass
       mlir::Pass::signalPassFailure();
     }
   }
+
+  /// Default data layout for now
+  mlir::DataLayout DefaultDataLayout;
 };
 
 } // namespace
@@ -185,7 +235,8 @@ struct ConvertTmplangToLLVMPass
 //===----------------------------------------------------------------------===//
 
 void tmplang::populateTmplangToLLVMConversionPatterns(
-    mlir::MLIRContext &context, mlir::LLVMTypeConverter &typeConverter) {
+    mlir::MLIRContext &context, mlir::LLVMTypeConverter &typeConverter,
+    mlir::DataLayout &dataLayout) {
   typeConverter.addConversion([&](mlir::TupleType tupleTy) {
     SmallVector<mlir::Type, 4> tys;
     for (auto ty : tupleTy) {
@@ -198,8 +249,37 @@ void tmplang::populateTmplangToLLVMConversionPatterns(
     for (auto ty : dataType.getTys()) {
       tys.push_back(typeConverter.convertType(ty));
     }
+    return mlir::LLVM::LLVMPointerType::get(&context, mlir::LLVM::LLVMStructType::getNewIdentified(
+        &context, dataType.getName(), tys), /*addressSpace=*/ 0 );
+  });
+
+  /// For the lowering of an union type we will just create an struct with
+  /// quantity of bytes required for the biggest alternative and the idx for
+  /// keeping track of the active alternative
+  typeConverter.addConversion([&](tmplang::UnionType unionTy) {
+    // Transform all alternative types to llvm types
+    SmallVector<mlir::LLVM::LLVMStructType, 4> alternativeTys;
+    transform(unionTy.getTys(), std::back_inserter(alternativeTys),
+              [&](mlir::Type ty) {
+                return typeConverter.convertType(ty)
+                    .cast<mlir::LLVM::LLVMStructType>();
+              });
+
+    // Calculate max size of the biggest alternative
+    unsigned maxSizeStruct = 0;
+    for (auto ty : alternativeTys) {
+      maxSizeStruct = std::max(maxSizeStruct, dataLayout.getTypeSize(ty));
+    }
+
+    // Array of biggest alternative in bytes and idx for active alternative
+    SmallVector<mlir::Type, 2> memAndAlternativesIdx = {
+        mlir::LLVM::LLVMArrayType::get(
+            mlir::IntegerType::get(&context, /*width=*/8), maxSizeStruct),
+        mlir::IntegerType::get(&context, /*width=*/64)};
+
+    // Create named llvm struct with array and idx
     return mlir::LLVM::LLVMStructType::getNewIdentified(
-        &context, dataType.getName(), tys);
+        &context, unionTy.getName(), memAndAlternativesIdx);
   });
 }
 

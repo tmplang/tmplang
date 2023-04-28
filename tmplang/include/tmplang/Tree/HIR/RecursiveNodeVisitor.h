@@ -163,6 +163,10 @@ protected:
               TRY_TO(traverseNode(arg));
               return true;
             },
+            [&](const UnionDestructuration &arg) {
+              TRY_TO(traverseNode(arg));
+              return true;
+            },
             [](const auto &arg) -> std::unique_ptr<ExprMatchCaseLhsVal> {
               llvm_unreachable("All cases covered");
             }},
@@ -203,6 +207,34 @@ protected:
     TRY_TO(visitNode(aggregateDesElem));
     TRY_TO(walkupNode(aggregateDesElem));
     return TraverseExprMatchCaseLhsVal(aggregateDesElem.getValue());
+  }
+
+  bool traverseUnionAlternativeFieldDecl(
+      const UnionAlternativeFieldDecl &alternativeFieldDecl) {
+    TRY_TO(visitNode(alternativeFieldDecl));
+    return true;
+  }
+
+  bool traverseUnionAlternativeDecl(const UnionAlternativeDecl &alternative) {
+    TRY_TO(visitNode(alternative));
+    for (const auto &field : alternative.getFields()) {
+      TRY_TO(traverseNode(field));
+    }
+    return true;
+  }
+
+  bool traverseUnionDecl(const UnionDecl &enumDecl) {
+    TRY_TO(visitNode(enumDecl));
+    for (const auto &alternative : enumDecl.getAlternatives()) {
+      TRY_TO(traverseNode(alternative));
+    }
+    return true;
+  }
+
+  bool traverseUnionDestructuration(const UnionDestructuration &unionDes) {
+    TRY_TO(visitNode(unionDes));
+    TRY_TO(traverseNode(unionDes.getDestructuredData()));
+    return true;
   }
 
   //=--------------------------------------------------------------------------=//

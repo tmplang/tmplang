@@ -147,13 +147,14 @@ private:
 };
 
 class AggregateDestructuration;
+class UnionDestructuration;
 
 struct VoidPlaceholder {};
 struct Otherwise {};
 
 using ExprMatchCaseLhsVal =
     std::variant<std::unique_ptr<Expr>, PlaceholderDecl, VoidPlaceholder,
-                 AggregateDestructuration>;
+                 AggregateDestructuration, UnionDestructuration>;
 
 class AggregateDestructurationElem : public Node {
 public:
@@ -214,6 +215,31 @@ private:
 private:
   const Type &DestructuringTy;
   std::vector<AggregateDestructurationElem> DestructuratedElems;
+};
+
+class UnionDestructuration : public Node {
+public:
+  UnionDestructuration(const source::Node &srcNode, const Type &typeDes,
+                       unsigned alternativeIdx,
+                       AggregateDestructuration destructurated)
+      : Node(Kind::UnionDestructuration, srcNode), DestructuringTy(typeDes),
+        AlternativeIdx(alternativeIdx),
+        Destructurated(std::move(destructurated)) {}
+
+  unsigned getAlternativeIdx() const { return AlternativeIdx; }
+  const Type &getDestructuringType() const { return DestructuringTy; }
+  const AggregateDestructuration &getDestructuredData() const {
+    return Destructurated;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::UnionDestructuration;
+  }
+
+private:
+  const Type &DestructuringTy;
+  unsigned AlternativeIdx;
+  AggregateDestructuration Destructurated;
 };
 
 class ExprMatchCase final : public Expr {

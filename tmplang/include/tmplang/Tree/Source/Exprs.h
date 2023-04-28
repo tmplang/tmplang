@@ -234,10 +234,12 @@ template <class... Ts> visitors(Ts...) -> visitors<Ts...>;
 
 class TupleDestructuration;
 class DataDestructuration;
+class UnionDestructuration;
 
 using ExprMatchCaseLhsVal =
     std::variant<std::unique_ptr<Expr>, PlaceholderDecl, VoidPlaceholder,
-                 TupleDestructuration, DataDestructuration>;
+                 TupleDestructuration, DataDestructuration,
+                 UnionDestructuration>;
 
 class AggregateDestructurationElem : public Node {
 public:
@@ -353,6 +355,34 @@ public:
   SpecificToken<TK_LKeyBracket> LhsBracket;
   std::vector<DataDestructurationElem> DataElems;
   SpecificToken<TK_RKeyBracket> RhsBracket;
+};
+
+class UnionDestructuration : public Node {
+public:
+  UnionDestructuration(SpecificToken<TK_Identifier> alternative,
+                       DataDestructuration dataDes)
+      : Node(Kind::UnionDestructuration), Alternative(std::move(alternative)),
+        DataDes(std::move(dataDes)) {}
+
+  StringRef getAlternativeStr() const { return Alternative.getLexeme(); }
+  const auto &getAlternative() const { return Alternative; }
+  const DataDestructuration &getDataDestructuration() const { return DataDes; }
+
+  tmplang::SourceLocation getBeginLoc() const override {
+    return Alternative.getSpan().Start;
+  }
+
+  tmplang::SourceLocation getEndLoc() const override {
+    return DataDes.getEndLoc();
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::UnionDestructuration;
+  }
+
+private:
+  SpecificToken<TK_Identifier> Alternative;
+  DataDestructuration DataDes;
 };
 
 class ExprMatchCase final : public Node, public TrailingOptComma {

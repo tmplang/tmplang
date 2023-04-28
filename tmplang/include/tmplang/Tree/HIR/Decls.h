@@ -92,6 +92,52 @@ public:
   }
 };
 
+class UnionAlternativeFieldDecl final : public Decl {
+public:
+  UnionAlternativeFieldDecl(const source::Node &srcNode, const Symbol &sym)
+      : Decl(Kind::UnionAlternativeFieldDecl, srcNode, sym) {}
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::UnionAlternativeFieldDecl;
+  }
+};
+
+class UnionAlternativeDecl final : public Decl {
+public:
+  UnionAlternativeDecl(const source::Node &srcNode, const Symbol &sym,
+                       std::vector<UnionAlternativeFieldDecl> fields)
+      : Decl(Kind::UnionAlternativeDecl, srcNode, sym),
+        Fields(std::move(fields)) {}
+
+  ArrayRef<UnionAlternativeFieldDecl> getFields() const { return Fields; }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::UnionAlternativeDecl;
+  }
+
+private:
+  std::vector<UnionAlternativeFieldDecl> Fields;
+};
+
+class UnionDecl final : public Decl {
+public:
+  UnionDecl(const source::Node &srcNode, const Symbol &sym,
+            std::vector<UnionAlternativeDecl> alternatives)
+      : Decl(Kind::UnionDecl, srcNode, sym),
+        Alternatives(std::move(alternatives)) {}
+
+  ArrayRef<UnionAlternativeDecl> getAlternatives() const {
+    return Alternatives;
+  }
+
+  static bool classof(const Node *node) {
+    return node->getKind() == Kind::UnionDecl;
+  }
+
+private:
+  std::vector<UnionAlternativeDecl> Alternatives;
+};
+
 } // namespace tmplang::hir
 
 #endif // TMPLANG_TREE_HIR_DECLS_H

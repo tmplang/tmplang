@@ -7,6 +7,7 @@
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -64,6 +65,12 @@ private:
     auto subprogramOp = B.create<SubprogramOp>(
         getLocation(subprog), subprog.getName(), functionTy,
         mlir::SymbolTable::Visibility::Private);
+
+    for (auto &idxAndFuncTy : llvm::enumerate(functionTy.getInputs())) {
+      auto &[idx, funcTy] = idxAndFuncTy;
+      subprogramOp.setArgAttr(idx, mlir::LLVM::LLVMDialect::getByValAttrName(),
+                              mlir::TypeAttr::get(funcTy));
+    }
 
     // For each param, store for their hir::Symbol, its corresponding
     // mlir::Value
@@ -153,6 +160,35 @@ private:
     return {};
   }
 
+  /// UnionDestructuration lowers in the following manner:
+  ///   Check that the alternative acceses is the active one. If false, jump to
+  ///   end. Otherwise access the union with the corresponding ty
+  mlir::Value get(const hir::UnionDestructuration &unionDes,
+                  mlir::Value baseVal, mlir::Block &nextCase) {
+    auto unionAlternativeCheck = B.create<UnionAlternativeCheckOp>(
+        getLocation(unionDes), B.getI1Type(), baseVal,
+        B.getIndexAttr(unionDes.getAlternativeIdx()));
+
+    mlir::Block *falseBranch = nullptr;
+    {
+      mlir::OpBuilder::InsertionGuard insertionGuard(B);
+      falseBranch = B.createBlock(&nextCase);
+    }
+    B.create<mlir::cf::CondBranchOp>(getLocation(unionDes),
+                                     unionAlternativeCheck, &nextCase,
+                                     falseBranch, mlir::ValueRange());
+    B.setInsertionPointToStart(falseBranch);
+
+    auto dataTy = get(unionDes.getDestructuringType());
+    auto unionAccess = B.create<UnionAccessOp>(
+        getLocation(unionDes), dataTy, baseVal, mlir::TypeAttr::get(dataTy));
+
+    return get(unionDes.getDestructuredData(), unionAccess, nextCase);
+  }
+
+  /// Lower all the destructurations (value-matching or placeholders). We
+  /// pass the mlir::Block corresponding to the next case so we can jump to the
+  /// next case if the comparison fails
   mlir::Value get(const hir::ExprMatchCaseLhsVal &expr, mlir::Value baseVal,
                   mlir::Block &nextCase) {
     auto visitors = source::visitors{
@@ -174,19 +210,32 @@ private:
         [&](const hir::AggregateDestructuration &aggreDes) {
           return get(aggreDes, baseVal, nextCase);
         },
+        [&](const hir::UnionDestructuration &unionDes) {
+          return get(unionDes, baseVal, nextCase);
+        },
         [](const auto &) { return mlir::Value(); },
     };
     return std::visit(visitors, expr);
   }
 
+  /// The lowering of the ExprMatch works in the following manner:
+  ///   1. Create the MatchOp with an unique input which is the value we are
+  ///      matching.
+  ///   2. For each case of the ExprMatch:
+  ///      2.1. Create one mlir::Block
+  ///      2.2. Lower all the destructurations (value-matching or placeholders).
+  ///           We pass the mlir::Block corresponding to the next case so we
+  ///           can jump to the next case if the comparison fails
+  ///      2.3. Create a MatchYieldOp for the rhs
   mlir::Value get(const hir::ExprMatch &expr) {
     mlir::OpBuilder::InsertionGuard insertionGuard(B);
 
     auto baseVal = get(expr.getMatchedExpr());
+    // [1]
     auto matchOp =
         B.create<MatchOp>(getLocation(expr), get(expr.getType()), baseVal);
 
-    // Reserve all blocks
+    // [2.1]
     std::vector<mlir::Block *> allBlocks;
     allBlocks.reserve(expr.getExprMatchCases().size());
     for (unsigned i = 0; i < expr.getExprMatchCases().size(); i++) {
@@ -198,15 +247,13 @@ private:
       auto &[idx, hirCase] = idxAndhirCase;
       B.setInsertionPointToStart(allBlocks[idx]);
 
-      // Add all comprobations and branching
-      if (auto *lhs =
-              std::get_if<hir::ExprMatchCaseLhsVal>(&hirCase->getLhs())) {
-        if (mlir::Value val = get(*lhs, baseVal, *allBlocks[idx + 1])) {
-          val.dump();
-        }
+      // [2.2]
+      auto *lhs = std::get_if<hir::ExprMatchCaseLhsVal>(&hirCase->getLhs());
+      if (lhs) {
+        get(*lhs, baseVal, *allBlocks[idx + 1]);
       }
 
-      // If everything matched, return the expression
+      // [2.3]
       B.create<MatchYieldOp>(getLocation(hirCase->getRhs()),
                              mlir::ValueRange{get(hirCase->getRhs())});
     }
@@ -239,6 +286,10 @@ private:
     case hir::Node::Kind::ExprMatchCase:
     case hir::Node::Kind::AggregateDestructuration:
     case hir::Node::Kind::AggregateDestructurationElem:
+    case hir::Node::Kind::UnionDecl:
+    case hir::Node::Kind::UnionAlternativeDecl:
+    case hir::Node::Kind::UnionAlternativeFieldDecl:
+    case hir::Node::Kind::UnionDestructuration:
       llvm_unreachable("None of these are exprs");
       break;
     }
@@ -258,6 +309,9 @@ private:
       return get(*cast<hir::SubprogramType>(&type));
     case hir::Type::K_Data:
       return get(*cast<hir::DataType>(&type));
+    case hir::Type::K_Union:
+      return get(*cast<hir::UnionType>(&type));
+      break;
     }
     llvm_unreachable("All cases covered");
   }
@@ -297,6 +351,14 @@ private:
               [&](const hir::Type *ty) { return get(*ty); });
 
     return tmplang::DataType::get(&Ctx, dataTy.getName(), tys);
+  }
+
+  tmplang::UnionType get(const hir::UnionType &unionTy) {
+    SmallVector<DataType, 4> tys;
+    transform(
+        unionTy.getAlternativeTypes(), std::back_inserter(tys),
+        [&](const hir::Type *ty) { return llvm::cast<DataType>(get(*ty)); });
+    return UnionType::get(&Ctx, unionTy.getName(), tys);
   }
 
   mlir::FileLineColLoc getLocation(const hir::Node &node) {

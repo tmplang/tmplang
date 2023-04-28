@@ -31,6 +31,23 @@ private:
   std::optional<SpecificToken<TK_Comma>> Comma;
 };
 
+/// Wrapper arround std::vector to guarantee a desired mininum size using
+/// runtime asserts
+template <typename T, unsigned MinSize> struct MinElementList {
+  using InternalList_t = std::vector<T>;
+
+  MinElementList() { assert(MinSize == 0 && "Minimun size is 0"); }
+
+  MinElementList(InternalList_t items) : Items(std::move(items)) {
+    assert(Items.size() >= MinSize && "Minimun size is MinSize");
+  }
+
+  InternalList_t Items;
+};
+
+template <typename T> using VariadicList = MinElementList<T, 0>;
+template <typename T> using OneElementOrMoreList = MinElementList<T, 1>;
+
 } // namespace tmplang::source
 
 #endif // TMPLANG_TREE_SOURCE_COMMONCONSTRUCTS_H

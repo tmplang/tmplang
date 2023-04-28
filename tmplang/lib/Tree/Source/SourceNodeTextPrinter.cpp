@@ -208,6 +208,47 @@ public:
     return true;
   }
 
+  bool visitUnionDecl(const UnionDecl &unionDecl) {
+    printToken(unionDecl.getUnionKeyword());
+    OS << ' ';
+    printToken(unionDecl.getIdentifier());
+    OS << ' ';
+    printToken(unionDecl.getStartingEq());
+    OS << ' ';
+    printToken(unionDecl.getEndingSemicolon());
+
+    return true;
+  }
+
+  bool visitUnionAlternativeDecl(const UnionAlternativeDecl &alternativeDecl) {
+    printToken(alternativeDecl.getIdentifier());
+    OS << ' ';
+    printToken(alternativeDecl.getLhsParen());
+    OS << ' ';
+    printToken(alternativeDecl.getRhsParen());
+    OS << ' ';
+
+    return true;
+  }
+
+  bool visitUnionAlternativeFieldDecl(const UnionAlternativeFieldDecl &field) {
+    printToken(field.getIdentifier());
+    OS << ' ';
+    printToken(field.getColon());
+    OS << ' ';
+    traverseType(field.getType());
+    if (auto comma = field.getComma()) {
+      OS << ' ';
+      printToken(*comma);
+    }
+    return true;
+  }
+
+  bool visitUnionDestructuration(const UnionDestructuration &unionDes) {
+    printToken(unionDes.getAlternative());
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End node printing functions
   //=--------------------------------------------------------------------------=//

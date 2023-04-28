@@ -177,6 +177,46 @@ def AggregateDataAccessOp : Tmplang_Op<"aggregateDataAccess", [NoMemoryEffect]> 
 }
 
 //===----------------------------------------------------------------------===//
+// UnionAlternativeCheck
+//===----------------------------------------------------------------------===//
+def UnionAlternativeCheckOp : Tmplang_Op<"unionAlternativeCheck", [NoMemoryEffect]> {
+  let summary = "Checks the union holds an active alternative";
+
+  let description = [{
+    This operation allows to check if an union holds a specific alternative.
+
+    ```mlir
+       tmplang.unionAlternativeCheck(%0), 0 : !tmplang<Union "MyUnion"{ "one"{i32},  "two"{i32}}> -> i1 
+    ```
+  }];
+
+  let arguments = (ins UnionType:$input, IndexAttr:$alternativeIdx);
+  let results = (outs I1:$result);
+
+  let hasCustomAssemblyFormat = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// UnionAccess
+//===----------------------------------------------------------------------===//
+def UnionAccessOp : Tmplang_Op<"unionAccess", [NoMemoryEffect]> {
+  let summary = "Union data access operation";
+
+  let description = [{
+    The "unionAccess" operation represents an access to an alternative of a union.
+
+    ```mlir
+       tmplang.unionAccess(%0), 0 : !tmplang<Union "MyUnion"{ "one"{i32},  "two"{i32}}> -> !tmplang<data "one"{i32}>
+    ```
+  }];
+
+  let arguments = (ins UnionType:$input, TypeAttrOf<DataType>:$alternativeType);
+  let results = (outs DataType:$result);
+
+  let hasCustomAssemblyFormat = 0;
+}
+
+//===----------------------------------------------------------------------===//
 // MatchExpr
 //===----------------------------------------------------------------------===//
 def MatchOp : Tmplang_Op<"match", [NoMemoryEffect]> {

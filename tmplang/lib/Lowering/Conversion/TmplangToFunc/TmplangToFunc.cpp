@@ -24,8 +24,9 @@ struct SubprogramOpLowering : public mlir::OpRewritePattern<SubprogramOp> {
   matchAndRewrite(SubprogramOp op,
                   mlir::PatternRewriter &rewriter) const override {
     // Create a new non-tmplang function, with the same region.
-    auto func = rewriter.create<mlir::func::FuncOp>(op.getLoc(), op.getName(),
-                                                    op.getFunctionType());
+    auto func = rewriter.create<mlir::func::FuncOp>(
+        op.getLoc(), op.getName(), op.getFunctionType(), 
+        op->getAttrs());
     rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
     rewriter.eraseOp(op);
     return mlir::success();

@@ -229,6 +229,38 @@ protected:
     return true;
   }
 
+  bool traverseUnionDecl(const UnionDecl &unionDecl) {
+    TRY_TO(visitNode(unionDecl));
+
+    for (const auto &alternative : unionDecl.getAlternatives()) {
+      TRY_TO(traverseNode(alternative));
+    }
+
+    return true;
+  }
+
+  bool traverseUnionAlternativeDecl(const UnionAlternativeDecl &alternative) {
+    TRY_TO(visitNode(alternative));
+
+    for (const auto &field : alternative.getFields()) {
+      TRY_TO(traverseNode(field));
+    }
+
+    return true;
+  }
+
+  bool traverseUnionAlternativeFieldDecl(
+      const UnionAlternativeFieldDecl &alternativeField) {
+    TRY_TO(visitNode(alternativeField));
+    return true;
+  }
+
+  bool traverseUnionDestructuration(const UnionDestructuration &unionDes) {
+    TRY_TO(visitNode(unionDes));
+    TRY_TO(traverseNode(unionDes.getDataDestructuration()));
+    return true;
+  }
+
   //=--------------------------------------------------------------------------=//
   // End recursive traversal functions
   //=--------------------------------------------------------------------------=//

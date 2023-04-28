@@ -7,6 +7,10 @@
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Allocator.h>
 
+namespace llvm {
+  class raw_ostream;
+} // namespace llvm
+
 namespace tmplang::hir {
 
 /// Foward declarations
@@ -66,6 +70,9 @@ public:
   const SymbolicScope *getCreatedSymScope() const { return CreatedSymScope; }
 
   bool operator==(const Symbol &) const;
+
+  void print(llvm::raw_ostream &) const;
+  void dump() const;
 
 private:
   /// Only the SymbolManager can build Symbols

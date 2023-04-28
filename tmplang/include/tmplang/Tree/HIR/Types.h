@@ -94,6 +94,26 @@ private:
   SmallString<16> Name;
 };
 
+class UnionType final : public Type {
+public:
+  ArrayRef<const Type *> getAlternativeTypes() const { return AlternativeTys; }
+  llvm::StringRef getName() const { return Name; }
+
+  static const UnionType &get(HIRContext &, llvm::StringRef name,
+                              ArrayRef<const Type *> alternativeTys);
+
+  static bool classof(const Type *T) { return T->getKind() == K_Union; }
+
+private:
+  friend class HIRContext;
+  explicit UnionType(llvm::StringRef name,
+                     ArrayRef<const Type *> alternativeTys)
+      : Type(K_Union), AlternativeTys(alternativeTys), Name(name) {}
+
+  SmallVector<const Type *> AlternativeTys;
+  SmallString<16> Name;
+};
+
 } // namespace tmplang::hir
 
 #endif // TMPLANG_TREE_HIR_TYPES_H
